@@ -8,7 +8,7 @@ import { useAppState, actions } from '../lib/store';
 import { ago, domainOf, picOf, shortDate, statusOf, statusStyle, tasksOf } from '../lib/model';
 import { Avatar, CheckBox, StatusPill, SyncDot, checkedBy, syncLabel } from '../components/Common';
 import { NotesMenu, NotesSheet, type NotesKind } from '../components/Notes';
-import { SignIn } from '../components/SignIn';
+import { SignIn, LoadingState } from '../components/SignIn';
 import { Calendar, Check, ChevronDown, ChevronUp, Note, Power, Refresh, Window, X } from '../components/Icons';
 
 /**
@@ -31,7 +31,7 @@ export function Widget() {
         <div className="wdet">
           <div className="w-top drag"><div className="switch"><span className="dotp" />Desklist</div>
             <button className="menu nodrag" title="Close widget" onClick={() => actions.closeWidget()}><X /></button></div>
-          {st.phase === 'loading' ? <div className="w-empty">Loading…</div> : <SignIn st={st} theme="dark" />}
+          {st.phase === 'loading' ? <LoadingState st={st} /> : <SignIn st={st} theme="dark" />}
         </div>
       </div>
     );

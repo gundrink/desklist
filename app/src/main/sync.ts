@@ -139,12 +139,16 @@ export class SyncEngine extends EventEmitter {
     try {
       r = await fetch(this.serverUrl + path, {
         method, headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
-        body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(15_000),
+        body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(10_000),
       });
     } catch (e) {
-      throw new NetworkError(`Cannot reach the Desklist server at ${this.serverUrl}`);
+      const timedOut = (e as Error)?.name === 'TimeoutError' || (e as Error)?.name === 'AbortError';
+      throw new NetworkError(timedOut ? `The Desklist server at ${this.serverUrl} did not respond within 10 seconds. Check your internet connection or the server URL, then try again.`
+        : `Cannot reach the Desklist server at ${this.serverUrl}. Check your internet connection or the server URL.`);
     }
     const json: any = await r.json().catch(() => ({}));
+    if (!r.ok && json.error == null && (r.status === 404 || r.status >= 500))
+      throw new ApiError(r.status, `The Desklist server at ${this.serverUrl} is not available right now (HTTP ${r.status}). Try again in a minute or check the server URL.`);
     if (r.status === 401 && token && path !== '/api/auth/signin') { this.signOutLocal('Session expired — please sign in again'); }
     if (!r.ok) throw new ApiError(r.status, json.error ?? `HTTP ${r.status}`);
     return json as T;
@@ -164,8 +168,16 @@ export class SyncEngine extends EventEmitter {
     if (this.base && this.base.me.id !== res.member.id) { this.base = null; this.outbox = []; this.persist(); }
     this.token = res.token; saveToken(res.token);
     this.lastError = null;
+    try {
+      // load the first snapshot before reporting success, so the UI never sits on "Loading…"
+      this.base = await this.http<Snapshot>('GET', '/api/snapshot');
+      this.lastSyncedAt = new Date().toISOString(); writeJson('cache.json', this.base);
+    } catch (e) {
+      this.signOutLocal(null);
+      throw e;
+    }
     this.connect();
-    await this.refresh();
+    await this.refresh().catch(() => {});
   }
   async signOut() {
     if (this.token) await this.http('POST', '/api/auth/signout').catch(() => {});

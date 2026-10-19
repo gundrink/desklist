@@ -5,7 +5,7 @@ import { useAppState, actions } from '../lib/store';
 import { ago } from '../lib/model';
 import { Avatar, SyncDot, syncLabel } from '../components/Common';
 import { ProjectGlassCard } from '../components/ProjectGlassCard';
-import { SignIn } from '../components/SignIn';
+import { SignIn, LoadingState } from '../components/SignIn';
 import { Plus, Sliders, Users, Power } from '../components/Icons';
 import { ProjectDetail } from './ProjectDetail';
 import { CreateProject } from './CreateProject';
@@ -35,7 +35,7 @@ export function Manage() {
     </div>
   );
   if (!st || st.phase !== 'ready' || !st.snapshot) {
-    return <div className="win">{titlebar}<div className="center-fill">{st && st.phase === 'signedOut' ? <SignIn st={st} theme="light" /> : 'Loading…'}</div></div>;
+    return <div className="win">{titlebar}<div className="center-fill">{st && st.phase === 'signedOut' ? <SignIn st={st} theme="light" /> : st ? <LoadingState st={st} /> : 'Loading…'}</div></div>;
   }
   const s = st.snapshot;
   const selectedId = nav.view === 'project' ? (nav.projectId && s.projects.some((p) => p.id === nav.projectId) ? nav.projectId : st.settings.currentProjectId ?? s.projects[0]?.id) : undefined;

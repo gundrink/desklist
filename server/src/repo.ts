@@ -25,7 +25,7 @@ export const mapTask = (r: any): Task => ({
   id: r.id, projectId: r.project_id, title: r.title, done: r.done, doneAt: iso(r.done_at), dueDate: dateOnly(r.due_date),
   bicMemberId: r.bic_member_id, createdByMemberId: r.created_by_member_id, approvedByMemberId: r.approved_by_member_id,
   approvedAt: iso(r.approved_at), notes: r.notes ?? '',
-  hasExpense: !!r.has_expense, expenseAmount: r.expense_amount == null ? null : Number(r.expense_amount), expenseCurrency: r.expense_currency ?? null, doneNote: r.done_note ?? '', sortOrder: r.sort_order, createdAt: iso(r.created_at)!, updatedAt: iso(r.updated_at)!,
+  hasExpense: !!r.has_expense, expenseAmount: r.expense_amount == null ? null : Number(r.expense_amount), expenseCurrency: r.expense_currency ?? null, doneNote: r.done_note ?? '', taskType: r.task_type ?? 'standard', sortOrder: r.sort_order, createdAt: iso(r.created_at)!, updatedAt: iso(r.updated_at)!,
 });
 export const mapColumn = (r: any): CustomColumn => ({
   id: r.id, projectId: r.project_id, label: r.label, dataType: r.data_type, value: r.value, sortOrder: r.sort_order,

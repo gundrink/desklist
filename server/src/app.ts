@@ -6,6 +6,7 @@ import { z } from 'zod';
 import {
   CURRENCIES, CURRENCY_CODES, MAX_FILE_BYTES, REIMB_CATEGORIES, TASK_FIELD_TYPES, type TaskDetailsResponse, CUSTOM_COLUMN_TYPES, DEFAULT_CURRENCY, FIELD_DATA_TYPES, REIMBURSE_STATUSES, convert, slugKey,
   type Member, type Report, type ServerEvent,
+  TASK_TYPES, SOCIAL_FIELDS, SOCIAL_PLATFORMS,
 } from '@desklist/shared';
 import { PriceService } from './prices.js';
 import type { Db, Queryable } from './db.js';
@@ -522,6 +523,7 @@ export function createServer(opts: AppOptions) {
       id: uuid.optional(), title: z.string().trim().min(1).max(300), dueDate: isoDate.nullable().optional(),
       bicMemberId: uuid.nullable().optional(), notes: z.string().max(5000).optional(), updatedAt: z.string().optional(),
       hasExpense: z.boolean().optional(), expenseAmount: amount.nullable().optional(), expenseCurrency: currency.nullable().optional(),
+      taskType: z.enum(TASK_TYPES).default('standard'), platform: z.string().max(40).optional(),
     }).parse(req.body);
     const p = await projectOf(db, req, req.params.id as string);
     await assertMember(db, req, b.bicMemberId);
@@ -529,10 +531,15 @@ export function createServer(opts: AppOptions) {
     const has = !!b.hasExpense && b.expenseAmount != null;
     const cur = has ? b.expenseCurrency ?? await teamCurrency(db, req) : null;
     const { rows } = await db.query(
-      `INSERT INTO ${S}.tasks(id, project_id, title, due_date, bic_member_id, created_by_member_id, notes, has_expense, expense_amount, expense_currency, sort_order, created_at, updated_at)
-       VALUES (COALESCE($1, gen_random_uuid()), $2, $3, $4, $5, $6, $8, $9, $10, $11, (SELECT COALESCE(MAX(sort_order),0)+1 FROM ${S}.tasks WHERE project_id=$2), $7, $7)
+      `INSERT INTO ${S}.tasks(id, project_id, title, due_date, bic_member_id, created_by_member_id, notes, has_expense, expense_amount, expense_currency, task_type, sort_order, created_at, updated_at)
+       VALUES (COALESCE($1, gen_random_uuid()), $2, $3, $4, $5, $6, $8, $9, $10, $11, $12, (SELECT COALESCE(MAX(sort_order),0)+1 FROM ${S}.tasks WHERE project_id=$2), $7, $7)
        ON CONFLICT (id) DO NOTHING RETURNING *`,
-      [b.id ?? null, p.id, b.title, b.dueDate ?? null, b.bicMemberId ?? null, req.member!.id, ts, b.notes ?? '', has, has ? b.expenseAmount : null, cur]);
+      [b.id ?? null, p.id, b.title, b.dueDate ?? null, b.bicMemberId ?? null, req.member!.id, ts, b.notes ?? '', has, has ? b.expenseAmount : null, cur, b.taskType]);
+    if (rows[0] && b.taskType === 'social') {
+      for (const [i, f] of SOCIAL_FIELDS.entries())
+        await db.query(`INSERT INTO ${S}.task_fields(task_id, section, label, type, options, value, sort_order) VALUES ($1,'fields',$2,$3,$4,$5,$6)`,
+          [rows[0].id, f.label, f.type, JSON.stringify(f.options ?? {}), f.label === 'Platform' && b.platform && SOCIAL_PLATFORMS.includes(b.platform) ? b.platform : null, i + 1]);
+    }
     if (rows[0]?.has_expense) {
       await syncTaskExpense(db, rows[0], req.member!.id);
       if (!p.has_expenses) await db.query(`UPDATE ${S}.projects SET has_expenses=true WHERE id=$1`, [p.id]);

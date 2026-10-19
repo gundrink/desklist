@@ -106,3 +106,22 @@ describe('v6 task reimbursement + task details', () => {
     expect((await api('GET', '/api/reimbursements', tok)).body.some((x: any) => x.taskId === taskId)).toBe(false);
   });
 });
+
+describe('v6.1 social media account task type', () => {
+  it('creates a social task with pre-filled typed fields; fields stay editable/removable; type in snapshot', async () => {
+    const r = await api('POST', `/api/projects/${projectId}/tasks`, tok, { title: 'Instagram account', taskType: 'social', platform: 'Instagram' });
+    expect(r.status).toBe(201); expect(r.body.taskType).toBe('social');
+    expect((await api('POST', `/api/projects/${projectId}/tasks`, tok, { title: 'x', taskType: 'weird' })).status).toBe(400);
+    const s: Snapshot = (await api('GET', '/api/snapshot', tok)).body;
+    const fs = s.taskFields.filter((f) => f.taskId === r.body.id).sort((a, b) => a.sortOrder - b.sortOrder);
+    expect(fs.map((f) => f.label)).toEqual(['Platform', 'Username / handle', 'Email', 'Password', 'Phone', 'Profile URL', '2FA / backup notes']);
+    expect(fs.map((f) => f.type)).toEqual(['dropdown', 'text', 'email', 'password', 'text', 'url', 'text']);
+    expect(fs[0].value).toBe('Instagram');
+    expect(s.tasks.find((t) => t.id === r.body.id)!.taskType).toBe('social');
+    expect(s.tasks.find((t) => t.id === taskId)!.taskType).toBe('standard');
+    expect((await api('PATCH', `/api/task-fields/${fs[0].id}`, tok, { value: 'TikTok' })).body.value).toBe('TikTok');
+    expect((await api('PATCH', `/api/task-fields/${fs[3].id}`, tok, { value: 'pw-123' })).body.isSet).toBe(true);
+    expect((await api('GET', `/api/task-fields/${fs[3].id}/reveal`, tok)).body.value).toBe('pw-123');
+    expect((await api('DELETE', `/api/task-fields/${fs[4].id}`, tok)).status).toBe(200);
+  });
+});

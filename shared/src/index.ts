@@ -121,6 +121,8 @@ export interface Task {
   expenseCurrency: string | null;
   /** v6: note entered when the task was ticked (approved) */
   doneNote: string;
+  /** 'social' = social media account task (pre-filled typed fields) */
+  taskType: TaskType;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -270,6 +272,15 @@ export const TASK_FIELD_TYPE_LABELS: Record<TaskFieldType, string> = {
   text: 'Text', email: 'Email', password: 'Password', url: 'URL', number: 'Number', date: 'Date', file: 'File', dropdown: 'Dropdown', amount: 'Amount / Reimbursement',
 };
 export const REIMB_CATEGORIES = ['Domain', 'Hosting', 'Software', 'Other'];
+export const TASK_TYPES = ['standard', 'social'] as const;
+export type TaskType = (typeof TASK_TYPES)[number];
+export const SOCIAL_PLATFORMS = ['Instagram', 'TikTok', 'X/Twitter', 'Facebook', 'YouTube', 'LinkedIn', 'Telegram', 'Discord', 'Threads', 'Other'];
+/** Fields pre-created for a social media account task (all editable/removable later). */
+export const SOCIAL_FIELDS: { label: string; type: TaskFieldType; options?: { choices?: string[] } }[] = [
+  { label: 'Platform', type: 'dropdown', options: { choices: SOCIAL_PLATFORMS } },
+  { label: 'Username / handle', type: 'text' }, { label: 'Email', type: 'email' }, { label: 'Password', type: 'password' },
+  { label: 'Phone', type: 'text' }, { label: 'Profile URL', type: 'url' }, { label: '2FA / backup notes', type: 'text' },
+];
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 export interface TaskField {
   id: string; taskId: string; section: 'fields' | 'reimbursement'; label: string; type: TaskFieldType;

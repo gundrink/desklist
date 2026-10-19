@@ -36,6 +36,7 @@ export interface Member {
   currency?: string;
   /** 0.6.2: Google account allowed to sign in as this member (set by an admin) */
   googleEmail?: string | null;
+  username?: string | null;
 }
 
 export interface FieldOptions {

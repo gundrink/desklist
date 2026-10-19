@@ -15,6 +15,7 @@ import type { Db, Queryable } from './db.js';
 import { codeBucket, encryptSecret, generateCode, newToken, normalizeCode, sha256 } from './crypto.js';
 import { listTaskFields, listTaskFiles, mapTaskField, mapTaskFile } from './repo.js';
 import { decryptSecret } from './crypto.js';
+import { registerAccountsPublic, registerAccountsAuthed } from './accounts.js';
 import { listFields, listReimbursements, listTemplates, loadProjects, mapColumn, mapField, mapMember, mapReimbursement, mapTask, mapTeam, mapTemplate, revealSecret, snapshot } from './repo.js';
 
 const S = 'desklist';
@@ -56,7 +57,7 @@ function clientTs(v?: string | null): Date {
 const uuid = z.string().uuid();
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
-export interface AppOptions { google?: GoogleConfig; passkeys?: PasskeyConfig; db: Db; signinLimit?: number; log?: (...a: unknown[]) => void; prices?: PriceService }
+export interface AppOptions { accountLimit?: number; google?: GoogleConfig; passkeys?: PasskeyConfig; db: Db; signinLimit?: number; log?: (...a: unknown[]) => void; prices?: PriceService }
 
 const currency = z.enum(CURRENCY_CODES);
 const amount = z.coerce.number().finite().nonnegative().max(1e15);
@@ -217,6 +218,7 @@ export function createServer(opts: AppOptions) {
     let found: any = null;
     for (const r of rows) if (await bcrypt.compare(norm, r.code_hash)) { found = r; break; }
     if (!found) { limiter.fail(ip); throw new HttpError(401, 'Invalid code'); }
+    if ((await db.query(`SELECT 1 FROM ${S}.accounts WHERE member_id=$1`, [found.id])).rows[0]) throw new HttpError(403, 'This code is linked to an account. Sign in with your username and password.');
     limiter.clear(ip);
     res.json(await issueSession(found.id));
   }));
@@ -230,6 +232,7 @@ export function createServer(opts: AppOptions) {
     return { token, member: mapMember(m), team: mapTeam(team.rows[0]), expiresAt: new Date(sess.expires_at).toISOString() };
   }
   registerPasskeyPublic(app, db, opts.passkeys ?? {}, issueSession);
+  registerAccountsPublic(app, db, h as any, issueSession, opts.accountLimit ?? Number(process.env.ACCOUNT_RATE_LIMIT ?? 5));
   registerGoogle(app, db, opts.google ?? {}, issueSession);
 
   /** Public: selectable currencies + live USD prices (CoinGecko, cached ~5 min, last-rate fallback). */
@@ -241,6 +244,7 @@ export function createServer(opts: AppOptions) {
 
   // ---------- authenticated ----------
   app.use('/api', requireAuth);
+  registerAccountsAuthed(app, db, h as any, changed as any);
   registerPasskeyAuthed(app, db);
 
   app.post('/api/auth/signout', h(async (req, res) => {
@@ -291,6 +295,7 @@ export function createServer(opts: AppOptions) {
   app.delete('/api/members/:id', h(async (req, res) => {
     admin(req);
     if (req.params.id === req.member!.id) throw new HttpError(400, 'You cannot delete yourself');
+    await db.query(`DELETE FROM ${S}.accounts a USING ${S}.members m WHERE a.member_id=m.id AND m.id=$1 AND m.team_id=$2`, [req.params.id, req.member!.teamId]);
     const { rows } = await db.query(`DELETE FROM ${S}.members WHERE id=$1 AND team_id=$2 RETURNING id`, [req.params.id, req.member!.teamId]);
     if (!rows[0]) throw new HttpError(404, 'Member not found');
     changed(req, 'member', req.params.id as string);
@@ -469,7 +474,9 @@ export function createServer(opts: AppOptions) {
     res.json((await loadProjects(db, req.member!.teamId, p.id))[0]);
   }));
   app.delete('/api/projects/:id', h(async (req, res) => {
+    admin(req);
     const p = await projectOf(db, req, req.params.id as string);
+    // one statement = one transaction; tasks, field values, files, reimbursements go via ON DELETE CASCADE
     await db.query(`DELETE FROM ${S}.projects WHERE id=$1`, [p.id]);
     changed(req, 'project', p.id);
     res.json({ ok: true });

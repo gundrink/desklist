@@ -11,6 +11,7 @@ export interface Settings {
   launchAtLogin: boolean;
   currentProjectId?: string;
   widgetVisible: boolean;
+  sessionExpiresAt?: string;
 }
 
 const dir = () => app.getPath('userData');

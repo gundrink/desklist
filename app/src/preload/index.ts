@@ -12,6 +12,7 @@ const api: DesklistBridge = {
   onState: (cb) => { const f = (_: unknown, s: AppState) => cb(s); ipcRenderer.on('desklist:state', f); return () => ipcRenderer.off('desklist:state', f); },
   onNavigate: (cb) => { const f = (_: unknown, v: ManageView) => cb(v); ipcRenderer.on('desklist:navigate', f); return () => ipcRenderer.off('desklist:navigate', f); },
   signIn: (code, url) => call('signIn', code, url),
+  account: (k, b, u) => call('account', k, b, u),
   signOut: () => call('signOut'),
   mutate: (op) => call('mutate', op),
   request: (m, p, b) => call('request', m, p, b),

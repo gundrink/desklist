@@ -153,6 +153,7 @@ function registerIpc() {
       catch (e) { return { ok: false, error: (e as Error).message }; }
     });
   handle('getState', () => sync.state());
+  handle('account', (k: 'signup' | 'login' | 'redeem', b: Record<string, string>, u?: string) => sync.account(k, b, u));
   handle('signIn', (code: string, url?: string) => sync.signIn(code, url));
   handle('signOut', () => sync.signOut());
   handle('mutate', (op: Op) => sync.mutate(op));

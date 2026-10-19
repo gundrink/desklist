@@ -24,17 +24,18 @@ export interface AppState {
   lastError: string | null;
   serverUrl: string;
   platform: NodeJS.Platform;
-  settings: { lockPosition: boolean; launchAtLogin: boolean; currentProjectId: string | null };
+  settings: { lockPosition: boolean; launchAtLogin: boolean; currentProjectId: string | null; sessionExpiresAt?: string | null };
 }
 
 export type ProjectTab = 'checklist' | 'details' | 'reimbursement' | 'taskdetails';
-export type ManageView = { view: 'project'; projectId?: string; tab?: ProjectTab } | { view: 'reports' } | { view: 'create' } | { view: 'fields' } | { view: 'team' } | { view: 'tasksetup' };
+export type ManageView = { view: 'project'; projectId?: string; tab?: ProjectTab } | { view: 'reports' } | { view: 'create' } | { view: 'fields' } | { view: 'team' } | { view: 'tasksetup' } | { view: 'settings' };
 
 export interface DesklistBridge {
   getState(): Promise<AppState>;
   onState(cb: (s: AppState) => void): () => void;
   onNavigate(cb: (v: ManageView) => void): () => void;
   signIn(code: string, serverUrl?: string): Promise<void>;
+  account(kind: 'signup' | 'login' | 'redeem', body: Record<string, string>, serverUrl?: string): Promise<{ pending: boolean; accountToken?: string; username?: string }>;
   signOut(): Promise<void>;
   mutate(op: Op): Promise<void>;
   /** Online-only request (admin screens, project create, secret reveal). Throws with the server's message. */

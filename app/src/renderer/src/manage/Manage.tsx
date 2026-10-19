@@ -1,3 +1,5 @@
+import { Settings } from './Settings';
+const Gear = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>;
 import { useEffect, useState } from 'react';
 import '../styles/manage.css';
 import type { ManageView } from '../../../common/ipc';
@@ -73,6 +75,7 @@ function ManageReady({ st, s, nav, setNav, picker, setPicker, titlebar }: { st: 
           <div className="pcfoot">
             <button className={`navbtn ${nav.view === 'fields' ? 'on' : ''}`} onClick={() => setNav({ view: 'fields' })}><Sliders />Master fields</button>
             <button className={`navbtn ${nav.view === 'team' ? 'on' : ''}`} onClick={() => setNav({ view: 'team' })}><Users />Team & codes</button>
+            <button className={`navbtn ${nav.view === 'settings' ? 'on' : ''}`} onClick={() => setNav({ view: 'settings' })} title="Settings" aria-label="Settings"><Gear />Settings</button>
             <span className="me" title={`${s.me.name} (${s.me.role}) · ${s.team.name}`}><Avatar initials={s.me.initials} size="xs" />
               <button className="iconbtn" title="Sign out" onClick={() => actions.signOut()}><Power size={13} /></button></span>
           </div>
@@ -86,6 +89,7 @@ function ManageReady({ st, s, nav, setNav, picker, setPicker, titlebar }: { st: 
           {nav.view === 'tasksetup' && isAdmin && <TaskSetup s={s} />}
           {nav.view === 'fields' && <MasterFields s={s} isAdmin={isAdmin} />}
           {nav.view === 'team' && <Team s={s} isAdmin={isAdmin} />}
+          {nav.view === 'settings' && st && <Settings s={s} st={st} />}
           {picker && <TemplatePicker s={s} projectId={picker} onClose={() => setPicker(null)} />}
           <div className="footer"><span className="note" title={st.lastError ?? undefined}>
             <SyncDot connection={st.connection} />Changes sync to the desktop widget · {syncLabel(st.connection, st.pending, ago(st.lastSyncedAt))}

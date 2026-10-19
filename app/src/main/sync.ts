@@ -129,7 +129,7 @@ export class SyncEngine extends EventEmitter {
       phase: !this.token ? 'signedOut' : snap ? 'ready' : 'loading',
       connection: this.connection, snapshot: snap, lastSyncedAt: this.lastSyncedAt, pending: this.outbox.length,
       lastError: this.lastError, serverUrl: this.serverUrl, platform: process.platform,
-      settings: { lockPosition: s.lockPosition, launchAtLogin: s.launchAtLogin, currentProjectId: s.currentProjectId ?? null },
+      settings: { lockPosition: s.lockPosition, launchAtLogin: s.launchAtLogin, currentProjectId: s.currentProjectId ?? null, sessionExpiresAt: s.sessionExpiresAt ?? null },
     };
   }
   private emitState() { this.emit('state', this.state()); }
@@ -182,6 +182,13 @@ export class SyncEngine extends EventEmitter {
     await this.adoptSession(res);
   }
   get baseUrl() { return this.serverUrl; }
+  /** 0.6.4 username + password accounts. Returns pending (needs admin code) or signs in. */
+  async account(kind: 'signup' | 'login' | 'redeem', body: Record<string, string>, serverUrl?: string): Promise<{ pending: boolean; accountToken?: string; username?: string }> {
+    if (serverUrl) updateSettings({ serverUrl: serverUrl.replace(/\/+$/, '') });
+    const res = await this.http<any>('POST', `/api/accounts/${kind}`, body, null);
+    if (res.pending) return { pending: true, accountToken: res.accountToken, username: res.username };
+    await this.adoptSession(res); return { pending: false };
+  }
   /** Passkey: exchange the one-time code (+ PKCE verifier) from the loopback redirect for a session. */
   async signInWithPasskeyCode(code: string, verifier: string) {
     const res = await this.http<SignInResponse>('POST', '/api/auth/passkey/exchange', { code, verifier }, null);
@@ -195,7 +202,7 @@ export class SyncEngine extends EventEmitter {
   anon<T>(method: string, path: string, body?: unknown) { return this.http<T>(method, path, body, null); }
   private async adoptSession(res: SignInResponse) {
     if (this.base && this.base.me.id !== res.member.id) { this.base = null; this.outbox = []; this.persist(); }
-    this.token = res.token; saveToken(res.token);
+    this.token = res.token; saveToken(res.token); if ((res as any).expiresAt) updateSettings({ sessionExpiresAt: (res as any).expiresAt });
     this.lastError = null;
     try {
       // load the first snapshot before reporting success, so the UI never sits on "Loading…"

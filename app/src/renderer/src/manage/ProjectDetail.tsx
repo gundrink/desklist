@@ -30,8 +30,12 @@ export function ProjectDetail({ s, projectId, tab, setTab, onDeleted }: {
   const exp = p.hasExpenses || all.some((t) => t.hasExpense);
   const row = (t: Task) => <Row key={t.id} s={s} t={t} exp={exp} panel={panel?.id === t.id ? panel.mode : null}
     setPanel={(m) => setPanel(m ? { id: t.id, mode: m } : null)} />;
+  const [del, setDel] = useState(false);
   return (
     <>
+      {del && <DeleteProjectModal name={p.name} onCancel={() => setDel(false)} onConfirm={async () => {
+        document.querySelector(`.gcard[data-project="${CSS.escape(p.name)}"]`)?.classList.add('mleaving');
+        await actions.request('DELETE', `/api/projects/${p.id}`); setDel(false); onDeleted(); }} />}
       <div className="rhead">
         <div className="row"><h1>{p.name}</h1><StatusPill status={statusOf(s, p)} theme="light" />
           <span className="rmeta">
@@ -48,6 +52,7 @@ export function ProjectDetail({ s, projectId, tab, setTab, onDeleted }: {
           <button className={`st ${tab === 'taskdetails' ? 'on' : ''}`} onClick={() => setTab('taskdetails')}>Task details <span className="cntpill">{done.length}</span></button>
           <span className="ml" />
           <ModeToggle mode={mode} setMode={setMode} />
+          {s.me.role === 'admin' && <ProjectMenu name={p.name} onDelete={() => setDel(true)} />}
           <span className="exptgl"><Toggle on={p.hasExpenses} onChange={(v) => actions.updateProject(p.id, { hasExpenses: v })} label="Has expenses" /></span>
         </div>
       </div>
@@ -157,12 +162,29 @@ function Details({ s, pId, onDeleted }: { s: Snapshot; pId: string; onDeleted: (
         <div className="fhead"><h3>Notes</h3></div>
         <FieldInput s={s} dataType="longtext" value={p.notes} onCommit={(v) => actions.setProjectNotes(p.id, v ?? '')} placeholder="Project notes…" />
       </div>
-      <div className="danger-row">
-        <button className="btn danger sm" onClick={async () => {
-          if (!confirm(`Delete ${p.name} and all its tasks? This cannot be undone.`)) return;
-          try { await actions.request('DELETE', `/api/projects/${p.id}`); onDeleted(); } catch (e) { setMsg((e as Error).message); }
-        }}><Trash /> Delete project</button>
-      </div>
     </div>
   );
+}
+
+function ProjectMenu({ name, onDelete }: { name: string; onDelete: () => void }) {
+  const [open, setOpen] = useState(false);
+  return <span className="pmenu">
+    <button className="iconbtn kebab" aria-label="Project actions" title="More" onClick={() => setOpen(!open)}>⋯</button>
+    {open && <div className="pop pmenu-pop" onMouseLeave={() => setOpen(false)}>
+      <button className="danger-item" onClick={() => { setOpen(false); onDelete(); }}>Delete project…</button></div>}
+    <span hidden>{name}</span></span>;
+}
+
+export function DeleteProjectModal({ name, onCancel, onConfirm }: { name: string; onCancel: () => void; onConfirm: () => Promise<void> }) {
+  const [typed, setTyped] = useState(''); const [busy, setBusy] = useState(false); const [err, setErr] = useState('');
+  return <div className="modal-back" onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
+    <div className="modal delmodal" role="dialog" aria-label="Delete project">
+      <h3>Delete "{name}"?</h3>
+      <p>This removes all its tasks, fields, files and reimbursements. This can't be undone.</p>
+      <label className="small">Type the project name to confirm</label>
+      <input autoFocus value={typed} onChange={(e) => setTyped(e.target.value)} aria-label="Type project name to confirm" placeholder={name} />
+      {err && <div className="tferr">{err}</div>}
+      <div className="mbtns"><button className="btn sec" onClick={onCancel}>Cancel</button>
+        <button className="btn danger solid" disabled={typed !== name || busy} onClick={async () => { setBusy(true); try { await onConfirm(); } catch (e) { setErr((e as Error).message); setBusy(false); } }}>{busy ? 'Deleting…' : 'Delete'}</button></div>
+    </div></div>;
 }

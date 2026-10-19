@@ -22,6 +22,7 @@ const m = (op: Op) => bridge.mutate(op);
 
 export const actions = {
   signIn: (code: string, url?: string) => bridge.signIn(code, url),
+  account: (k: 'signup' | 'login' | 'redeem', b: Record<string, string>, u?: string) => bridge.account(k, b, u),
   signOut: () => bridge.signOut(),
   refresh: () => bridge.refresh(),
   request: <T,>(method: string, path: string, body?: unknown) => bridge.request<T>(method, path, body),

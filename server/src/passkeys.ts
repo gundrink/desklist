@@ -154,6 +154,13 @@ export function registerPasskeyAuthed(app: Express, db: Db) {
     const { rows } = await db.query(`SELECT id, label, created_at, last_used_at FROM ${S}.member_passkeys WHERE member_id=$1 ORDER BY created_at`, [req.member.id]);
     res.json(rows.map((r: any) => ({ id: r.id, label: r.label, createdAt: r.created_at, lastUsedAt: r.last_used_at })));
   }));
+  app.patch('/api/passkeys/:id', h(async (req, res) => {
+    const label = String(req.body?.label ?? '').trim().slice(0, 60);
+    if (!label) return res.status(400).json({ error: 'Name is required' });
+    const { rows } = await db.query(`UPDATE ${S}.member_passkeys SET label=$3 WHERE id=$1 AND member_id=$2 RETURNING id`, [req.params.id, req.member.id, label]);
+    if (!rows.length) return res.status(404).json({ error: 'Passkey not found' });
+    res.json({ ok: true });
+  }));
   app.delete('/api/passkeys/:id', h(async (req, res) => {
     const { rows: del } = await db.query(`DELETE FROM ${S}.member_passkeys WHERE id=$1 AND member_id=$2 RETURNING id`, [req.params.id, req.member.id]);
     if (!del.length) return res.status(404).json({ error: 'Passkey not found' });

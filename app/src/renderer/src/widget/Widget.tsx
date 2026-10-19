@@ -16,7 +16,7 @@ import { useAppState, actions } from '../lib/store';
 import { ago, domainOf, picOf, shortDate, statusOf, statusStyle, tasksOf } from '../lib/model';
 import { Avatar, CheckBox, StatusPill, SyncDot, checkedBy, syncLabel } from '../components/Common';
 import { NotesMenu, NotesSheet, type NotesKind } from '../components/Notes';
-import { SignIn, LoadingState } from '../components/SignIn';
+import { SignIn, LoadingState , PasskeyNudge } from '../components/SignIn';
 import { Calendar, Check, ChevronDown, ChevronUp, Note, Power, Refresh, Window, X } from '../components/Icons';
 
 /**
@@ -56,6 +56,7 @@ export function Widget() {
       </div>
 
       <div className="wdet">
+        <PasskeyNudge />
         {p ? <Detail s={s} pId={p.id} menuOpen={menu} setMenu={setMenu} notesMenu={notesMenu} setNotesMenu={setNotesMenu} setSheet={setSheet}
           locked={locked} launch={st.settings.launchAtLogin} />
           : <div className="w-empty">No projects yet. <button className="linkbtn" onClick={() => actions.openManage({ view: 'create' })}>Create one</button></div>}

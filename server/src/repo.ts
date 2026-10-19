@@ -15,7 +15,7 @@ const dateOnly = (d: any) => {
 
 export const mapTeam = (r: any): Team => ({ id: r.id, name: r.name, isDemo: r.is_demo });
 export const mapMember = (r: any): Member => ({
-  id: r.id, teamId: r.team_id, name: r.name, initials: r.initials, role: r.role, revoked: r.revoked, isDemo: r.is_demo, currency: r.currency ?? 'SOL', googleEmail: r.google_email ?? null,
+  id: r.id, teamId: r.team_id, name: r.name, initials: r.initials, role: r.role, revoked: r.revoked, isDemo: r.is_demo, currency: r.currency ?? 'SOL', googleEmail: r.google_email ?? null, username: r.username ?? null,
 });
 export const mapField = (r: any): FieldDefinition => ({
   id: r.id, key: r.key, label: r.label, dataType: r.data_type, options: r.options ?? {}, isSecret: r.is_secret,
@@ -119,7 +119,7 @@ export async function listTemplates(q: Queryable, me: Member) {
 export async function snapshot(q: Queryable, me: Member, prices: PriceTable = { usd: {}, fetchedAt: null, stale: true, source: 'none' }): Promise<Snapshot> {
   const [team, members, fields, projects, tasks, reimbursements, templates] = await Promise.all([
     q.query(`SELECT * FROM ${S}.teams WHERE id = $1`, [me.teamId]),
-    q.query(`SELECT * FROM ${S}.members WHERE team_id = $1 ORDER BY role, name`, [me.teamId]),
+    q.query(`SELECT m.*, a.username FROM ${S}.members m LEFT JOIN ${S}.accounts a ON a.member_id=m.id WHERE m.team_id = $1 ORDER BY m.role, m.name`, [me.teamId]),
     listFields(q),
     loadProjects(q, me.teamId),
     q.query(`SELECT t.* FROM ${S}.tasks t JOIN ${S}.projects p ON p.id = t.project_id WHERE p.team_id = $1 ORDER BY t.sort_order, t.created_at`, [me.teamId]),

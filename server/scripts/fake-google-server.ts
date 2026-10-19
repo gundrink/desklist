@@ -29,5 +29,5 @@ const srv = createServer({ db, log: () => {}, prices: new PriceService((async ()
     getCerts: async () => ({ k1: publicKey.export({ type: 'spki', format: 'pem' }).toString() }) } });
 await new Promise<void>((r) => srv.server.listen(0, '127.0.0.1', r));
 console.log(JSON.stringify({ base: `http://127.0.0.1:${(srv.server.address() as AddressInfo).port}`, code }));
-const stop = async () => { await db.query(`DELETE FROM desklist.teams WHERE id=$1`, [team]).catch(() => {}); await srv.close(); await db.close(); process.exit(0); };
+const stop = async () => { await db.query(`DELETE FROM desklist.accounts WHERE username ILIKE 'e2e_v64_%'`).catch(() => {}); await db.query(`DELETE FROM desklist.teams WHERE id=$1`, [team]).catch(() => {}); await srv.close(); await db.close(); process.exit(0); };
 process.on('SIGTERM', stop); process.on('SIGINT', stop);

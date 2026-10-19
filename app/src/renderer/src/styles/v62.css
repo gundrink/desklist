@@ -51,3 +51,32 @@
 .gcard{transition:border-color var(--m) var(--ease),background var(--m) var(--ease)}
 @media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 .gwait{display:flex;gap:6px;align-items:stretch}.gwait .google{flex:1}.signin .err{white-space:normal;line-height:1.35}
+/* 0.6.4 auth + settings */
+.signin .authtabs{width:100%;display:flex;margin:6px 0 10px}
+.signin .authtabs button{flex:1;padding:7px 0;font-size:12.5px}
+.signin input.acc{display:block;width:100%;box-sizing:border-box;margin:0 0 8px;padding:9px 11px;border-radius:9px;font-size:13px}
+.signin.dark input.acc{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#fff}
+.signin.light input.acc{background:#fff;border:1px solid #d4d4d4;color:#111}
+.signin .altsign{display:flex;flex-direction:column;align-items:stretch;gap:6px;width:100%;margin-top:6px}
+.signin .altsign .or{font-size:11px;opacity:.55;text-align:center}
+.signin .passkey{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px}
+.pknudge{display:flex;align-items:center;gap:8px;margin:8px 10px 0;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);font-size:12px;animation:mPop var(--m) var(--ease)}
+.pknudge span{flex:1}
+.settings .setcard{margin-bottom:12px}
+.settings .setrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0}
+.settings .setrow label{width:130px;font-size:12px;font-weight:600}
+.settings .setrow input{padding:7px 9px;border:1px solid #d4d4d4;border-radius:8px;font-size:12.5px;min-width:170px}
+.pkstatus{margin:6px 0}
+.pkedit{display:flex;gap:6px}.pkedit input{padding:4px 7px;border:1px solid #d4d4d4;border-radius:6px}
+.accname{min-width:150px}
+
+.pmenu{position:relative;margin-left:6px}.kebab{font-size:16px;line-height:1;padding:2px 8px}
+.pmenu-pop{position:absolute;right:0;top:28px;z-index:30;background:#fff;border:1px solid #ddd;border-radius:9px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:4px;min-width:160px}
+.danger-item{display:block;width:100%;text-align:left;padding:7px 10px;border:0;background:none;color:#b00;font-size:12.5px;border-radius:6px;cursor:pointer}.danger-item:hover{background:#f4f4f4}
+.modal-back{position:fixed;inset:0;background:rgba(0,0,0,.35);display:grid;place-items:center;z-index:100}
+.delmodal{background:#fff;border-radius:14px;padding:20px 22px;width:420px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.delmodal h3{margin:0 0 8px}.delmodal p{font-size:13px;color:#444}
+.delmodal input{width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #ccc;border-radius:8px;margin:6px 0 12px}
+.delmodal .mbtns{display:flex;justify-content:flex-end;gap:8px}
+.btn.danger.solid{background:#c00;color:#fff;border-color:#c00}.btn.danger.solid:disabled{opacity:.4}
+.gcard.mleaving{transition:opacity .18s,transform .18s;opacity:0;transform:translateX(-8px)}

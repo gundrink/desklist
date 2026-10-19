@@ -27,6 +27,7 @@ import { Plus } from '../components/Icons';
 export function Team({ s, isAdmin }: { s: Snapshot; isAdmin: boolean }) {
   const [shown, setShown] = useState<{ name: string; code: string } | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [temp, setTemp] = useState<{ name: string; pw: string } | null>(null);
   const [name, setName] = useState(''); const [role, setRole] = useState<'member' | 'admin'>('member');
   const run = async (fn: () => Promise<{ member: Member; code: string } | unknown>) => {
     setErr(null);
@@ -35,11 +36,13 @@ export function Team({ s, isAdmin }: { s: Snapshot; isAdmin: boolean }) {
   return (
     <>
       <div className="rhead"><div className="row"><h1>Team &amp; codes</h1><span className="lpill ns">{s.team.name}</span></div>
-        <div className="sub">Everyone signs in with a personal code. Generate, reset or revoke codes here.</div></div>
+        <div className="sub">Members create an account (username + password), then enter their code once to join. Manage codes and accounts here. Your own password is in Settings.</div></div>
       <div className="rbody scroll">
-        <div className="details" style={{ paddingBottom: 0 }}><PasskeysCard /></div>
         {!isAdmin && <div className="callout">Only admins can manage codes.</div>}
         {err && <div className="callout err">{err}</div>}
+        {temp && <div className="callout code-callout" data-temp>Temporary password for <b>{temp.name}</b>: <span className="mono big">{temp.pw}</span>
+          <button className="btn sec sm" onClick={() => navigator.clipboard.writeText(temp.pw)}>Copy</button>
+          <span className="muted small">Shown once. They should change it in Settings.</span></div>}
         {shown && <div className="callout code-callout">New code for <b>{shown.name}</b>: <span className="mono big">{shown.code}</span>
           <button className="btn sec sm" onClick={() => navigator.clipboard.writeText(shown.code)}>Copy</button>
           <span className="muted small">Shown once — share it privately.</span></div>}
@@ -50,9 +53,11 @@ export function Team({ s, isAdmin }: { s: Snapshot; isAdmin: boolean }) {
               <span className="mname">{m.name}{m.id === s.me.id && <em> (you)</em>}{m.isDemo && <span className="demo-tag light">demo</span>}</span>
               <span className={`badge ${m.role === 'admin' ? 'admin' : ''}`}>{m.role}</span>
               <span className="muted small">{m.revoked ? 'Revoked' : 'Active'}</span>
-              {isAdmin ? <GoogleEmail id={m.id} value={m.googleEmail ?? null} name={m.name} /> : m.googleEmail ? <span className="small muted">G · {m.googleEmail}</span> : null}
+              <span className="accname small" data-account={m.name}>{m.username ? <>@{m.username}</> : <span className="muted">Not joined yet{isAdmin ? ' · share their code (Reset code shows a new one)' : ''}</span>}</span>
               {isAdmin && <span className="mem-actions">
                 <button className="btn sec sm" onClick={() => run(() => actions.request('POST', `/api/members/${m.id}/code`))}>{m.revoked ? 'Restore + new code' : 'Reset code'}</button>
+                {m.username && <button className="btn sec sm" onClick={() => run(async () => { const r = await actions.request<{ tempPassword: string }>('POST', `/api/members/${m.id}/reset-password`); setTemp({ name: m.name, pw: r.tempPassword }); })}>Reset password</button>}
+                {m.username && m.id !== s.me.id && <button className="btn sec sm" onClick={() => { if (confirm(`Unlink @${m.username} from ${m.name}? Their code can then be used again.`)) void run(() => actions.request('POST', `/api/members/${m.id}/unlink`)); }}>Unlink</button>}
                 {!m.revoked && m.id !== s.me.id && <button className="btn danger sm" onClick={() => run(() => actions.request('POST', `/api/members/${m.id}/revoke`))}>Revoke</button>}
               </span>}
             </div>

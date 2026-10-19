@@ -15,12 +15,22 @@ export function PasskeysCard() {
   };
   return (
     <div className="card pkcard">
-      <div className="fhead"><h3>Your passkeys</h3><button className="btn pri sm" onClick={add} disabled={busy}>{busy ? 'Waiting…' : '+ Add passkey'}</button></div>
-      <div className="muted small">Sessions last 5 days. With a passkey you sign in again with one tap (opens your browser).</div>
-      {list.map((p) => <div className="pkrow" key={p.id} data-passkey={p.label}><b>🔑 {p.label}</b><span className="muted small">added {shortDate(p.createdAt)}{p.lastUsedAt ? ` · last used ${shortDate(p.lastUsedAt)}` : ''}</span>
-        <span className="ml" /><button className="btn sec sm" onClick={async () => { await actions.request('DELETE', `/api/passkeys/${p.id}`); await load(); }}>Remove</button></div>)}
-      {!list.length && <div className="muted small">No passkeys yet.</div>}
+      <div className="fhead"><h3>Sign-in methods · Passkeys</h3><button className="btn pri sm" onClick={add} disabled={busy}>{busy ? 'Waiting…' : '+ Add passkey'}</button></div>
+      <div className="muted small">Use Face ID, Touch ID, Windows Hello or a security key to sign in without your password.</div>
+      <div className="small pkstatus">{list.length ? `${list.length} passkey${list.length > 1 ? 's' : ''} set up — you can sign in with one tap.` : 'No passkeys yet — you sign in with your password.'}</div>
+      {list.map((p) => <PkRow key={p.id} p={p} reload={load} />)}
       {msg && <div className="callout">{msg}</div>}
     </div>
   );
+}
+
+function PkRow({ p, reload }: { p: PK; reload: () => Promise<void> }) {
+  const [edit, setEdit] = useState(false); const [v, setV] = useState(p.label);
+  return <div className="pkrow" data-passkey={p.label}>
+    {edit ? <form className="pkedit" onSubmit={async (e) => { e.preventDefault(); await actions.request('PATCH', `/api/passkeys/${p.id}`, { label: v }); setEdit(false); await reload(); }}>
+      <input autoFocus value={v} onChange={(e) => setV(e.target.value)} aria-label="Passkey name" /><button className="btn pri xs">Save</button><button type="button" className="btn sec xs" onClick={() => setEdit(false)}>Cancel</button></form>
+      : <b>{p.label}</b>}
+    <span className="muted small">added {shortDate(p.createdAt)}{p.lastUsedAt ? ` · last used ${shortDate(p.lastUsedAt)}` : ''}</span>
+    <span className="ml" />{!edit && <button className="btn sec sm" onClick={() => setEdit(true)}>Rename</button>}
+    <button className="btn sec sm" onClick={async () => { await actions.request('DELETE', `/api/passkeys/${p.id}`); await reload(); }}>Remove</button></div>;
 }

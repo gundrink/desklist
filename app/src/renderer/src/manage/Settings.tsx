@@ -5,6 +5,8 @@ import { actions } from '../lib/store';
 import { PasskeysCard } from '../components/Passkeys';
 import { OpacityControl } from '../components/WidgetLook';
 import { Toggle } from '../components/Money';
+import { TzSelect, useClockMode } from '../components/Overview';
+function ClockStyle() { const [m, setM] = useClockMode(); return <div className="seg clockseg" role="group" aria-label="Clock style">{(['digital', 'analog'] as const).map((x) => <button key={x} className={m === x ? 'on' : ''} aria-pressed={m === x} onClick={() => setM(x)}>{x === 'digital' ? 'Digital' : 'Analog'}</button>)}</div>; }
 
 const clean = (x: unknown) => (x as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
 
@@ -27,6 +29,12 @@ export function Settings({ s, st }: { s: Snapshot; st: AppState }) {
             ['startMinimized', 'Start minimized to tray', 'Starts quietly in the system tray; open the widget from the tray icon.', st.settings.startMinimized ?? false]] as const).map(([k, label, hint, on]) =>
             <div className="strow" key={k} data-startup={k}><div><b>{label}</b><span>{hint}</span></div>
               <Toggle on={!!on} theme="dark" label="" onChange={(v) => void actions.setSetting({ [k]: v })} aria={label} /></div>)}
+        </div>
+        <div className="card setcard" data-card="clock">
+          <div className="fhead"><h3>Clock</h3></div>
+          <p className="muted small">Only changes the clock inside Desklist. Your computer's clock and timezone are never touched.</p>
+          <div className="strow"><div><b>Clock style</b><span>Digital or analog on the Overview and widget.</span></div><ClockStyle /></div>
+          <div className="strow"><div><b>Clock timezone</b><span>Time, date, greeting and "today" follow this zone.</span></div><div className="tzset"><TzSelect /></div></div>
         </div>
         <div className="card setcard" data-card="widget">
           <div className="fhead"><h3>Widget</h3></div>

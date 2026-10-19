@@ -40,6 +40,8 @@ try {
     check(`widget ${wb?.width}px: rail ${t.rail}px; In progress/Done tabs no overflow (${t.sw}<=${t.cw}; segments ${t.bs.map((b) => b.sw + '/' + b.cw).join(', ')}), one line`, wb?.width >= 620 && t.rail >= 240 && t.sw <= t.cw && t.bs.every((b) => b.sw <= b.cw && b.one));
     check('long project name truncates with ellipsis + tooltip', t.trunc && t.tip);
     await w.locator('.rail').screenshot({ path: path.join(shots, 'v611-widget-sidebar.png') }); }
+  { const nm = await w.evaluate(() => { const e = document.querySelector('.w-top .switch .ell'); const r = e?.getBoundingClientRect(); return r ? r.width : 0; }); const hdr = await w.evaluate(() => { const t = document.querySelector('.wdet .w-top'); const m = t.querySelector('.menu').getBoundingClientRect(); return { sw: t.scrollWidth, cw: t.clientWidth, mr: m.right, tr: t.getBoundingClientRect().right }; });
+    check(`widget header shows the project name (${Math.round(nm)}px) and the ⋯ button fits (${hdr.sw}<=${hdr.cw})`, nm >= 60 && hdr.sw <= hdr.cw && hdr.mr <= hdr.tr + 0.5); }
   step = 'widget menu';
   await w.locator('.w-top .menu').first().click(); const menu = w.locator('.wmenu'); await menu.waitFor(); await w.waitForTimeout(350);
   const mm = await menu.evaluate((e) => { const r = e.getBoundingClientRect(); const op = e.querySelector('.opctl'); const v = op.querySelector('.oprow b'); const sl = op.querySelector('input[type=range]'); const cs = getComputedStyle(e);
@@ -113,6 +115,16 @@ try {
   await m.locator('.nrow').first().click(); await m.locator('.stabs').first().waitFor({ timeout: 10000 }); check('nearest row opens the project', true);
   await m.locator('.sidebrand').click(); await m.locator('[data-overview]').waitFor({ timeout: 5000 }); check('Desklist logo click → Overview', true);
   await m.locator('.pcol').screenshot({ path: path.join(shots, 'v611-manage-overview-nav.png') });
+  step = 'clock timezone';
+  await app.evaluate(() => globalThis.__desklist.openManage({ view: 'settings' })); const ck = m.locator('[data-card="clock"]'); await ck.waitFor();
+  await ck.getByLabel('Clock timezone').click(); await m.locator('.sel-search').fill('America/New_York'); await m.keyboard.press('Enter'); await m.waitForTimeout(300);
+  check('Settings > Clock timezone set to America/New_York', (await ck.locator('.selx-v').textContent()).startsWith('America/New_York · UTC−'));
+  await app.evaluate(() => globalThis.__desklist.openManage({ view: 'overview' })); await m.locator('[data-overview]').waitFor(); await m.waitForTimeout(400);
+  { const r = await m.evaluate(() => { const t = document.querySelector('.ovtime').textContent.replace(/\s/g, ''); const f = (tz) => new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date()).replace(/\s/g, '');
+      return { shown: t.slice(0, 5), ny: f('America/New_York'), sys: f(Intl.DateTimeFormat().resolvedOptions().timeZone), label: document.querySelector('[data-tzlabel]').textContent, chip: document.querySelector('.tzchip .selx-v').textContent }; });
+    check(`clock shows New York time (${r.shown} = Intl ${r.ny}, system ${r.sys}; label "${r.label}")`, r.shown === r.ny && r.ny !== r.sys && r.label.startsWith('America/New_York') && r.chip.startsWith('America/New_York'));
+    await m.screenshot({ path: path.join(shots, 'v612-clock-timezone.png') }); }
+  check('OS timezone untouched (main process TZ still system)', await app.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone) === Intl.DateTimeFormat().resolvedOptions().timeZone);
   step = 'startup settings';
   await app.evaluate(() => globalThis.__desklist.openManage({ view: 'settings' })); const card = m.locator('[data-card="startup"]'); await card.waitFor();
   await m.waitForTimeout(400); await m.screenshot({ path: path.join(shots, 'v611-settings-startup.png') }); await audit(m, 'settings startup');
@@ -139,6 +151,10 @@ try {
   step = 'restart (auto-show on)';
   await close(); app = await launch(); await new Promise((r) => setTimeout(r, 4000));
   check('auto-show on again: widget created on launch, Manage not opened', await app.evaluate(() => globalThis.__desklist.hasWidget()) && !(await app.evaluate(() => globalThis.__desklist.windows())).some((u) => u.includes('manage')));
+  { const [mm] = await Promise.all([app.waitForEvent('window'), app.evaluate(() => globalThis.__desklist.openManage({ view: 'overview' }))]); await mm.locator('[data-tzlabel]').waitFor({ timeout: 15000 });
+    check('clock timezone persists after restart', (await mm.locator('[data-tzlabel]').textContent()).startsWith('America/New_York'));
+    await mm.locator('.tzchip').click(); await mm.locator('.sel-opt', { hasText: 'System default (follow PC)' }).click(); await mm.waitForTimeout(400);
+    const sys = Intl.DateTimeFormat().resolvedOptions().timeZone; check(`System default restores the PC zone (${sys})`, (await mm.locator('[data-tzlabel]').textContent()).startsWith(sys)); }
 } catch (e) { console.error('[v611] FAIL at', step, '-', e.message.split('\n').slice(0, 5).join(' / ')); results.push(['exception at ' + step, false]); for (const [i, win] of (app?.windows() ?? []).entries()) await win.screenshot({ path: `/tmp/v611-${i}.png`, timeout: 5000 }).catch(() => {}); }
 finally {
   fs.writeFileSync('/tmp/contrast-611.txt', allFails.join('\n'));

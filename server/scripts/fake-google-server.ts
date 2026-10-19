@@ -18,9 +18,9 @@ const idToken = (email: string) => { const now = Math.floor(Date.now() / 1000);
 const run = crypto.randomBytes(3).toString('hex').toUpperCase(); const team = crypto.randomUUID();
 const linked = `e2e.linked.${run.toLowerCase()}@example.com`;
 const db = createDb(); await migrate(db, () => {});
-await db.query(`INSERT INTO desklist.teams(id,name) VALUES ($1,'TEST e2e-google ${run}')`, [team]);
+await db.query(`INSERT INTO desklist.teams(id,name) VALUES ($1,$2)`, [team, process.env.DESKLIST_E2E_TEAM_NAME || `TEST e2e-google ${run}`]);
 const code = `GE-${run}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
-await db.query(`INSERT INTO desklist.members(team_id,name,initials,role,code_hash,code_bucket,google_email) VALUES ($1,'E2E Google Admin','EG','admin',$2,$3,$4)`, [team, await bcrypt.hash(code, 10), codeBucket(code), linked]);
+await db.query(`INSERT INTO desklist.members(team_id,name,initials,role,code_hash,code_bucket,google_email) VALUES ($1,$5,$6,'admin',$2,$3,$4)`, [team, await bcrypt.hash(code, 10), codeBucket(code), linked, process.env.DESKLIST_E2E_ADMIN_NAME || 'E2E Google Admin', process.env.DESKLIST_E2E_ADMIN_INITIALS || 'EG']);
 const srv = createServer({ db, log: () => {}, prices: new PriceService((async () => ({ ok: true, status: 200, json: async () => ({ solana: { usd: 100 } }) })) as any, 60_000),
   google: { clientId: CID, clientSecret: 'fake',
     tokenFetch: async (body) => { const c = body.get('code') || '';
@@ -29,5 +29,5 @@ const srv = createServer({ db, log: () => {}, prices: new PriceService((async ()
     getCerts: async () => ({ k1: publicKey.export({ type: 'spki', format: 'pem' }).toString() }) } });
 await new Promise<void>((r) => srv.server.listen(0, '127.0.0.1', r));
 console.log(JSON.stringify({ base: `http://127.0.0.1:${(srv.server.address() as AddressInfo).port}`, code }));
-const stop = async () => { await db.query(`DELETE FROM desklist.accounts WHERE username ILIKE 'e2e_v64_%'`).catch(() => {}); await db.query(`DELETE FROM desklist.teams WHERE id=$1`, [team]).catch(() => {}); await srv.close(); await db.close(); process.exit(0); };
+const stop = async () => { await db.query(`DELETE FROM desklist.accounts WHERE username ILIKE 'e2e_v64_%'`).catch(() => {}); await db.query(`DELETE FROM desklist.accounts WHERE member_id IN (SELECT id FROM desklist.members WHERE team_id=$1)`, [team]).catch(() => {}); await db.query(`DELETE FROM desklist.teams WHERE id=$1`, [team]).catch(() => {}); await srv.close(); await db.close(); process.exit(0); };
 process.on('SIGTERM', stop); process.on('SIGINT', stop);

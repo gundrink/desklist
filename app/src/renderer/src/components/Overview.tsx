@@ -2,17 +2,46 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Project, Snapshot } from '@desklist/shared';
 import { initialsOf, picOf, shortDate, statusOf, statusStyle, tasksOf } from '../lib/model';
 import { Avatar, StatusPill } from './Common';
+import { Select } from './Select';
+
+/** App-only clock timezone (never touches the OS clock). '' = System default (follow PC). Persisted per device. */
+export const getClockTz = () => localStorage.getItem('dl-tz') ?? '';
+const tzListeners = new Set<() => void>();
+export function setClockTz(tz: string) { localStorage.setItem('dl-tz', tz); tzListeners.forEach((f) => f()); }
+export function useClockTz(): [string, (t: string) => void] {
+  const [t, setT] = useState(getClockTz());
+  useEffect(() => { const f = () => setT(getClockTz()); tzListeners.add(f); const g = (e: StorageEvent) => { if (e.key === 'dl-tz') f(); }; window.addEventListener('storage', g); return () => { tzListeners.delete(f); window.removeEventListener('storage', g); }; }, []);
+  return [t, setClockTz];
+}
+/** A Date whose local fields equal the wall clock in `tz` (via Intl.DateTimeFormat). */
+export function zonedNow(tz = getClockTz(), base = new Date()): Date {
+  if (!tz) return base;
+  try { const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(base).map((x) => [x.type, x.value]));
+    return new Date(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second, base.getMilliseconds()); } catch { return base; }
+}
+export function tzOffsetLabel(tz: string, base = new Date()) { const z = zonedNow(tz, base); const m = Math.round((z.getTime() - base.getTime()) / 60000) - base.getTimezoneOffset();
+  return `UTC${m >= 0 ? '+' : '−'}${Math.floor(Math.abs(m) / 60)}${Math.abs(m) % 60 ? ':' + pad(Math.abs(m) % 60) : ''}`; }
+const sysTz = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return ''; } };
+const COMMON = ['UTC', 'Asia/Jakarta', 'Asia/Singapore', 'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Kolkata', 'Asia/Dubai', 'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'America/Sao_Paulo', 'Australia/Sydney'];
+export function tzOptions() { let all: string[] = []; try { all = (Intl as any).supportedValuesOf('timeZone'); } catch { /* old runtime */ }
+  return [...COMMON, ...all.filter((z) => !COMMON.includes(z))]; }
+export function TzSelect({ compact }: { compact?: boolean }) {
+  const [tz, setTz] = useClockTz(); const opts = useMemo(tzOptions, []);
+  return <Select className={compact ? 'tzchip' : ''} value={tz} onChange={(e) => setTz(e.target.value)} aria-label="Clock timezone">
+    <option value="">{`System default (follow PC) · ${sysTz()}`}</option>
+    {opts.map((z) => <option key={z} value={z}>{`${z} · ${tzOffsetLabel(z)}`}</option>)}</Select>;
+}
 
 const pad = (n: number) => String(n).padStart(2, '0');
 export const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const tz = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return ''; } };
-const offs = () => { const m = -new Date().getTimezoneOffset(); return `UTC${m >= 0 ? '+' : '−'}${Math.floor(Math.abs(m) / 60)}${m % 60 ? ':' + pad(Math.abs(m) % 60) : ''}`; };
+const tz = () => getClockTz() || (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return ''; } })();
+const offs = () => tzOffsetLabel(getClockTz());
 export const isDoneProject = (s: Snapshot, p: Project) => { const st = statusOf(s, p); const t = tasksOf(s, p.id); return st === 'Done' || (t.all.length > 0 && t.done.length === t.all.length); };
-export function relDay(iso: string, today = new Date()) {
+export function relDay(iso: string, today = zonedNow()) {
   const a = new Date(`${iso}T00:00:00`); const b = new Date(ymd(today) + 'T00:00:00'); const d = Math.round((a.getTime() - b.getTime()) / 86400000);
   return d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : d === -1 ? 'Yesterday' : d < 0 ? `${-d} days overdue` : d < 14 ? `In ${d} days` : `In ${Math.round(d / 7)} weeks`;
 }
-export function useNow(ms = 1000) { const [n, setN] = useState(() => new Date()); useEffect(() => { const t = setInterval(() => setN(new Date()), ms); return () => clearInterval(t); }, [ms]); return n; }
+export function useNow(ms = 1000) { const [tz] = useClockTz(); const [n, setN] = useState(() => new Date()); useEffect(() => { const t = setInterval(() => setN(new Date()), ms); return () => clearInterval(t); }, [ms]); return zonedNow(tz, n); }
 
 /** Clock mode (digital | analog), persisted per device and shared by Manage + widget. */
 export type ClockMode = 'digital' | 'analog';
@@ -44,7 +73,7 @@ export function Clock({ compact, name }: { compact?: boolean; name?: string }) {
     {(['digital', 'analog'] as const).map((m) => <button key={m} className={mode === m ? 'on' : ''} aria-pressed={mode === m} onClick={() => setMode(m)}>{m === 'digital' ? 'Digital' : 'Analog'}</button>)}</div>;
   return (
     <div className={`ovclock ${compact ? 'compact' : ''} m-${mode}`} data-clock={mode}>
-      <div className="ovclockh">{name ? <span className="greet">{greeting(n)}, <b>{name}</b></span> : <span className="cap">Local time</span>}<span className="ml" />{toggle}</div>
+      <div className="ovclockh">{name ? <span className="greet">{greeting(n)}, <b>{name}</b></span> : <span className="cap">Local time</span>}<span className="ml" /><span className="tzwrap" title="Clock timezone (this app only)"><TzSelect compact /></span>{toggle}</div>
       <div className="ovclockb">
         {mode === 'digital'
           ? <div className="ovtime mono" aria-label="Current time">{pad(n.getHours())}<i>:</i>{pad(n.getMinutes())}<em key={n.getSeconds()} className="secs" data-secs>{pad(n.getSeconds())}</em></div>
@@ -52,7 +81,7 @@ export function Clock({ compact, name }: { compact?: boolean; name?: string }) {
         <div className="ovwhen">
           <div className="ovwd1">{n.toLocaleDateString('en-GB', { weekday: 'long' })}</div>
           <div className="ovdate">{n.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
-          <div className="ovtz mono">{tz()} · {offs()}</div>
+          <div className="ovtz mono" data-tzlabel>{tz()} · {offs()}</div>
         </div>
       </div>
     </div>
@@ -75,16 +104,16 @@ function ProjLine({ s, p, onOpen, rel }: { s: Snapshot; p: Project; onOpen: (id:
     <span className="dot" style={{ background: statusStyle(statusOf(s, p)).color }} /><span className="nm">{p.name}</span>
     <span className="mono pr">{t.done.length}/{t.all.length}</span>
     {pic ? <Avatar initials={initialsOf(pic)} size="xs" title={`BIC ${pic}`} /> : null}
-    {rel && p.deadline && <span className={`mono rel ${p.deadline < ymd(new Date()) ? 'late' : ''}`}>{relDay(p.deadline)}</span>}</button>;
+    {rel && p.deadline && <span className={`mono rel ${p.deadline < ymd(zonedNow()) ? 'late' : ''}`}>{relDay(p.deadline)}</span>}</button>;
 }
 
-export function nearestProjects(s: Snapshot, today = ymd(new Date())) {
+export function nearestProjects(s: Snapshot, today = ymd(zonedNow())) {
   void today; return s.projects.filter((p) => !isDoneProject(s, p) && p.deadline).sort((a, b) => a.deadline!.localeCompare(b.deadline!) || a.name.localeCompare(b.name));
 }
 
 /** Overview: clock hero, square month calendar with chips, targets, nearest projects. */
 export function Overview({ s, onOpen }: { s: Snapshot; onOpen: (id: string) => void }) {
-  const now = new Date(); const today = ymd(now);
+  const [ctz] = useClockTz(); const now = zonedNow(ctz); const today = ymd(now);
   const [month, setMonth] = useState(() => new Date(now.getFullYear(), now.getMonth(), 1));
   const [day, setDay] = useState<string>(today); const [dir, setDir] = useState(0); const [all, setAll] = useState(false);
   const byDay = useMemo(() => { const m = new Map<string, Project[]>(); for (const p of s.projects) if (p.deadline) m.set(p.deadline, [...(m.get(p.deadline) ?? []), p]); return m; }, [s.projects]);
@@ -153,7 +182,7 @@ export function Overview({ s, onOpen }: { s: Snapshot; onOpen: (id: string) => v
 
 /** Widget compact overview: designed for the widget — clock card, mini month, target tiles, nearest projects. */
 export function WidgetOverview({ s, onOpen }: { s: Snapshot; onOpen: (id: string) => void }) {
-  const now = new Date(); const today = ymd(now);
+  const [ctz] = useClockTz(); const now = zonedNow(ctz); const today = ymd(now);
   const [month, setMonth] = useState(() => new Date(now.getFullYear(), now.getMonth(), 1)); const [day, setDay] = useState<string | null>(null);
   const byDay = useMemo(() => { const m = new Map<string, Project[]>(); for (const p of s.projects) if (p.deadline) m.set(p.deadline, [...(m.get(p.deadline) ?? []), p]); return m; }, [s.projects]);
   const near = nearestProjects(s).slice(0, 5);

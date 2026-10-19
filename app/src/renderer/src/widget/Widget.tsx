@@ -124,7 +124,7 @@ function Detail({ s, pId, menuOpen, setMenu, notesMenu, setNotesMenu, setSheet, 
       <div className="w-top drag">
         <div className="switch" title={p.name}><span className="dotp" style={{ background: statusStyle(status).color }} /><span className="ell">{p.name}</span></div>
         <StatusPill status={status} theme="dark" />
-        <ViewToggle v="project" />
+        <ViewToggle v="project" iconOnly />
         <span className="nodrag"><ModeToggle mode={mode} setMode={setMode} compact /></span>
         <div className="menu-anchor nodrag">
           <button ref={menuBtn} className={`menu ${menuOpen ? 'on' : ''}`} onClick={() => setMenu(!menuOpen)} title="Menu" aria-label="Widget menu">⋯</button>
@@ -247,10 +247,10 @@ function RailMenu({ name, id }: { name: string; id: string }) {
     </Popover>}</>;
 }
 
-function ViewToggle({ v }: { v: 'overview' | 'project' }) {
+function ViewToggle({ v, iconOnly }: { v: 'overview' | 'project'; iconOnly?: boolean }) {
   const set = (x: string) => window.dispatchEvent(new CustomEvent('dl-wview', { detail: x }));
-  return <div className="seg wviewseg nodrag" role="group" aria-label="Widget view">
-    <button className={v === 'overview' ? 'on' : ''} aria-pressed={v === 'overview'} title="Overview" onClick={() => set('overview')}><Grid size={12} />Overview</button>
-    <button className={v === 'project' ? 'on' : ''} aria-pressed={v === 'project'} title="Project" onClick={() => set('project')}><Folder size={12} />Project</button>
+  return <div className={`seg wviewseg nodrag ${iconOnly ? 'icononly' : ''}`} role="group" aria-label="Widget view">
+    <button className={v === 'overview' ? 'on' : ''} aria-pressed={v === 'overview'} title="Overview" aria-label="Overview" onClick={() => set('overview')}><Grid size={12} /><span className="vl">Overview</span></button>
+    <button className={v === 'project' ? 'on' : ''} aria-pressed={v === 'project'} title="Project" aria-label="Project" onClick={() => set('project')}><Folder size={12} /><span className="vl">Project</span></button>
   </div>;
 }

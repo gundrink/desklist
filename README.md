@@ -7,6 +7,16 @@ Desktop-level team project checklists for **macOS + Windows**.
 - **Ticking a task auto-approves it** — the server records the signed-in member (from the session token, never from the request body) as `approved_by_member_id` / `approved_at` (and BIC). Unticking clears it. Tasks have no required BIC.
 - Both windows share one data layer (main-process `SyncEngine`) and update live; other machines update via the server's WebSocket broadcast.
 
+## Screenshots
+
+| | |
+|---|---|
+| ![Overview with digital clock](docs/screenshots/overview-digital.png)<br>**Overview**: digital clock, month calendar with deadlines, targets and nearest projects | ![Overview with analog clock](docs/screenshots/overview-analog.png)<br>**Overview (analog clock)**: the clock style and timezone apply to Desklist only |
+| ![Widget overview](docs/screenshots/widget-overview.png)<br>**Widget overview**: compact clock, mini calendar, target tiles and next deadlines | ![Widget project checklist](docs/screenshots/widget-project.png)<br>**Widget checklist**: tick tasks, track reimbursements and add tasks from the desktop |
+| ![Project detail](docs/screenshots/project-detail.png)<br>**Project detail**: checklist with due dates, owners and notes | ![Reports](docs/screenshots/reports.png)<br>**Reports**: expenses by project and member, with CSV export |
+| ![Task setup](docs/screenshots/task-setup.png)<br>**Task setup**: preconfigured tasks with fields and reimbursement | ![Settings](docs/screenshots/settings.png)<br>**Settings**: startup, clock, widget appearance and account |
+| ![Sign-in](docs/screenshots/sign-in.png)<br>**Sign-in**: username and password, Google or passkey | |
+
 ```
 desklist/
 ├─ shared/   @desklist/shared – TypeScript types shared by app + server

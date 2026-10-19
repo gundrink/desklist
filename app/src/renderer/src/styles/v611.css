@@ -25,7 +25,7 @@ html body .opctl .opblur{padding:0}
 /* --- Startup settings --- */
 .strow{display:flex;align-items:center;gap:16px;padding:12px 0;border-top:1px solid var(--line)}
 .strow:first-of-type{border-top:0}
-.strow>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.strow b{font-weight:var(--w-med,500);color:var(--text);font-size:13.5px}.strow span{font-size:12px;color:var(--muted)}
+.strow>div:first-child{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.strow b{font-weight:var(--w-med,500);color:var(--text);font-size:13.5px}.strow span{font-size:12px;color:var(--muted)}
 
 /* --- Overview nav + logo --- */
 html body .sidebrand{background:transparent;border:0;padding:4px 6px;margin:-4px -6px;border-radius:8px;cursor:pointer;text-align:left;color:inherit}
@@ -199,3 +199,20 @@ html body .wov .wn{grid-template-columns:8px minmax(0,1fr) minmax(24px,56px) 30p
 html body .wov.w611 .ovclock.compact .ovclockb{min-width:0}
 html body .wov.w611 .ovclock.compact .ovwhen{overflow:hidden}
 html body .wov.w611 .ovclockh{flex-wrap:wrap;row-gap:6px}
+/* 0.6.12 clock timezone */
+.tzwrap{min-width:0;max-width:220px}
+html body .selx.tzchip{height:26px!important;min-height:26px!important;padding:0 8px!important;font-size:11.5px!important;border-radius:999px!important;max-width:220px;background:rgba(248,247,244,.04)!important}
+html body .selx.tzchip .selx-v{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wov .tzwrap{max-width:150px}
+.tzset{width:min(340px,50%)}.tzset .selx{width:100%}
+.strow .seg.clockseg{display:inline-flex!important;flex-direction:row!important;flex:none}
+/* 0.6.12: widget header keeps the project name visible next to the view/mode toggles */
+html body .widget .wdet .w-top{gap:8px;min-width:0}
+html body .widget .wdet .w-top .switch{flex:1 1 auto;min-width:90px;overflow:hidden}
+html body .widget .wdet .w-top .switch .ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+html body .widget .wdet .w-top>.spill,html body .widget .wdet .w-top>.pill,html body .widget .wdet .w-top>[class*=status]{display:none!important}
+html body .widget .w-top .seg.wviewseg button{padding:3px 7px}
+html body .widget .wdet .w-top>.gp{display:none!important}
+html body .seg.wviewseg.icononly .vl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+html body .seg.wviewseg.icononly button{padding:4px 7px;position:relative}
+html body .widget .wdet .w-top>*{flex-shrink:0}html body .widget .wdet .w-top>.switch{flex-shrink:1}

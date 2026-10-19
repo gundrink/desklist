@@ -30,9 +30,9 @@ desklist/
 
 | Member | Initials | Role | Sign-in code |
 |---|---|---|---|
-| Andi Darmawan | AD | admin | `DEMO-ADMIN` |
-| Budi Santoso | BS | member | `DEMO-0001` |
-| Citra Kusuma | CK | member | `DEMO-0002` |
+| Alex Morgan | AM | admin | `DEMO-ADMIN` |
+| Sam Carter | SC | member | `DEMO-0001` |
+| Jordan Lee | JL | member | `DEMO-0002` |
 
 Projects **A** (12 tasks, 7 done), **B** (9/3), **C** (5/0), **D** (4/2), **F** (4/4), **G** (6/2) — no E — with sample master values (PIC, emails, domain, encrypted password, status) and custom columns (Source, Repo link, Deadline, Budget). Re-running the seed is safe: it keeps your edits and only resets the demo codes. **Change or revoke the demo codes before real use.**
 

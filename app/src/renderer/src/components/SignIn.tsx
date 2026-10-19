@@ -21,7 +21,10 @@ export function SignIn({ st, theme }: { st: AppState; theme: 'dark' | 'light' })
   const passkey = async () => { setPk(true); setErr(null); try { await window.desklist.passkeySignIn(); } catch (x) { setErr((x as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')); } finally { setPk(false); } };
   const [gb, setGb] = useState(false);
   const google = async () => { setGb(true); setErr(null); try { await window.desklist.googleSignIn(); } catch (x) { setErr((x as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')); } finally { setGb(false); } };
-  const gBtn = <button type="button" className={`btn ${expired ? 'pri' : 'sec'} passkey google ${expired ? 'prominent' : ''}`} onClick={google} disabled={gb}>{gb ? 'Waiting for browser…' : 'G  Sign in with Google'}</button>;
+  const gBtn = gb
+    ? <div className="gwait"><button type="button" className="btn sec passkey google" disabled>Waiting for Google… finish in your browser</button>
+        <button type="button" className="btn sec sm gcancel" onClick={() => void window.desklist.googleCancel()}>Cancel</button></div>
+    : <button type="button" className={`btn ${expired ? 'pri' : 'sec'} passkey google ${expired ? 'prominent' : ''}`} onClick={google}>G  Sign in with Google</button>;
   const pkBtn = <button type="button" className={`btn ${expired ? 'pri' : 'sec'} passkey ${expired ? 'prominent' : ''}`} onClick={passkey} disabled={pk}>{pk ? 'Waiting for browser…' : '🔑 Sign in with passkey'}</button>;
   return (
     <form className={`signin ${theme}`} onSubmit={submit}>

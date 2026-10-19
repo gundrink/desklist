@@ -50,3 +50,4 @@
 .win .body{animation:mFadeIn var(--m-slow) var(--ease)}
 .gcard{transition:border-color var(--m) var(--ease),background var(--m) var(--ease)}
 @media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+.gwait{display:flex;gap:6px;align-items:stretch}.gwait .google{flex:1}.signin .err{white-space:normal;line-height:1.35}

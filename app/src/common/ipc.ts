@@ -54,4 +54,5 @@ export interface DesklistBridge {
   passkeyRegister(): Promise<void>;
   passkeySignIn(): Promise<void>;
   googleSignIn(): Promise<void>;
+  googleCancel(): Promise<void>;
 }

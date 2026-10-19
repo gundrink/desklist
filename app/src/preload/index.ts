@@ -29,6 +29,7 @@ const api: DesklistBridge = {
   passkeyRegister: () => call('passkeyRegister'),
   passkeySignIn: () => call('passkeySignIn'),
   googleSignIn: () => call('googleSignIn'),
+  googleCancel: () => call('googleCancel'),
 };
 contextBridge.exposeInMainWorld('desklist', api);
 

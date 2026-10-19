@@ -42,11 +42,13 @@ export function registerGoogle(app: Express, db: Db, cfg: GoogleConfig, issueSes
     const b = z.object({ code: z.string().min(10).max(2000), verifier: z.string().min(43).max(128), redirectUri: z.string().regex(LOOPBACK, 'redirect_uri must be a 127.0.0.1 loopback'), state: z.string().min(16).max(200) }).parse(req.body);
     if (!clientId() || !clientSecret()) throw bad(503, 'Google sign-in is not configured on the server');
     const { rows: [st] } = await db.query(`UPDATE ${S}.passkey_flows SET used=true WHERE id=$1 AND kind='google' AND NOT used AND expires_at > now() RETURNING id`, [sha256('g:' + b.state)]);
+    if (!st) console.log('[google] exchange: unknown/used state');
     if (!st) throw bad(400, 'Sign-in state mismatch or expired — try again');
     const { rows: [fresh] } = await db.query(`INSERT INTO ${S}.passkey_flows(id, kind, used, expires_at) VALUES ($1,'gcode',true, now() + interval '1 day') ON CONFLICT (id) DO NOTHING RETURNING id`, [sha256('gc:' + b.code)]);
     if (!fresh) throw bad(400, 'This sign-in code was already used — try again');
     const r = await tokenFetch(new URLSearchParams({ code: b.code, client_id: clientId(), client_secret: clientSecret(), redirect_uri: b.redirectUri, grant_type: 'authorization_code', code_verifier: b.verifier }));
     const tok = await r.json().catch(() => ({}));
+    if (!r.ok || !tok.id_token) console.log('[google] exchange: token endpoint error', tok.error ?? r.status);
     if (!r.ok || !tok.id_token) throw bad(400, `Google rejected the sign-in (${tok.error ?? r.status})`);
     let payload: any;
     try {
@@ -56,7 +58,8 @@ export function registerGoogle(app: Express, db: Db, cfg: GoogleConfig, issueSes
     if (!payload?.email || payload.email_verified !== true) throw bad(401, 'Google email is not verified');
     const email = String(payload.email).toLowerCase();
     const { rows: [m] } = await db.query(`SELECT id FROM ${S}.members WHERE lower(google_email)=$1 AND NOT revoked`, [email]);
-    if (!m) throw bad(403, 'Ask your admin to add this Google account');
+    if (!m) { console.log('[google] exchange: verified account not linked to any member -> 403'); throw bad(403, "This Google account isn't linked to a member. Ask your admin to add it in Team & codes."); }
+    console.log('[google] exchange: signed in member', m.id);
     res.json(await issueSession(m.id));
   }));
 }

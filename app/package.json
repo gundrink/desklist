@@ -1,6 +1,6 @@
 {
   "name": "@desklist/app",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "private": true,
   "description": "Desklist desktop app (desktop-level widget + Manage window)",
   "author": "Desklist",

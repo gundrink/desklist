@@ -65,7 +65,7 @@ describe('Google sign-in', () => {
   it('no matching member -> 403, never creates members', async () => {
     const before = (await db.query(`SELECT count(*)::int n FROM desklist.members WHERE team_id=$1`, [team])).rows[0].n;
     const r = await flow(idToken({ email: `nobody.${run}@example.com` }));
-    expect(r.status).toBe(403); expect(r.body.error).toBe('Ask your admin to add this Google account');
+    expect(r.status).toBe(403); expect(r.body.error).toBe("This Google account isn't linked to a member. Ask your admin to add it in Team & codes.");
     expect((await db.query(`SELECT count(*)::int n FROM desklist.members WHERE team_id=$1`, [team])).rows[0].n).toBe(before);
   });
   it('valid token -> 5-day session for the matched member; PKCE verifier + redirect forwarded to Google', async () => {

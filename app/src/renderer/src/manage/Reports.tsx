@@ -35,9 +35,9 @@ export function Reports({ s }: { s: Snapshot }) {
         <div className="row"><h1>Admin · Reports</h1><span className="lpill admin">Admin</span>
           <span className="rmeta"><Avatar initials={s.me.initials} size="sm" />Signed in as <b>{shortName(s.me.name)}</b><span className="dotsep" />{s.projects.length} projects</span></div>
         <div className="filters">
-          <label className="flt">PROJECT<Select value={projectId} onChange={(e) => setProjectId(e.target.value)}><option value="">All projects</option>{s.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></label>
-          <label className="flt">STATUS<Select value={status} onChange={(e) => setStatus(e.target.value as never)}><option value="all">All</option><option value="reimbursed">Reimbursed</option><option value="not">Not reimbursed</option></Select></label>
-          <label className="flt">MONTH<Select value={month} onChange={(e) => setMonth(e.target.value)}><option value="">All</option>{months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}</Select></label>
+          <label className="flt">Project<Select value={projectId} onChange={(e) => setProjectId(e.target.value)}><option value="">All projects</option>{s.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></label>
+          <label className="flt">Status<Select value={status} onChange={(e) => setStatus(e.target.value as never)}><option value="all">All</option><option value="reimbursed">Reimbursed</option><option value="not">Not reimbursed</option></Select></label>
+          <label className="flt">Month<Select value={month} onChange={(e) => setMonth(e.target.value)}><option value="">All</option>{months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}</Select></label>
           <span className="small muted ml">Amounts in {cur} · ≈ USD at live rate{s.prices.stale ? ' (cached)' : ''}</span>
         </div>
       </div>
@@ -77,7 +77,7 @@ export function Reports({ s }: { s: Snapshot }) {
               const m = member(s, i.paidByMemberId); const p = s.projects.find((x) => x.id === i.projectId);
               return (
                 <div className="etr" key={i.id} data-expense={i.item}>
-                  <span className="ell"><i className="pdot" style={{ background: p?.color }} />{i.projectName}</span>
+                  <span className="ell"><i className="pdot" style={{ background: 'var(--bronze)' }} />{i.projectName}</span>
                   <span className="ell">{i.item}</span>
                   <span><Amount s={s} amount={i.amount} code={i.currency} /></span>
                   <span>{m && <><Avatar initials={m.initials} size="xs" /> {shortName(m.name)}</>}</span>

@@ -10,6 +10,7 @@ import '../styles/v61.css';
 import '../styles/v62.css';
 import '../styles/v66.css';
 import '../styles/v68.css';
+import '../styles/v69.css';
 import { ProjTabs, RailItem, useProjectTabs } from '../components/ProjectList';
 import { TaskPanel, fieldsOf } from '../components/TaskPanel';
 import { Collapse } from '../components/Motion';

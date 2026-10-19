@@ -43,12 +43,12 @@ export function ago(iso: string | null) {
 }
 
 export const STATUS_STYLE: Record<string, { cls: string; color: string }> = {
-  'In progress': { cls: 'ip', color: '#2dd4bf' },
-  'Not started': { cls: 'ns', color: '#94a3b8' },
-  'On hold': { cls: 'oh', color: '#f59e0b' },
-  Done: { cls: 'dn', color: '#22c55e' },
+  'In progress': { cls: 'ip', color: '#e0c478' },
+  'Not started': { cls: 'ns', color: '#8c8a84' },
+  'On hold': { cls: 'oh', color: '#ccbca3' },
+  Done: { cls: 'dn', color: '#96ae9f' },
 };
-export const statusStyle = (st: string) => STATUS_STYLE[st] ?? { cls: 'ns', color: '#94a3b8' };
+export const statusStyle = (st: string) => STATUS_STYLE[st] ?? { cls: 'ns', color: '#8c8a84' };
 
 export const projectFields = (s: Snapshot, p: Project): FieldDefinition[] =>
   p.fields.map((pf) => s.fields.find((f) => f.id === pf.fieldId)).filter((f): f is FieldDefinition => !!f && !f.archived)

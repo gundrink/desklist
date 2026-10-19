@@ -25,7 +25,7 @@ export function FieldInput({ s, field, dataType, value, onCommit, secretSet, pro
   if (type === 'select') {
     return (
       <div className="inp sel">
-        <span className="sdot" style={{ background: value ? 'var(--teal)' : '#cbd5e1' }} />
+        <span className="sdot" style={{ background: value ? 'var(--sage)' : 'rgba(255,255,255,.2)' }} />
         <Select value={value ?? ''} onChange={(e) => onCommit(e.target.value || null)} autoFocus={autoFocus}>
           <option value="">—</option>
           {(field?.options.choices ?? []).map((c) => <option key={c} value={c}>{c}</option>)}

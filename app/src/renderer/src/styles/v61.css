@@ -26,7 +26,7 @@
 /* View mode */
 .pview{display:flex;flex-direction:column;gap:8px;padding:12px 22px}
 .pview.compact{padding:4px 2px;gap:6px}
-.vsec{font-size:10.5px;font-weight:700;letter-spacing:.05em;color:#777;margin-top:4px;text-transform:uppercase}
+.vsec{font-size:10.5px;font-weight:700;letter-spacing:.05em;color:#777;margin-top:4px;text-transform:none}
 .vcard{background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:9px 12px}
 .vcard.proj{border-color:#111}
 .pview.compact .vcard{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.16);padding:7px 8px;color:#eee}
@@ -41,7 +41,7 @@
 .vline{display:grid;grid-template-columns:120px 1fr;align-items:center;gap:8px;min-height:24px;font-size:12px;border-bottom:1px dashed rgba(127,127,127,.18)}
 .pview.compact .vline{grid-template-columns:86px 1fr;font-size:11.5px;min-height:22px}
 .vlab{color:#777;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.vlab em{font-style:normal;font-size:9px;margin-left:5px;color:#aaa;text-transform:uppercase}
+.vlab em{font-style:normal;font-size:9px;margin-left:5px;color:#aaa;text-transform:none}
 .vval{display:flex;align-items:center;gap:4px;min-width:0;user-select:text}
 .vtext,.vsecret{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:550;min-width:0}
 .vsecret{font-family:ui-monospace,monospace;letter-spacing:.04em}

@@ -23,6 +23,7 @@ import '../styles/v61.css';
 import '../styles/v62.css';
 import '../styles/v66.css';
 import '../styles/v68.css';
+import '../styles/v69.css';
 import { ProjTabs, useProjectTabs } from '../components/ProjectList';
 
 export function Manage() {

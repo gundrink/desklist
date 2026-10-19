@@ -1,0 +1,36 @@
+/* 0.6.9 polish — Geist (OFL, bundled), sentence-case captions, tidy type scale */
+@font-face{font-family:'Geist';src:url('../fonts/Geist-Variable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:block}
+@font-face{font-family:'Geist Mono';src:url('../fonts/GeistMono-Variable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:block}
+:root{--font:'Geist',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;--mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;--w-reg:400;--w-med:432;--w-semi:580}
+html,body,button,input,textarea,select,.selx,.sel-pop,.modal,.pop,.signin,.widget{font-family:var(--font)!important}
+body{font-size:13px;font-weight:var(--w-reg);letter-spacing:-.003em}
+b,strong,.btn,.tt,.vtitle,.gname,.t{font-weight:var(--w-med)}
+h1,.rhead h1,.rp h1{font-size:22px!important;font-weight:var(--w-semi)!important;letter-spacing:-.022em!important}
+h2,h3,.rp h2,.rp h3,.fhead h3,.signin h2{font-size:16px!important;font-weight:var(--w-semi)!important;letter-spacing:-.015em!important}
+.btn.pri,.newbtn,.wbtn{font-weight:var(--w-semi)!important}
+/* numbers, amounts, codes stay mono */
+.mono,.amt,.ramt,.money,.rsum b,.due,.when,.wd,.cprog b,.pct,.pie text,.cnt,.wtag,code,.code,.vsecret,.cstat{font-family:var(--mono)!important}
+/* captions + section labels: sentence case, small, muted, normal tracking */
+*{text-transform:none!important}
+.thead,.colhead,.colh,.colh span,.tph1,.tpl>span,.cap,.te-h,.rsh span,.tph,.gsec,.rhd,.sect,.divider,.rth,.eth,.wqh,.mf-head,.sect-title,.pophd,.pdesc-h,.vsec,.vlab em,.tflab em,.nc.hdr,.demo-badge,.demo-tag,.shd,.flt,.cdue,.cexp{letter-spacing:normal!important;font-family:var(--font)!important}
+.thead,.colhead,.colh,.colh span,.tph1,.tpl>span,.cap,.te-h,.rsh span,.tph,.gsec,.rhd,.sect,.divider,.rth,.eth,.wqh,.mf-head,.sect-title,.pophd,.pdesc-h,.vsec,.nc.hdr,.shd,.flt{font-size:12px!important;font-weight:var(--w-med)!important;color:var(--muted)!important}
+.tflab em,.vlab em{font-size:11px!important;font-weight:var(--w-reg)!important;color:var(--faint)!important;font-style:normal}
+.tph1,.te-h{font-size:15px!important;font-weight:var(--w-semi)!important;color:var(--text)!important}
+.shd,.sect,.divider{font-size:13px!important;font-weight:var(--w-semi)!important;color:var(--text)!important}
+.nc.hdr,.colh .cexp,.colh .nc{color:var(--muted)!important}
+.rsh span{color:var(--bronze)!important}
+/* links + focus + checkboxes: neutral */
+a,.linkbtn,.srv,.server,.signin .muted a{color:var(--text)!important;text-decoration-color:rgba(248,247,244,.3)}
+:focus-visible{outline:2px solid rgba(248,247,244,.6)!important;outline-offset:2px}
+input[type=checkbox],input[type=radio]{accent-color:#96ae9f}
+.av,.avatar{color:#0d0e0e!important}
+::selection{background:rgba(204,188,163,.35)}
+/* tidy: add-task row on one line, neutral selected project card */
+.addform{flex-wrap:nowrap!important}
+.addform .ai.grow{flex:1 1 auto;min-width:0}
+.addform .selx,.addform .ttype{width:auto!important;flex:0 0 170px;min-width:0}
+.addform .ai.date{flex:0 0 auto}.addform .btn{flex:0 0 auto}
+.gcard.on,.gcard.sel{background:var(--surface-3)!important;border-color:rgba(248,247,244,.35)!important;box-shadow:0 0 0 1px rgba(248,247,244,.12) inset!important}
+.gcard,.gcard *{--gtext:var(--text)}
+.gcard .gname,.gcard .t{color:var(--text)!important;opacity:1!important}
+.tpanel.compact{box-sizing:border-box;max-width:100%;min-width:0}.tpanel.compact .tph1{font-size:13px!important}.tpanel.compact .cprog .cpbar{width:60px}

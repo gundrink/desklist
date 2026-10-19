@@ -6,7 +6,7 @@
   --accent:#f8f7f4; --accent-h:#e4e2dc; --accent-soft:rgba(248,247,244,.08); --accent-grad:linear-gradient(135deg,#e1d5c0,#ccbca3);
   --bronze:#ccbca3; --bronze-soft:#e1d5c0; --bronze-strong:#30302e;
   --sage:#96ae9f; --sage-soft:#aac1b3; --sage-strong:#16221b;
-  --blue:#95a9c4; --blue-soft:#2c343e; --blue-strong:#16202e;
+  --blue:#95a9c4; --blue-soft:#2c343e; --blue-strong:#1d2228;
   --green:#b0c49a; --green-strong:#242e1e; --yellow:#e0c478; --yellow-strong:#332a1a;
   --ok:#96ae9f; --warn:#e0c478; --danger:#be123c; --danger-h:#9f1239; --danger-l:#fb7185; --info:#95a9c4; --money:#ccbca3;
   --ring:rgba(248,247,244,.7); --r:8px;
@@ -14,7 +14,7 @@
   --shadow:0 12px 32px rgba(0,0,0,.45); --shadow-s:0 2px 8px rgba(0,0,0,.3);
 }
 .mono,.amt,.ramt,.money,.rsum b,.cdue,.due,.when,.wd,.cprog b,.pct,.pie text,.cnt,.badge,.tflab em,.tph1,.tpl>span,.cap,.thead,.colhead,.tph,.vlab em,.rsh span,.te-h,.wtag,code{font-family:var(--mono)!important;letter-spacing:.02em}
-.thead,.colhead,.tph1,.tpl>span,.cap,.te-h,.rsh span,.tph{font-size:10.5px!important;text-transform:uppercase;letter-spacing:.08em!important;color:var(--faint)!important}
+.thead,.colhead,.tph1,.tpl>span,.cap,.te-h,.rsh span,.tph{font-size:10.5px!important;text-transform:none;letter-spacing:.08em!important;color:var(--faint)!important}
 /* surfaces */
 .card,.pdesc,.tplmodal,.modal,.delmodal,.sheet,.pop,.pmenu-pop,.typepop,.cpop,.setuprow,.callout,.gcard,.tr,.tr.open{background:var(--surface)!important;border-color:var(--border)!important}
 .tr:hover,.gcard:hover{background:var(--surface-2)!important}

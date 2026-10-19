@@ -87,7 +87,7 @@ function FieldRow({ s, f, theme }: { s: Snapshot; f: TaskField; theme: Theme }) 
   return (
     <div className={`tfrow ${theme}`} data-field={f.label}>
       <span className="tfic" title={TASK_FIELD_TYPE_LABELS[f.type]}>{ICON[f.type]}</span>
-      <span className="tflab"><b>{f.label}</b><em>{TASK_FIELD_TYPE_LABELS[f.type].split(' ')[0].toUpperCase()}</em></span>
+      <span className="tflab"><b>{f.label}</b><em>{TASK_FIELD_TYPE_LABELS[f.type].split(' ')[0]}</em></span>
       <span className="tfed">{editor}{f.type === 'password' ? (f.isSet && <CopyBtn get={revealTaskField(f.id)} label={f.label} />) : f.type !== 'file' && <CopyBtn text={f.value} label={f.label} />}</span>
       {canEdit ? <button type="button" className="tfdel" title="Remove field" onClick={(e) => leave((e.currentTarget as HTMLElement).closest('.tfrow'), () => void actions.request('DELETE', `/api/task-fields/${f.id}`))}>×</button> : <span />}
       {err && <span className="tferr">{err}</span>}
@@ -129,7 +129,7 @@ export function AddField({ s, taskId, section = 'fields', theme, placeholder }: 
       <button type="button" className={`addfield ${theme}`} onClick={() => setOpen(!open)}>+ Add field{placeholder && <em> {placeholder}</em>}</button>
       {open && (
         <div className={`typepop ${theme}`} role="menu">
-          <div className="tph">FIELD TYPE</div>
+          <div className="tph">Field type</div>
           {TASK_FIELD_TYPES.map((t) => (
             <button type="button" key={t} className="tpi" onClick={() => { setType(t); setLabel(t === 'amount' ? 'Amount' : TASK_FIELD_TYPE_LABELS[t]); setOpen(false); }}>
               <span className="tfic">{ICON[t]}</span>{TASK_FIELD_TYPE_LABELS[t]}{HINT[t] && <em>{HINT[t]}</em>}</button>))}
@@ -164,7 +164,7 @@ export function ReimbSection({ s, t, theme }: { s: Snapshot; t: Task; theme: The
   };
   return (
     <div className={`rsec ${theme}`}>
-      <div className="rsh"><span>▤ REIMBURSEMENT</span><em>{r || saved ? 'Saved to Reimbursement tab' : 'Fill in to add to Reimbursement'}</em></div>
+      <div className="rsh"><span>▤ Reimbursement</span><em>{r || saved ? 'Saved to Reimbursement tab' : 'Fill in to add to Reimbursement'}</em></div>
       <div className="rsgrid">
         <label><span>Item / Domain name</span><input value={item} onChange={(e) => setItem(e.target.value)} onBlur={() => save()} aria-label="Reimbursement item" /></label>
         <label><span>Category</span><Select value={cat} onChange={(e) => { setCat(e.target.value); void save(e.target.value); }} aria-label="Reimbursement category">
@@ -207,7 +207,7 @@ export function TaskPanel({ s, t, theme, mode, onClose, compact }: { s: Snapshot
   const save = () => { if (note !== (t.doneNote ?? '')) void actions.updateTask(t.id, { doneNote: note }); onClose(); };
   const head = mode === 'ticked'
     ? <span className="tph1">✓ Approved by {appr ? shortName(appr.name) : 'you'} — add notes &amp; values</span>
-    : <span className="tph1">TASK DETAIL</span>;
+    : <span className="tph1">Task detail</span>;
   const pr = progressOf(s, t.id);
   return (
     <div className={`tpanel ${theme} ${mode} ${compact ? 'compact' : ''}`} data-panel={mode} onClick={(e) => e.stopPropagation()}>

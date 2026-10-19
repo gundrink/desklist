@@ -35,7 +35,7 @@ export class PriceService {
       const r = await this.fetcher(this.url(), { headers });
       if (!r.ok) throw new Error(`CoinGecko HTTP ${r.status}`);
       const j = await r.json();
-      const usd: Partial<Record<CurrencyCode, number>> = {};
+      const usd: Partial<Record<CurrencyCode, number>> = { USD: 1 };
       for (const c of CURRENCIES) if (c.geckoId && j[c.geckoId]?.usd) usd[c.code] = Number(j[c.geckoId].usd);
       const btc = j.bitcoin;
       if (btc?.usd && btc?.idr) usd.IDR = btc.usd / btc.idr; // USD per 1 IDR
@@ -45,7 +45,7 @@ export class PriceService {
       return this.table;
     } catch (e) {
       if (this.table) { this.at = Date.now() - this.ttl + 60_000; return { ...this.table, stale: true }; } // retry in 1 min
-      return { usd: {}, fetchedAt: null, stale: true, source: `unavailable: ${(e as Error).message}` };
+      return { usd: { USD: 1 }, fetchedAt: null, stale: true, source: `unavailable: ${(e as Error).message}` };
     }
   }
 }

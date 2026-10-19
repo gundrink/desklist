@@ -1,3 +1,4 @@
+import { registerPasskey, passkeySignIn } from './passkey';
 import { app, clipboard, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron';
 import path from 'node:path';
 import type { ManageView, Op } from '../common/ipc';
@@ -141,6 +142,10 @@ function broadcast() {
   rebuildTray();
 }
 
+/** In smoke tests, record the URL the app would open in the system browser instead of launching one. */
+const opened: string[] = [];
+const smokeOpen = () => (isSmoke ? async (u: string) => { opened.push(u); } : undefined);
+
 function registerIpc() {
   const handle = (ch: string, fn: (...a: any[]) => unknown) =>
     ipcMain.handle(ch, async (_e, ...a) => {
@@ -171,6 +176,8 @@ function registerIpc() {
   handle('uploadFile', async (taskId: string, name: string, mime: string, data: Uint8Array, fieldId?: string | null) => {
     await sync.drain(); const r = await sync.upload(taskId, name, mime, data, fieldId); void sync.refresh(); return r;
   });
+  handle('passkeyRegister', () => registerPasskey(sync.baseUrl, () => sync.http('POST', '/api/passkeys/ticket'), smokeOpen()));
+  handle('passkeySignIn', () => passkeySignIn(sync.baseUrl, (c, v) => sync.signInWithPasskeyCode(c, v), smokeOpen()));
   handle('copyText', (t: string) => { clipboard.writeText(String(t)); });
   handle('openFile', async (id: string, name: string) => {
     const fs = await import('node:fs'); const os = await import('node:os');
@@ -208,7 +215,7 @@ app.whenReady().then(() => {
   updateSettings({ widgetVisible: true });
   rebuildTray();
   initAutoUpdate();
-  if (isSmoke) (globalThis as any).__desklist = { openManage, showWidget, layerMode: () => layerMode, state: () => sync.state() };
+  if (isSmoke) (globalThis as any).__desklist = { openManage, showWidget, layerMode: () => layerMode, state: () => sync.state(), opened };
 });
 
 app.on('before-quit', () => { quitting = true; flushSettings(); sync.stop(); });

@@ -16,16 +16,21 @@ export function SignIn({ st, theme }: { st: AppState; theme: 'dark' | 'light' })
         new Promise((_, rej) => setTimeout(() => rej(new Error(`No answer from ${url} after 20 seconds. Check your connection or the server URL and try again.`)), 20_000))]);
     } catch (x) { setErr((x as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')); } finally { setBusy(false); }
   };
+  const expired = /expired/i.test(st.lastError ?? '');
+  const [pk, setPk] = useState(false);
+  const passkey = async () => { setPk(true); setErr(null); try { await window.desklist.passkeySignIn(); } catch (x) { setErr((x as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')); } finally { setPk(false); } };
+  const pkBtn = <button type="button" className={`btn ${expired ? 'pri' : 'sec'} passkey ${expired ? 'prominent' : ''}`} onClick={passkey} disabled={pk}>{pk ? 'Waiting for browser…' : '🔑 Sign in with passkey'}</button>;
   return (
     <form className={`signin ${theme}`} onSubmit={submit}>
       <div className="logo">✓</div>
       <h2>Sign in to Desklist</h2>
-      <p>Enter the personal code your team admin gave you.</p>
+      {expired ? <><p>Your session expired. Sign in again with your passkey.</p>{pkBtn}<p className="small">or enter your personal code</p></> : <p>Enter the personal code your team admin gave you.</p>}
       <input className="code" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="XXXX-XXXX" autoFocus
         aria-label="Personal code" spellCheck={false} />
       {adv && <input className="url" value={url} onChange={(e) => setUrl(e.target.value)} aria-label="Server URL" />}
       {err && <div className="err">{err}</div>}
       <button className="btn pri" disabled={busy || code.trim().length < 4}>{busy ? 'Signing in…' : 'Sign in'}</button>
+      {!expired && pkBtn}
       <button type="button" className="linkbtn" onClick={() => setAdv(!adv)}>{adv ? 'Hide server' : `Server: ${url}`}</button>
     </form>
   );

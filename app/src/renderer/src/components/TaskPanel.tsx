@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { MAX_FILE_BYTES, REIMB_CATEGORIES, TASK_FIELD_TYPES, TASK_FIELD_TYPE_LABELS, type Snapshot, type Task, type TaskField, type TaskFieldType } from '@desklist/shared';
+import { CURRENCY_CODES, MAX_FILE_BYTES, REIMB_CATEGORIES, TASK_FIELD_TYPES, TASK_FIELD_TYPE_LABELS, type Snapshot, type Task, type TaskField, type TaskFieldType } from '@desklist/shared';
 import { actions } from '../lib/store';
 import { member, shortDate, shortName } from '../lib/model';
 import { Avatar } from './Common';
@@ -38,8 +38,10 @@ async function uploadFromInput(taskId: string, files: FileList | null, setErr: (
 
 /** Single typed field row: icon + label + editor. Saves on blur/change. */
 function FieldRow({ s, f, theme }: { s: Snapshot; f: TaskField; theme: Theme }) {
+  const canEdit = s.me.role === 'admin' || f.section === 'reimbursement';
   const [v, setV] = useState(f.value ?? '');
   const [shown, setShown] = useState<string | null>(null);
+  const [curPick, setCurPick] = useState<string | null>(null);
   const [err, setErr] = useState('');
   useEffect(() => { setV(f.value ?? ''); }, [f.value]);
   const save = async (val: string | null) => {
@@ -65,10 +67,12 @@ function FieldRow({ s, f, theme }: { s: Snapshot; f: TaskField; theme: Theme }) 
       <button type="button" className="btn sec xs" onClick={async () => setErr((await pickAndUpload(f.taskId, f.id)) ?? '')}>Upload</button></span>;
   } else if (f.type === 'amount') {
     const [num, code] = (v || '').split(' ');
-    const cur = code || f.options.currency || defaultCurrency(s);
+    const cur = curPick || code || f.options.currency || defaultCurrency(s);
     const n = Number(num);
     editor = <span className="amtcell"><input inputMode="decimal" value={num ?? ''} placeholder="0.00" aria-label={f.label}
-      onChange={(e) => setV(e.target.value ? `${e.target.value} ${cur}` : '')} onBlur={blur} /><em>{cur}</em>
+      onChange={(e) => setV(e.target.value ? `${e.target.value} ${cur}` : '')} onBlur={blur} />
+      <select className="cursel" value={cur} aria-label={`${f.label} currency`} onChange={(e) => { setCurPick(e.target.value); if (num) { const nv = `${num} ${e.target.value}`; setV(nv); void save(nv); } }}>
+        {CURRENCY_CODES.map((c) => <option key={c}>{c}</option>)}</select>
       {n > 0 && usdOf(s, n, cur) && <em className="usd">≈ {usdOf(s, n, cur)}</em>}</span>;
   } else {
     const t = f.type === 'number' ? 'text' : f.type === 'url' ? 'text' : f.type;
@@ -80,7 +84,7 @@ function FieldRow({ s, f, theme }: { s: Snapshot; f: TaskField; theme: Theme }) 
       <span className="tfic" title={TASK_FIELD_TYPE_LABELS[f.type]}>{ICON[f.type]}</span>
       <span className="tflab"><b>{f.label}</b><em>{TASK_FIELD_TYPE_LABELS[f.type].split(' ')[0].toUpperCase()}</em></span>
       <span className="tfed">{editor}{f.type === 'password' ? (f.isSet && <CopyBtn get={revealTaskField(f.id)} label={f.label} />) : f.type !== 'file' && <CopyBtn text={f.value} label={f.label} />}</span>
-      <button type="button" className="tfdel" title="Remove field" onClick={() => actions.request('DELETE', `/api/task-fields/${f.id}`)}>×</button>
+      {canEdit ? <button type="button" className="tfdel" title="Remove field" onClick={() => actions.request('DELETE', `/api/task-fields/${f.id}`)}>×</button> : <span />}
       {err && <span className="tferr">{err}</span>}
     </div>
   );
@@ -132,7 +136,10 @@ export function AddField({ s, taskId, section = 'fields', theme, placeholder }: 
 
 export function FieldList({ s, taskId, section = 'fields', theme, placeholder }: { s: Snapshot; taskId: string; section?: 'fields' | 'reimbursement'; theme: Theme; placeholder?: string }) {
   const fs = fieldsOf(s, taskId, section);
-  return <div className="tflist">{fs.map((f) => <FieldRow key={f.id} s={s} f={f} theme={theme} />)}<AddField s={s} taskId={taskId} section={section} theme={theme} placeholder={placeholder} /></div>;
+  const canAdd = s.me.role === 'admin' || section === 'reimbursement';
+  return <div className="tflist">{fs.map((f) => <FieldRow key={f.id} s={s} f={f} theme={theme} />)}
+    {!fs.length && !canAdd && <div className="muted small">No detail fields set up for this task. An admin can add them in Task setup.</div>}
+    {canAdd && <AddField s={s} taskId={taskId} section={section} theme={theme} placeholder={placeholder} />}</div>;
 }
 
 /** Reimbursement section: Item/Domain name, Category, Amount (admin currency) ≈ USD, + extra fields. */
@@ -185,10 +192,12 @@ function Attachments({ s, t, theme }: { s: Snapshot; t: Task; theme: Theme }) {
 export function TaskPanel({ s, t, theme, mode, onClose, compact }: { s: Snapshot; t: Task; theme: Theme; mode: 'detail' | 'ticked'; onClose: () => void; compact?: boolean }) {
   const [note, setNote] = useState(t.doneNote ?? '');
   const appr = member(s, t.approvedByMemberId);
-  const toggleReimb = async (on: boolean) => {
+  void Toggle;
+  const _toggleReimb = async (on: boolean) => {
     if (on) await actions.request('PUT', `/api/tasks/${t.id}/reimbursement`, { item: t.title, category: 'Other', amount: 0, currency: defaultCurrency(s) });
     else await actions.request('DELETE', `/api/tasks/${t.id}/reimbursement`);
   };
+  void _toggleReimb;
   const save = () => { if (note !== (t.doneNote ?? '')) void actions.updateTask(t.id, { doneNote: note }); onClose(); };
   const head = mode === 'ticked'
     ? <span className="tph1">✓ Approved by {appr ? shortName(appr.name) : 'you'} — add notes &amp; values</span>
@@ -196,7 +205,6 @@ export function TaskPanel({ s, t, theme, mode, onClose, compact }: { s: Snapshot
   return (
     <div className={`tpanel ${theme} ${mode} ${compact ? 'compact' : ''}`} data-panel={mode} onClick={(e) => e.stopPropagation()}>
       <div className="tphead">{head}<span className="ml" />
-        <Toggle theme={theme} on={t.hasExpense} onChange={(v) => void toggleReimb(v)} label="Has reimbursement" />
         {mode === 'detail' && <button type="button" className="tpx" title="Collapse" onClick={onClose}>×</button>}</div>
       {mode === 'detail' && t.done && (appr || t.doneNote) && (
         <div className="tpappr">{appr && <Avatar initials={appr.initials} size="sm" />}<span><b>{appr ? shortName(appr.name) : ''}</b> · {shortDate(t.approvedAt)}{t.doneNote && <><br />{t.doneNote}</>}</span></div>)}
@@ -212,7 +220,7 @@ export function TaskPanel({ s, t, theme, mode, onClose, compact }: { s: Snapshot
           {mode === 'detail' && filesOf(s, t.id).some((f) => !f.fieldId) && <div className="tpl"><span>Attachments</span><Attachments s={s} t={t} theme={theme} /></div>}
         </div>
       </div>
-      {t.hasExpense && <ReimbSection s={s} t={t} theme={theme} />}
+      <ReimbSection s={s} t={t} theme={theme} />
       {mode === 'ticked' && <div className="tpbtns"><span className="muted small">Saved to Task details tab</span><span className="ml" />
         <button type="button" className="btn sec sm" onClick={onClose}>Skip</button><button type="button" className="btn pri sm" onClick={save}>Save</button></div>}
     </div>

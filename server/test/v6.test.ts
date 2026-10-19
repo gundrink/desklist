@@ -63,7 +63,7 @@ describe('v6 typed task fields', () => {
     const dd = await api('POST', `/api/tasks/${taskId}/fields`, tok, { label: 'Region', type: 'dropdown', options: { choices: ['Singapore', 'Jakarta'] }, value: 'Singapore' });
     expect(dd.status).toBe(201);
     expect((await api('PATCH', `/api/task-fields/${dd.body.id}`, tok, { value: 'Tokyo' })).status).toBe(400);
-    expect((await api('POST', `/api/tasks/${taskId}/fields`, tok, { label: 'Fee', type: 'amount', value: '0.5 USD' })).status).toBe(400);
+    expect((await api('POST', `/api/tasks/${taskId}/fields`, tok, { label: 'Fee', type: 'amount', value: '0.5 USDT' })).status).toBe(400);
     expect((await api('POST', `/api/tasks/${taskId}/fields`, tok, { label: 'Fee', type: 'amount', value: '0.5 SOL' })).status).toBe(201);
     const del = await api('POST', `/api/tasks/${taskId}/fields`, tok, { label: 'tmp', type: 'text' });
     expect((await api('DELETE', `/api/task-fields/${del.body.id}`, tok)).status).toBe(200);

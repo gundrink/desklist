@@ -171,9 +171,10 @@ export function slugKey(label: string): string {
 
 // ---------------------------------------------------------------- v5: expenses, templates, currency
 
-/** Selectable currencies: Rupiah + native coins only (no USD, no stablecoins). USD is only used for "≈ $" equivalents. */
+/** Selectable currencies: USD, Rupiah + native coins (no stablecoins). */
 export const CURRENCIES = [
   { code: 'SOL', name: 'Solana', geckoId: 'solana', decimals: 4 },
+  { code: 'USD', name: 'US Dollar', geckoId: null, decimals: 2 },
   { code: 'IDR', name: 'Indonesian Rupiah', geckoId: null, decimals: 0 },
   { code: 'BTC', name: 'Bitcoin', geckoId: 'bitcoin', decimals: 6 },
   { code: 'ETH', name: 'Ethereum', geckoId: 'ethereum', decimals: 5 },
@@ -246,6 +247,7 @@ export interface Report {
 /** Format an amount with its code, e.g. "0.75 SOL", "Rp 150.000". */
 export function formatAmount(amount: number, code: string): string {
   const c = CURRENCIES.find((x) => x.code === code);
+  if (code === 'USD') return formatUsd(amount);
   if (code === 'IDR') return 'Rp ' + Math.round(amount).toLocaleString('id-ID');
   const d = c?.decimals ?? 4;
   const s = Number(amount.toFixed(d)).toString();
@@ -256,12 +258,12 @@ export function formatUsd(v: number): string {
 }
 /** "0.75 SOL ≈ $112.50" (USD part omitted when no rate is known). */
 export function withUsd(amount: number, code: string, prices?: PriceTable | null): string {
-  const r = prices?.usd[code as CurrencyCode];
+  const r = code === 'USD' ? null : prices?.usd[code as CurrencyCode];
   return formatAmount(amount, code) + (r ? ` ≈ ${formatUsd(amount * r)}` : '');
 }
 export function convert(amount: number, from: string, to: string, prices?: PriceTable | null): number | null {
   if (from === to) return amount;
-  const a = prices?.usd[from as CurrencyCode], b = prices?.usd[to as CurrencyCode];
+  const a = from === 'USD' ? 1 : prices?.usd[from as CurrencyCode], b = to === 'USD' ? 1 : prices?.usd[to as CurrencyCode];
   return a && b ? (amount * a) / b : null;
 }
 

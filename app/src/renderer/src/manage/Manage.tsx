@@ -13,6 +13,7 @@ import { MasterFields } from './MasterFields';
 import { Team } from './Team';
 import { TemplatePicker } from './TemplatePicker';
 import { Reports } from './Reports';
+import { TaskSetup } from './TaskSetup';
 import '../styles/v5.css';
 import '../styles/v6.css';
 import '../styles/v61.css';
@@ -59,6 +60,7 @@ function ManageReady({ st, s, nav, setNav, picker, setPicker, titlebar }: { st: 
             <button className="newbtn" onClick={() => setNav({ view: 'create' })}><Plus />New project</button></div>
           <div className="gscroll scroll">
             {isAdmin && <button className={`adminrow ${nav.view === 'reports' ? 'on' : ''}`} onClick={() => setNav({ view: 'reports' })}>▦ Admin · Reports<span>{s.me.name}</span></button>}
+            {isAdmin && <button className={`adminrow ${nav.view === 'tasksetup' ? 'on' : ''}`} onClick={() => setNav({ view: 'tasksetup' })}>▤ Admin · Task setup<span>fields</span></button>}
             <ProjTabs t={tabs} theme="dark" />
             {tabs.list.map((p) => (
               <ProjectGlassCard key={p.id} s={s} p={p} selected={p.id === selectedId} expanded={p.id === selectedId}
@@ -80,6 +82,7 @@ function ManageReady({ st, s, nav, setNav, picker, setPicker, titlebar }: { st: 
           {nav.view === 'project' && !selectedId && <div className="center-fill muted">Create a project to get started.</div>}
           {nav.view === 'create' && <CreateProject s={s} onCreated={(id) => { select(id); setPicker(id); }} onCancel={() => setNav({ view: 'project' })} />}
           {nav.view === 'reports' && <Reports s={s} />}
+          {nav.view === 'tasksetup' && isAdmin && <TaskSetup s={s} />}
           {nav.view === 'fields' && <MasterFields s={s} isAdmin={isAdmin} />}
           {nav.view === 'team' && <Team s={s} isAdmin={isAdmin} />}
           {picker && <TemplatePicker s={s} projectId={picker} onClose={() => setPicker(null)} />}

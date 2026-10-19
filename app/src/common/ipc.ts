@@ -28,7 +28,7 @@ export interface AppState {
 }
 
 export type ProjectTab = 'checklist' | 'details' | 'reimbursement' | 'taskdetails';
-export type ManageView = { view: 'project'; projectId?: string; tab?: ProjectTab } | { view: 'reports' } | { view: 'create' } | { view: 'fields' } | { view: 'team' };
+export type ManageView = { view: 'project'; projectId?: string; tab?: ProjectTab } | { view: 'reports' } | { view: 'create' } | { view: 'fields' } | { view: 'team' } | { view: 'tasksetup' };
 
 export interface DesklistBridge {
   getState(): Promise<AppState>;
@@ -51,4 +51,6 @@ export interface DesklistBridge {
   uploadFile(taskId: string, name: string, mime: string, data: Uint8Array, fieldId?: string | null): Promise<unknown>;
   openFile(id: string, name: string): Promise<string>;
   copyText(text: string): Promise<void>;
+  passkeyRegister(): Promise<void>;
+  passkeySignIn(): Promise<void>;
 }

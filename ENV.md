@@ -9,7 +9,8 @@ Never commit real values. `server/.env` is git-ignored; `server/.env.example` ha
 | `NEON_DATABASE_URL` | **yes** | **yes** | Neon Postgres connection string. All tables live in schema `desklist`. Neon hosts use `@neondatabase/serverless` over port 443 (5432 may be blocked). `DATABASE_URL` is accepted as a fallback name. |
 | `APP_ENCRYPTION_KEY` | **yes** | **yes** | 16+ (ideally 32+) chars. AES-256-GCM key material for secret master fields (project passwords). Must stay identical forever, or stored secrets can't be decrypted. |
 | `PORT` | no | no | HTTP/WebSocket port. Railway injects it (service uses 8080); local default 8787. |
-| `PUBLIC_SERVER_URL` | no | no | Public base URL of this server (e.g. the Railway URL). Informational / for tooling; the app's default comes from `DESKLIST_SERVER_URL` at build time. |
+| `PUBLIC_SERVER_URL` | no | no | Public base URL of this server (e.g. the Railway URL). Also sets the passkey (WebAuthn) RP ID = its host and origin = its https URL — set it to the Railway URL; the app's default comes from `DESKLIST_SERVER_URL` at build time. |
+| `SESSION_TTL_DAYS` | no | no | Session lifetime in days, fixed from sign-in (not sliding). Default `5`. After expiry the app shows sign-in with the passkey button first. |
 | `SIGNIN_RATE_LIMIT` | no | no | Max failed sign-ins per IP per 15 min (default 10). |
 | `NODE_ENV` | no | no | `production` on Railway. |
 | `COINGECKO_API_KEY` | no | yes | Optional CoinGecko key for `simple/price`. Without it the public API is used. |

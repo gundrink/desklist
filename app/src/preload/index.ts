@@ -26,6 +26,8 @@ const api: DesklistBridge = {
   uploadFile: (t, n, m, d, f) => call('uploadFile', t, n, m, d, f),
   openFile: (id, n) => call('openFile', id, n),
   copyText: (t) => call('copyText', t),
+  passkeyRegister: () => call('passkeyRegister'),
+  passkeySignIn: () => call('passkeySignIn'),
 };
 contextBridge.exposeInMainWorld('desklist', api);
 

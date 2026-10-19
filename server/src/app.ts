@@ -9,6 +9,7 @@ import {
   TASK_TYPES, SOCIAL_FIELDS, SOCIAL_PLATFORMS,
 } from '@desklist/shared';
 import { PriceService } from './prices.js';
+import { registerPasskeyAuthed, registerPasskeyPublic, type PasskeyConfig } from './passkeys.js';
 import type { Db, Queryable } from './db.js';
 import { codeBucket, encryptSecret, generateCode, newToken, normalizeCode, sha256 } from './crypto.js';
 import { listTaskFields, listTaskFiles, mapTaskField, mapTaskFile } from './repo.js';
@@ -16,7 +17,8 @@ import { decryptSecret } from './crypto.js';
 import { listFields, listReimbursements, listTemplates, loadProjects, mapColumn, mapField, mapMember, mapReimbursement, mapTask, mapTeam, mapTemplate, revealSecret, snapshot } from './repo.js';
 
 const S = 'desklist';
-const SESSION_DAYS = 90;
+/** Fixed session lifetime from sign-in (not sliding). SESSION_TTL_DAYS, default 5. */
+export const sessionDays = () => { const n = Number(process.env.SESSION_TTL_DAYS ?? 5); return Number.isFinite(n) && n > 0 && n <= 365 ? n : 5; };
 
 export class HttpError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -53,7 +55,7 @@ function clientTs(v?: string | null): Date {
 const uuid = z.string().uuid();
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
-export interface AppOptions { db: Db; signinLimit?: number; log?: (...a: unknown[]) => void; prices?: PriceService }
+export interface AppOptions { passkeys?: PasskeyConfig; db: Db; signinLimit?: number; log?: (...a: unknown[]) => void; prices?: PriceService }
 
 const currency = z.enum(CURRENCY_CODES);
 const amount = z.coerce.number().finite().nonnegative().max(1e15);
@@ -95,7 +97,7 @@ export function createServer(opts: AppOptions) {
     if (!token) return null;
     const { rows } = await db.query(
       `SELECT m.* FROM ${S}.sessions s JOIN ${S}.members m ON m.id = s.member_id
-       WHERE s.token_hash = $1 AND s.expires_at > now() AND NOT m.revoked`, [sha256(token)]);
+       WHERE s.token_hash = $1 AND s.expires_at > now() AND s.created_at > now() - make_interval(days => $2::int) AND NOT m.revoked`, [sha256(token), Math.ceil(sessionDays())]);
     return rows[0] ? mapMember(rows[0]) : null;
   }
 
@@ -215,11 +217,18 @@ export function createServer(opts: AppOptions) {
     for (const r of rows) if (await bcrypt.compare(norm, r.code_hash)) { found = r; break; }
     if (!found) { limiter.fail(ip); throw new HttpError(401, 'Invalid code'); }
     limiter.clear(ip);
-    const token = newToken();
-    await db.query(`INSERT INTO ${S}.sessions(member_id, token_hash, expires_at) VALUES ($1,$2, now() + interval '${SESSION_DAYS} days')`, [found.id, sha256(token)]);
-    const team = await db.query(`SELECT * FROM ${S}.teams WHERE id=$1`, [found.team_id]);
-    res.json({ token, member: mapMember(found), team: mapTeam(team.rows[0]) });
+    res.json(await issueSession(found.id));
   }));
+  async function issueSession(memberId: string) {
+    const token = newToken();
+    const { rows: [m] } = await db.query(`SELECT * FROM ${S}.members WHERE id=$1 AND NOT revoked`, [memberId]);
+    if (!m) throw new HttpError(401, 'Member revoked');
+    const { rows: [sess] } = await db.query(`INSERT INTO ${S}.sessions(member_id, token_hash, expires_at) VALUES ($1,$2, now() + make_interval(secs => $3::double precision)) RETURNING expires_at`,
+      [m.id, sha256(token), sessionDays() * 86400]);
+    const team = await db.query(`SELECT * FROM ${S}.teams WHERE id=$1`, [m.team_id]);
+    return { token, member: mapMember(m), team: mapTeam(team.rows[0]), expiresAt: new Date(sess.expires_at).toISOString() };
+  }
+  registerPasskeyPublic(app, db, opts.passkeys ?? {}, issueSession);
 
   /** Public: selectable currencies + live USD prices (CoinGecko, cached ~5 min, last-rate fallback). */
   const currencies = h(async (_req, res) => {
@@ -230,6 +239,7 @@ export function createServer(opts: AppOptions) {
 
   // ---------- authenticated ----------
   app.use('/api', requireAuth);
+  registerPasskeyAuthed(app, db);
 
   app.post('/api/auth/signout', h(async (req, res) => {
     const tok = (req.headers.authorization ?? '').replace(/^Bearer /, '');
@@ -260,6 +270,14 @@ export function createServer(opts: AppOptions) {
       [req.member!.teamId, b.name, initials, b.role, await bcrypt.hash(code, 10), codeBucket(code)]);
     changed(req, 'member', rows[0].id);
     res.status(201).json({ member: mapMember(rows[0]), code });
+  }));
+  app.delete('/api/members/:id', h(async (req, res) => {
+    admin(req);
+    if (req.params.id === req.member!.id) throw new HttpError(400, 'You cannot delete yourself');
+    const { rows } = await db.query(`DELETE FROM ${S}.members WHERE id=$1 AND team_id=$2 RETURNING id`, [req.params.id, req.member!.teamId]);
+    if (!rows[0]) throw new HttpError(404, 'Member not found');
+    changed(req, 'member', req.params.id as string);
+    res.json({ ok: true });
   }));
   app.patch('/api/members/:id', h(async (req, res) => {
     admin(req);
@@ -535,6 +553,7 @@ export function createServer(opts: AppOptions) {
        VALUES (COALESCE($1, gen_random_uuid()), $2, $3, $4, $5, $6, $8, $9, $10, $11, $12, (SELECT COALESCE(MAX(sort_order),0)+1 FROM ${S}.tasks WHERE project_id=$2), $7, $7)
        ON CONFLICT (id) DO NOTHING RETURNING *`,
       [b.id ?? null, p.id, b.title, b.dueDate ?? null, b.bicMemberId ?? null, req.member!.id, ts, b.notes ?? '', has, has ? b.expenseAmount : null, cur, b.taskType]);
+    if (rows[0]) await applySetup(req.member!.teamId, rows[0].id, rows[0].title, req.member!.id);
     if (rows[0] && b.taskType === 'social') {
       for (const [i, f] of SOCIAL_FIELDS.entries())
         await db.query(`INSERT INTO ${S}.task_fields(task_id, section, label, type, options, value, sort_order) VALUES ($1,'fields',$2,$3,$4,$5,$6)`,
@@ -631,6 +650,7 @@ export function createServer(opts: AppOptions) {
   });
   app.post('/api/tasks/:id/fields', h(async (req, res) => {
     const b = fieldBodyV6.parse(req.body);
+    if (b.section !== 'reimbursement') admin(req); // detail field structure is admin setup; reimbursement rows are open to members
     const t = await taskOf(db, req, req.params.id as string);
     const { rows } = await db.query(
       `INSERT INTO ${S}.task_fields(id, task_id, section, label, type, options, value, sort_order)
@@ -644,15 +664,18 @@ export function createServer(opts: AppOptions) {
     const b = z.object({ label: z.string().trim().min(1).max(80).optional(), value: z.string().max(20000).nullable().optional(),
       options: z.object({ choices: z.array(z.string().min(1)).max(50).optional(), currency: z.string().optional() }).optional() }).parse(req.body);
     const f = await taskFieldOf(db, req, req.params.id as string);
+    if ((b.label !== undefined || b.options !== undefined) && req.member!.role !== 'admin') throw new HttpError(403, 'Only an admin can change the task setup');
     const opts = b.options ?? f.options;
     const { rows } = await db.query(
       `UPDATE ${S}.task_fields SET label=COALESCE($2,label), options=$3, value=CASE WHEN $5 THEN $4 ELSE value END, updated_at=now() WHERE id=$1 RETURNING *`,
       [f.id, b.label ?? null, JSON.stringify(opts), b.value === undefined ? null : fieldValue(f.type, b.value, opts), b.value !== undefined]);
+    if (f.section === 'reimbursement' && f.type === 'amount' && b.value !== undefined) await syncAmountField(f.task_id, rows[0].value, req.member!.id);
     changed(req, 'task', f.task_id);
     res.json(mapTaskField(rows[0]));
   }));
   app.delete('/api/task-fields/:id', h(async (req, res) => {
     const f = await taskFieldOf(db, req, req.params.id as string);
+    if (f.section !== 'reimbursement') admin(req);
     await db.query(`DELETE FROM ${S}.task_fields WHERE id=$1`, [f.id]);
     changed(req, 'task', f.task_id);
     res.json({ ok: true });
@@ -723,6 +746,59 @@ export function createServer(opts: AppOptions) {
     await db.query(`DELETE FROM ${S}.reimbursements WHERE task_id=$1 AND status <> 'paid'`, [t.id]);
     await db.query(`DELETE FROM ${S}.task_fields WHERE task_id=$1 AND section='reimbursement'`, [t.id]);
     changed(req, 'reimbursement', t.id);
+    res.json({ ok: true });
+  }));
+
+  // ---------- admin task setup (keyed by task name, reused across projects/templates) ----------
+  const setupField = z.object({ label: z.string().trim().min(1).max(80), type: z.enum(TASK_FIELD_TYPES),
+    options: z.object({ choices: z.array(z.string().min(1)).max(50).optional() }).default({}), reimbursement: z.boolean().default(false) });
+  const titleKey = (t: string) => t.trim().toLowerCase().replace(/\s+/g, ' ');
+  async function applySetup(teamId: string, taskId: string, title: string, memberId: string) {
+    const { rows: [st] } = await db.query(`SELECT * FROM ${S}.task_setups WHERE team_id=$1 AND title_key=$2`, [teamId, titleKey(title)]);
+    if (!st) return false;
+    const have = new Set((await db.query(`SELECT section||'|'||lower(label) k FROM ${S}.task_fields WHERE task_id=$1`, [taskId])).rows.map((r: any) => r.k));
+    let reimb = false;
+    for (const [i, f] of (st.fields as z.infer<typeof setupField>[]).entries()) {
+      const section = f.reimbursement ? 'reimbursement' : 'fields'; if (f.reimbursement) reimb = true;
+      if (have.has(section + '|' + f.label.toLowerCase())) continue;
+      await db.query(`INSERT INTO ${S}.task_fields(task_id, section, label, type, options, sort_order) VALUES ($1,$2,$3,$4,$5,$6)`,
+        [taskId, section, f.label, f.type, JSON.stringify(f.options ?? {}), i + 1]);
+    }
+    if (reimb) {
+      const { rows: [t] } = await db.query(`UPDATE ${S}.tasks SET has_expense=true, expense_currency=COALESCE(expense_currency,$2), updated_at=now() WHERE id=$1 RETURNING *`, [taskId, (await db.query(`SELECT currency FROM ${S}.teams WHERE id=$1`, [teamId])).rows[0]?.currency ?? 'SOL']);
+      await db.query(`INSERT INTO ${S}.reimbursements(project_id, task_id, item, category, amount, currency, paid_by_member_id, spent_on) VALUES ($1,$2,$3,'Other',COALESCE($4,0),$5,$6,CURRENT_DATE) ON CONFLICT (task_id) DO NOTHING`,
+        [t.project_id, t.id, t.title, t.expense_amount, t.expense_currency, memberId]);
+      await db.query(`UPDATE ${S}.projects SET has_expenses=true WHERE id=$1 AND NOT has_expenses`, [t.project_id]);
+    }
+    return true;
+  }
+  /** A reimbursement-flagged Amount field drives the task's reimbursement entry. */
+  async function syncAmountField(taskId: string, value: string | null, memberId: string) {
+    const m = /^(\d+(?:\.\d+)?)\s+([A-Z]{2,5})$/.exec(value ?? ''); if (!m) return;
+    const { rows: [t] } = await db.query(`UPDATE ${S}.tasks SET has_expense=true, expense_amount=$2, expense_currency=$3, updated_at=now() WHERE id=$1 RETURNING *`, [taskId, Number(m[1]), m[2]]);
+    await db.query(`INSERT INTO ${S}.reimbursements(project_id, task_id, item, category, amount, currency, paid_by_member_id, spent_on) VALUES ($1,$2,$3,'Other',$4,$5,$6,CURRENT_DATE)
+      ON CONFLICT (task_id) DO UPDATE SET amount=EXCLUDED.amount, currency=EXCLUDED.currency, updated_at=now()`, [t.project_id, t.id, t.title, Number(m[1]), m[2], memberId]);
+  }
+  const mapSetup = (r: any) => ({ id: r.id, title: r.title, fields: r.fields, updatedAt: new Date(r.updated_at).toISOString() });
+  app.get('/api/task-setups', h(async (req, res) => {
+    res.json((await db.query(`SELECT * FROM ${S}.task_setups WHERE team_id=$1 ORDER BY title`, [req.member!.teamId])).rows.map(mapSetup));
+  }));
+  app.put('/api/task-setups', h(async (req, res) => {
+    admin(req);
+    const b = z.object({ title: z.string().trim().min(1).max(300), fields: z.array(setupField).max(40) }).parse(req.body);
+    const { rows: [st] } = await db.query(`INSERT INTO ${S}.task_setups(team_id, title, title_key, fields) VALUES ($1,$2,$3,$4)
+      ON CONFLICT (team_id, title_key) DO UPDATE SET title=EXCLUDED.title, fields=EXCLUDED.fields, updated_at=now() RETURNING *`,
+      [req.member!.teamId, b.title, titleKey(b.title), JSON.stringify(b.fields)]);
+    // apply to existing tasks with this name (adds missing fields; never deletes filled values)
+    const { rows: ts } = await db.query(`SELECT t.id, t.title FROM ${S}.tasks t JOIN ${S}.projects p ON p.id=t.project_id WHERE p.team_id=$1 AND lower(regexp_replace(trim(t.title), '\s+', ' ', 'g'))=$2`,
+      [req.member!.teamId, titleKey(b.title)]);
+    for (const t of ts) await applySetup(req.member!.teamId, t.id, t.title, req.member!.id);
+    changed(req, 'task', st.id);
+    res.json({ ...mapSetup(st), appliedTo: ts.length });
+  }));
+  app.delete('/api/task-setups/:id', h(async (req, res) => {
+    admin(req);
+    await db.query(`DELETE FROM ${S}.task_setups WHERE id=$1 AND team_id=$2`, [req.params.id, req.member!.teamId]);
     res.json({ ok: true });
   }));
 
@@ -876,6 +952,7 @@ export function createServer(opts: AppOptions) {
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof z.ZodError) return res.status(400).json({ error: err.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ') });
     if (err instanceof HttpError) return res.status(err.status).json({ error: err.message });
+    if (err?.expose && err.status) return res.status(err.status).json({ error: err.message });
     if (err?.type === 'entity.too.large') return res.status(413).json({ error: 'File too large (max 10 MB)' });
     if (err?.type === 'entity.parse.failed') return res.status(400).json({ error: 'Invalid JSON' });
     log('[error]', err?.message ?? err);

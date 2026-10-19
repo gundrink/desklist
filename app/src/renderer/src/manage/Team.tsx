@@ -1,3 +1,4 @@
+import { PasskeysCard } from '../components/Passkeys';
 import { useState } from 'react';
 import type { Member, Snapshot } from '@desklist/shared';
 import { actions } from '../lib/store';
@@ -18,6 +19,7 @@ export function Team({ s, isAdmin }: { s: Snapshot; isAdmin: boolean }) {
       <div className="rhead"><div className="row"><h1>Team &amp; codes</h1><span className="lpill ns">{s.team.name}</span></div>
         <div className="sub">Everyone signs in with a personal code. Generate, reset or revoke codes here.</div></div>
       <div className="rbody scroll">
+        <div className="details" style={{ paddingBottom: 0 }}><PasskeysCard /></div>
         {!isAdmin && <div className="callout">Only admins can manage codes.</div>}
         {err && <div className="callout err">{err}</div>}
         {shown && <div className="callout code-callout">New code for <b>{shown.name}</b>: <span className="mono big">{shown.code}</span>

@@ -3,6 +3,7 @@ import { CURRENCIES, formatAmount, formatUsd, type Snapshot } from '@desklist/sh
 
 /** "0.08 SOL" + "≈ $12.00" using the live server-side price table carried in the snapshot. */
 export function usdOf(s: Snapshot, amount: number, code: string): string | null {
+  if (code === 'USD') return null; // amount already in USD: no "≈ USD" line
   const r = s.prices?.usd?.[code as keyof typeof s.prices.usd];
   return r ? formatUsd(amount * r) : null;
 }
@@ -66,7 +67,7 @@ export function CurrencyList({ value, onPick }: { value: string; onPick: (c: str
       <div className="curitems scroll">
         {list.map((c) => (
           <button key={c.code} className={`curi ${c.code === value ? 'on' : ''}`} onClick={() => onPick(c.code)}>
-            <span className={`cico c-${c.code}`}>{c.code === 'IDR' ? 'Rp' : c.code[0]}</span>{c.name} ({c.code})
+            <span className={`cico c-${c.code}`}>{c.code === 'IDR' ? 'Rp' : c.code === 'USD' ? '$' : c.code[0]}</span>{c.name} ({c.code})
             {c.code === value && <span className="curdef">Default ✓</span>}
           </button>
         ))}

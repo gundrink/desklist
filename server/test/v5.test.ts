@@ -61,7 +61,8 @@ describe('currency & prices', () => {
     const codes = r.body.currencies.map((c: any) => c.code);
     expect(r.body.default).toBe('SOL');
     expect(codes).toEqual(expect.arrayContaining(['IDR', 'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'TON', 'AVAX', 'TRX', 'DOT', 'LTC']));
-    for (const bad of ['USD', 'USDT', 'USDC', 'DAI']) expect(codes).not.toContain(bad);
+    for (const bad of ['USDT', 'USDC', 'DAI']) expect(codes).not.toContain(bad);
+    expect(codes).toContain('USD');
     expect(r.body.prices.usd.SOL).toBe(150);
     expect(r.body.prices.usd.IDR).toBeCloseTo(100_000 / 1_600_000_000);
   });
@@ -78,7 +79,7 @@ describe('currency & prices', () => {
   });
   it('admin sets the currency; members cannot; USD is rejected', async () => {
     expect((await api('PATCH', '/api/settings', memberTok, { currency: 'BTC' })).status).toBe(403);
-    expect((await api('PATCH', '/api/settings', adminTok, { currency: 'USD' })).status).toBe(400);
+    expect((await api('PATCH', '/api/settings', adminTok, { currency: 'USDT' })).status).toBe(400);
     expect((await api('PATCH', '/api/settings', adminTok, { currency: 'ETH' })).status).toBe(200);
     expect((await api('GET', '/api/snapshot', memberTok)).body.currency).toBe('ETH');
     expect((await api('PATCH', '/api/settings', adminTok, { currency: 'SOL' })).status).toBe(200);

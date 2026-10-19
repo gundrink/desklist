@@ -179,6 +179,15 @@ export class SyncEngine extends EventEmitter {
   async signIn(code: string, serverUrl?: string) {
     if (serverUrl) updateSettings({ serverUrl: serverUrl.replace(/\/+$/, '') });
     const res = await this.http<SignInResponse>('POST', '/api/auth/signin', { code }, null);
+    await this.adoptSession(res);
+  }
+  get baseUrl() { return this.serverUrl; }
+  /** Passkey: exchange the one-time code (+ PKCE verifier) from the loopback redirect for a session. */
+  async signInWithPasskeyCode(code: string, verifier: string) {
+    const res = await this.http<SignInResponse>('POST', '/api/auth/passkey/exchange', { code, verifier }, null);
+    await this.adoptSession(res);
+  }
+  private async adoptSession(res: SignInResponse) {
     if (this.base && this.base.me.id !== res.member.id) { this.base = null; this.outbox = []; this.persist(); }
     this.token = res.token; saveToken(res.token);
     this.lastError = null;

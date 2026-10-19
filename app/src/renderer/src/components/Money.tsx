@@ -1,3 +1,4 @@
+import { Popover } from './Popover';
 import { useEffect, useRef, useState } from 'react';
 import { CURRENCIES, formatAmount, formatUsd, type Snapshot } from '@desklist/shared';
 
@@ -34,18 +35,18 @@ export function Toggle({ on, onChange, label, theme = 'light' }: { on: boolean; 
 /** Currency dropdown with a search box (IDR + native coins only — no USD / stablecoins). */
 export function CurrencySelect({ value, onChange, theme = 'light', compact }: { value: string; onChange: (c: string) => void; theme?: 'light' | 'dark'; compact?: boolean }) {
   const [open, setOpen] = useState(false); const [q, setQ] = useState('');
-  const ref = useRef<HTMLSpanElement>(null);
+  const ref = useRef<HTMLSpanElement>(null); const cb = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    if (!open) return;
+    if (!open || true) return;
     const f = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
     document.addEventListener('mousedown', f); return () => document.removeEventListener('mousedown', f);
   }, [open]);
   const list = CURRENCIES.filter((c) => !q || (c.code + ' ' + c.name).toLowerCase().includes(q.toLowerCase()));
   return (
     <span className={`csel ${theme} ${compact ? 'compact' : ''}`} ref={ref}>
-      <button type="button" className="cbtn" onClick={() => setOpen(!open)} aria-label="Currency">{value} ▾</button>
+      <button ref={cb} type="button" className="cbtn" onClick={() => setOpen(!open)} aria-label="Currency">{value} ▾</button>
       {open && (
-        <div className="cpop">
+        <Popover anchor={cb} align="start" className="cpop" role="dialog" onClose={() => { setOpen(false); setQ(''); }}>
           <input autoFocus placeholder="Search currency…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search currency" />
           <div className="clist">
             {list.map((c) => (
@@ -55,7 +56,7 @@ export function CurrencySelect({ value, onChange, theme = 'light', compact }: { 
             ))}
             {!list.length && <div className="cnone">No match</div>}
           </div>
-        </div>
+        </Popover>
       )}
     </span>
   );

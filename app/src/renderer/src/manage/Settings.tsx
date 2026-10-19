@@ -3,6 +3,7 @@ import type { AppState } from '../../../common/ipc';
 import type { Snapshot } from '@desklist/shared';
 import { actions } from '../lib/store';
 import { PasskeysCard } from '../components/Passkeys';
+import { OpacityControl } from '../components/WidgetLook';
 
 const clean = (x: unknown) => (x as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
 
@@ -16,6 +17,11 @@ export function Settings({ s, st }: { s: Snapshot; st: AppState }) {
     <>
       <div className="rhead"><h1>Settings</h1><div className="sub">Your account, sign-in methods and session.</div></div>
       <div className="rbody scroll settings mswap">
+        <div className="card setcard" data-card="widget">
+          <div className="fhead"><h3>Widget</h3></div>
+          <p className="muted small">How the desktop widget looks on this device. Only the panel background fades; text stays readable.</p>
+          <OpacityControl st={st} />
+        </div>
         <div className="card setcard" data-card="account">
           <div className="fhead"><h3>Account</h3></div>
           {me?.username == null && <div className="muted small">This member slot has no username account yet.</div>}

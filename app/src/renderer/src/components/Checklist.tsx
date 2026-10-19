@@ -1,3 +1,4 @@
+import { Linkify } from './Linkify';
 import { useEffect, useState } from 'react';
 import type { ChecklistItem, Snapshot, Task } from '@desklist/shared';
 import { actions } from '../lib/store';
@@ -27,7 +28,7 @@ function ItemRow({ i, idx, count, prev, next, readOnly }: { i: ChecklistItem; id
       <input type="checkbox" checked={done} aria-label={`Item ${i.title}`} onChange={(e) => { setDone(e.target.checked); void req('PATCH', `/api/items/${i.id}`, { done: e.target.checked }); }} onClick={(e) => e.stopPropagation()} />
       {ed ? <input className="renamein" autoFocus value={v} aria-label="Edit item" onChange={(e) => setV(e.target.value)} onBlur={save}
         onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') { setV(i.title); setEd(false); } }} />
-        : <span className="cit" onDoubleClick={() => !readOnly && setEd(true)}>{i.title}</span>}
+        : <span className="cit" onDoubleClick={() => !readOnly && setEd(true)}><Linkify text={i.title} /></span>}
       {!readOnly && <span className="ciact">
         <button className="iconbtn" aria-label="Move up" disabled={idx === 0} onClick={() => swap(prev)}>↑</button>
         <button className="iconbtn" aria-label="Move down" disabled={idx === count - 1} onClick={() => swap(next)}>↓</button>

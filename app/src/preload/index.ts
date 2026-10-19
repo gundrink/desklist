@@ -26,6 +26,7 @@ const api: DesklistBridge = {
   exportCsv: (q) => call('exportCsv', q),
   uploadFile: (t, n, m, d, f) => call('uploadFile', t, n, m, d, f),
   openFile: (id, n) => call('openFile', id, n),
+  openExternal: (u) => call('openExternal', u),
   copyText: (t) => call('copyText', t),
   passkeyRegister: () => call('passkeyRegister'),
   passkeySignIn: () => call('passkeySignIn'),

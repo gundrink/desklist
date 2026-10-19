@@ -24,11 +24,11 @@ export interface AppState {
   lastError: string | null;
   serverUrl: string;
   platform: NodeJS.Platform;
-  settings: { lockPosition: boolean; launchAtLogin: boolean; currentProjectId: string | null; sessionExpiresAt?: string | null };
+  settings: { lockPosition: boolean; launchAtLogin: boolean; currentProjectId: string | null; sessionExpiresAt?: string | null; widgetOpacity?: number; widgetBlur?: boolean };
 }
 
 export type ProjectTab = 'checklist' | 'details' | 'reimbursement' | 'taskdetails';
-export type ManageView = { view: 'project'; projectId?: string; tab?: ProjectTab } | { view: 'reports' } | { view: 'create' } | { view: 'fields' } | { view: 'team' } | { view: 'tasksetup' } | { view: 'settings' };
+export type ManageView = { view: 'project'; projectId?: string; tab?: ProjectTab } | { view: 'reports' } | { view: 'create' } | { view: 'fields' } | { view: 'team' } | { view: 'tasksetup' } | { view: 'settings' } | { view: 'overview' };
 
 export interface DesklistBridge {
   getState(): Promise<AppState>;
@@ -43,7 +43,7 @@ export interface DesklistBridge {
   refresh(): Promise<void>;
   openManage(v?: ManageView): Promise<void>;
   setCurrentProject(id: string): Promise<void>;
-  setSetting(patch: { lockPosition?: boolean; launchAtLogin?: boolean }): Promise<void>;
+  setSetting(patch: { lockPosition?: boolean; launchAtLogin?: boolean; widgetOpacity?: number; widgetBlur?: boolean }): Promise<void>;
   closeWidget(): Promise<void>;
   windowControl(action: 'close' | 'minimize' | 'maximize'): Promise<void>;
   checkForUpdates(): Promise<string>;
@@ -51,6 +51,8 @@ export interface DesklistBridge {
   exportCsv(query: string): Promise<string | null>;
   uploadFile(taskId: string, name: string, mime: string, data: Uint8Array, fieldId?: string | null): Promise<unknown>;
   openFile(id: string, name: string): Promise<string>;
+  /** opens an http(s) URL in the system browser (validated in main) */
+  openExternal(url: string): Promise<boolean>;
   copyText(text: string): Promise<void>;
   passkeyRegister(): Promise<void>;
   passkeySignIn(): Promise<void>;

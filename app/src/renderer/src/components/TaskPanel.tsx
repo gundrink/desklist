@@ -1,3 +1,4 @@
+import { Popover } from './Popover';
 import { Select, ChipInput } from './Select';
 import { useEffect, useRef, useState } from 'react';
 import { CURRENCY_CODES, MAX_FILE_BYTES, REIMB_CATEGORIES, TASK_FIELD_TYPES, TASK_FIELD_TYPE_LABELS, type Snapshot, type Task, type TaskField, type TaskFieldType } from '@desklist/shared';
@@ -100,9 +101,9 @@ export function AddField({ s, taskId, section = 'fields', theme, placeholder }: 
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<TaskFieldType | null>(null);
   const [label, setLabel] = useState(''); const [opts, setOpts] = useState(''); const [err, setErr] = useState('');
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLDivElement>(null); const addBtn = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    if (!open) return;
+    if (!open || true) return;
     const f = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
     document.addEventListener('mousedown', f); return () => document.removeEventListener('mousedown', f);
   }, [open]);
@@ -126,15 +127,15 @@ export function AddField({ s, taskId, section = 'fields', theme, placeholder }: 
     </div>);
   return (
     <div className="addfield-wrap" ref={ref}>
-      <button type="button" className={`addfield ${theme}`} onClick={() => setOpen(!open)}>+ Add field{placeholder && <em> {placeholder}</em>}</button>
+      <button ref={addBtn} type="button" className={`addfield ${theme}`} onClick={() => setOpen(!open)}>+ Add field{placeholder && <em> {placeholder}</em>}</button>
       {open && (
-        <div className={`typepop ${theme}`} role="menu">
+        <Popover anchor={addBtn} align="start" className={`typepop ${theme}`} onClose={() => setOpen(false)}>
           <div className="tph">Field type</div>
           {TASK_FIELD_TYPES.map((t) => (
             <button type="button" key={t} className="tpi" onClick={() => { setType(t); setLabel(t === 'amount' ? 'Amount' : TASK_FIELD_TYPE_LABELS[t]); setOpen(false); }}>
               <span className="tfic">{ICON[t]}</span>{TASK_FIELD_TYPE_LABELS[t]}{HINT[t] && <em>{HINT[t]}</em>}</button>))}
           <div className="tpf">Amount turns on <b>Has reimbursement</b> for this task</div>
-        </div>)}
+        </Popover>)}
     </div>
   );
 }

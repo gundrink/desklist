@@ -1,3 +1,4 @@
+import { Linkify } from './Linkify';
 import { useState } from 'react';
 import { TASK_FIELD_TYPE_LABELS, type Project, type Snapshot, type Task, type TaskField } from '@desklist/shared';
 import { member, projectFields, shortDate, shortName, tasksOf } from '../lib/model';
@@ -19,7 +20,7 @@ function Secret({ get, label }: { get: () => Promise<string | null>; label: stri
 /** One "label: value" line with its own copy button. Empty values show "—" without copy. */
 export function VLine({ label, kind, value, children }: { label: string; kind?: string; value?: string | null; children?: React.ReactNode }) {
   return <div className="vline" data-vlabel={label}><span className="vlab">{label}{kind && <em>{kind}</em>}</span>
-    {children ?? (value ? <span className="vval"><span className="vtext" title={value}>{value}</span><CopyBtn text={value} label={label} /></span> : <span className="vval none">—</span>)}</div>;
+    {children ?? (value ? <span className="vval"><span className="vtext" title={value}>{kind === 'Password' ? value : <Linkify text={value} />}</span><CopyBtn text={value} label={label} /></span> : <span className="vval none">—</span>)}</div>;
 }
 function FieldLine({ f }: { f: TaskField }) {
   const kind = TASK_FIELD_TYPE_LABELS[f.type].split(' ')[0];

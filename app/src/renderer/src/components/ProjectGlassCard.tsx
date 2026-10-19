@@ -1,3 +1,5 @@
+import { Popover } from './Popover';
+import { useState, useRef } from 'react';
 import type { Project, Snapshot } from '@desklist/shared';
 import { formatAmount, convert } from '@desklist/shared';
 import { picOf, statusOf, tasksOf, shortDate } from '../lib/model';
@@ -6,9 +8,11 @@ import { StatusPill, CheckBox } from './Common';
 import { Pie } from './ProjectList';
 
 /** Compact project card (Manage project column): name, pie + 7/12, status, PIC; the selected card previews open tasks. */
-export function ProjectGlassCard({ s, p, selected, expanded, onSelect, onMenu }: {
+export function ProjectGlassCard({ s, p, selected, expanded, onSelect, onMenu, menuItems }: {
   s: Snapshot; p: Project; selected?: boolean; expanded?: boolean; onSelect: () => void; onMenu?: (e: React.MouseEvent) => void;
+  menuItems?: { label: string; danger?: boolean; onClick: () => void }[];
 }) {
+  const [mopen, setMopen] = useState(false); const mbtn = useRef<HTMLButtonElement>(null);
   const { all, open, done } = tasksOf(s, p.id);
   const status = statusOf(s, p);
   const pic = picOf(s, p);
@@ -22,7 +26,9 @@ export function ProjectGlassCard({ s, p, selected, expanded, onSelect, onMenu }:
         <span className="gsq" />
         <span className="gname">{p.name}</span>
         <Pie done={done.length} total={all.length} /><span className="gcount">{done.length}/{all.length}</span>
-        {onMenu && <button className="gmenu" title="Project menu" onClick={(e) => { e.stopPropagation(); onMenu(e); }}>⋯</button>}
+        {(onMenu || menuItems) && <button ref={mbtn} className="gmenu" title="Project menu" aria-label={`Project menu ${p.name}`} onClick={(e) => { e.stopPropagation(); if (menuItems) setMopen(!mopen); else onMenu?.(e); }}>⋯</button>}
+        {mopen && menuItems && <Popover anchor={mbtn} className="pmenu-pop gpop" onClose={() => setMopen(false)}>
+          {menuItems.map((m) => <button key={m.label} role="menuitem" className={`pi ${m.danger ? 'danger-item' : ''}`} onClick={() => { setMopen(false); m.onClick(); }}>{m.label}</button>)}</Popover>}
       </div>
       <div className="g3">
         <StatusPill status={status} theme="dark" />

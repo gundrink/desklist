@@ -1,3 +1,4 @@
+import { Popover } from './Popover';
 import { Select } from './Select';
 import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
@@ -16,7 +17,8 @@ export const NOTES_ITEMS: { kind: NotesKind; label: string; icon: React.ReactNod
 ];
 
 /** The "Notes" column menu (4 options). Shared by the Manage checklist header and the widget. */
-export function NotesMenu({ onPick, onClose, theme, style }: { onPick: (k: NotesKind) => void; onClose: () => void; theme: 'dark' | 'light'; style?: React.CSSProperties }) {
+export function NotesMenu({ onPick, onClose, theme, style, anchor }: { onPick: (k: NotesKind) => void; onClose: () => void; theme: 'dark' | 'light'; style?: React.CSSProperties; anchor?: React.RefObject<HTMLElement | null> }) {
+  if (anchor) return <Popover anchor={anchor} align="start" className={theme} onClose={onClose}><div className="pophd">Notes column</div>{NOTES_ITEMS.map((i) => <button key={i.kind} className="pi" role="menuitem" onClick={() => { onPick(i.kind); onClose(); }}>{i.icon}{i.label}</button>)}</Popover>;
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const f = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };

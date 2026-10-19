@@ -1,6 +1,7 @@
+import { Popover } from '../components/Popover';
 import { RenameInput, TaskEditPanel } from '../components/TaskEdit';
 import { ProjectDescription } from '../components/Description';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { CUSTOM_COLUMN_TYPE_LABELS, type Snapshot, type Task } from '@desklist/shared';
 import type { ProjectTab } from '../../../common/ipc';
 import { actions } from '../lib/store';
@@ -24,7 +25,7 @@ export function ProjectDetail({ s, projectId, tab, setTab, onDeleted }: {
   const p = s.projects.find((x) => x.id === projectId)!;
   const { all, open, done } = tasksOf(s, p.id);
   const pic = picOf(s, p); const domain = domainOf(s, p);
-  const [menu, setMenu] = useState(false);
+  const [menu, setMenu] = useState(false); const notesBtn = useRef<HTMLButtonElement>(null);
   const [sheet, setSheet] = useState<NotesKind | null>(null);
   const [hideDone, setHideDone] = useState(true);
   const [panel, setPanel] = useState<{ id: string; mode: 'detail' | 'ticked' } | null>(null);
@@ -66,8 +67,8 @@ export function ProjectDetail({ s, projectId, tab, setTab, onDeleted }: {
           <>
             <div className="colh"><span className="c1">Task</span><span className="cdue">Due</span><span className="who">Checked by</span>
               <span className="ncwrap">
-                <button className={`nc hdr ${menu || sheet ? 'on' : ''}`} onClick={() => setMenu(!menu)}><Note />Notes{menu ? <ChevronUp /> : <ChevronDown />}</button>
-                {menu && <NotesMenu theme="light" onPick={setSheet} onClose={() => setMenu(false)} />}
+                <button ref={notesBtn} className={`nc hdr ${menu || sheet ? 'on' : ''}`} onClick={() => setMenu(!menu)}><Note />Notes{menu ? <ChevronUp /> : <ChevronDown />}</button>
+                {menu && <NotesMenu anchor={notesBtn} theme="light" onPick={setSheet} onClose={() => setMenu(false)} />}
               </span>{exp && <span className="cexp">▤ Expense</span>}</div>
             <div className="shd"><span className="chk"><Check size={10} /></span>Done · {done.length}<span className="ln" />
               <button className="hide" onClick={() => setHideDone(!hideDone)}>{hideDone ? 'Show completed' : 'Hide completed'}</button></div>
@@ -135,7 +136,7 @@ function Details({ s, pId, onDeleted }: { s: Snapshot; pId: string; onDeleted: (
   const p = s.projects.find((x) => x.id === pId)!;
   const fields = projectFields(s, p);
   const isAdmin = s.me.role === 'admin';
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null); const [del, setDel] = useState(false);
   const promote = async (id: string) => {
     try { await actions.request('POST', `/api/columns/${id}/promote`, {}); setMsg('Promoted to a master field — available to every project.'); }
     catch (e) { setMsg((e as Error).message); }
@@ -166,23 +167,27 @@ function Details({ s, pId, onDeleted }: { s: Snapshot; pId: string; onDeleted: (
         </div>
         {msg && <div className="callout">{msg}</div>}
       </div>
+      {isAdmin && <div className="dangerzone" data-card="danger">
+        <div><h3>Danger zone</h3><p>Delete this project with all its tasks, fields, files and reimbursements.</p></div><span className="ml" />
+        <button className="btn danger solid" onClick={() => setDel(true)}>Delete project</button></div>}
+      {del && <DeleteProjectModal name={p.name} onCancel={() => setDel(false)} onConfirm={async () => { await actions.request('DELETE', `/api/projects/${p.id}`); setDel(false); onDeleted(); }} />}
     </div>
   );
 }
 
 function ProjectMenu({ name, onDelete }: { name: string; onDelete: () => void }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false); const b = useRef<HTMLButtonElement>(null);
   return <span className="pmenu">
-    <button className="iconbtn kebab" aria-label="Project actions" title="More" onClick={() => setOpen(!open)}>⋯</button>
-    {open && <div className="pop pmenu-pop" onMouseLeave={() => setOpen(false)}>
-      <button className="danger-item" onClick={() => { setOpen(false); onDelete(); }}>Delete project…</button></div>}
+    <button ref={b} className="iconbtn kebab" aria-label="Project actions" title="Project actions" onClick={() => setOpen(!open)}>⋯</button>
+    {open && <Popover anchor={b} className="pmenu-pop" onClose={() => setOpen(false)}>
+      <button role="menuitem" className="pi danger-item" onClick={() => { setOpen(false); onDelete(); }}>Delete project…</button></Popover>}
     <span hidden>{name}</span></span>;
 }
 
-export function DeleteProjectModal({ name, onCancel, onConfirm }: { name: string; onCancel: () => void; onConfirm: () => Promise<void> }) {
+export function DeleteProjectModal({ name, onCancel, onConfirm, compact }: { name: string; onCancel: () => void; onConfirm: () => Promise<void>; compact?: boolean }) {
   const [typed, setTyped] = useState(''); const [busy, setBusy] = useState(false); const [err, setErr] = useState('');
   return <div className="modal-back" onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
-    <div className="modal delmodal" role="dialog" aria-label="Delete project">
+    <div className={`modal delmodal ${compact ? 'compact' : ''}`} role="dialog" aria-label="Delete project">
       <h3>Delete "{name}"?</h3>
       <p>This removes all its tasks, fields, files and reimbursements. This can't be undone.</p>
       <label className="small">Type the project name to confirm</label>

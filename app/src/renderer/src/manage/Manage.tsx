@@ -10,7 +10,8 @@ import { Avatar, SyncDot, syncLabel } from '../components/Common';
 import { ProjectGlassCard } from '../components/ProjectGlassCard';
 import { SignIn, LoadingState } from '../components/SignIn';
 import { Plus, Sliders, Users, Power } from '../components/Icons';
-import { ProjectDetail } from './ProjectDetail';
+import { ProjectDetail, DeleteProjectModal } from './ProjectDetail';
+import { Overview } from '../components/Overview';
 import { CreateProject } from './CreateProject';
 import { MasterFields } from './MasterFields';
 import { Team } from './Team';
@@ -24,11 +25,12 @@ import '../styles/v62.css';
 import '../styles/v66.css';
 import '../styles/v68.css';
 import '../styles/v69.css';
+import '../styles/v610.css';
 import { ProjTabs, useProjectTabs } from '../components/ProjectList';
 
 export function Manage() {
   const st = useAppState();
-  const [nav, setNav] = useState<ManageView>({ view: 'project' });
+  const [nav, setNav] = useState<ManageView>({ view: 'overview' });
   const [picker, setPicker] = useState<string | null>(null);
   useEffect(() => window.desklist.onNavigate(setNav), []);
   const plat = st?.platform ?? 'darwin';
@@ -57,10 +59,14 @@ function ManageReady({ st, s, nav, setNav, picker, setPicker, titlebar }: { st: 
   const selectedId = nav.view === 'project' ? (nav.projectId && s.projects.some((p) => p.id === nav.projectId) ? nav.projectId : st.settings.currentProjectId ?? s.projects[0]?.id) : undefined;
   const select = (id: string) => { setNav({ view: 'project', projectId: id, tab: nav.view === 'project' ? nav.tab : undefined }); void actions.setCurrentProject(id); };
   const isAdmin = s.me.role === 'admin';
+  const [delP, setDelP] = useState<string | null>(null);
+  const delProj = s.projects.find((x) => x.id === delP);
 
   return (
     <div className="win">
       {titlebar}
+      {delProj && <DeleteProjectModal name={delProj.name} onCancel={() => setDelP(null)} onConfirm={async () => {
+        await actions.request('DELETE', `/api/projects/${delProj.id}`); setDelP(null); if (selectedId === delProj.id) setNav({ view: 'project' }); }} />}
       <div className="body">
         <div className="pcol dark">
           <div className="sidebrand"><Logo size={22} /></div>
@@ -70,9 +76,11 @@ function ManageReady({ st, s, nav, setNav, picker, setPicker, titlebar }: { st: 
             {isAdmin && <button className={`adminrow ${nav.view === 'reports' ? 'on' : ''}`} onClick={() => setNav({ view: 'reports' })}>▦ Admin · Reports<span>{s.me.name}</span></button>}
             {isAdmin && <button className={`adminrow ${nav.view === 'tasksetup' ? 'on' : ''}`} onClick={() => setNav({ view: 'tasksetup' })}>▤ Admin · Task setup<span>fields</span></button>}
             <ProjTabs t={tabs} theme="dark" />
+            <button className={`navrow ${nav.view === 'overview' ? 'on' : ''}`} data-nav="overview" onClick={() => setNav({ view: 'overview' })}><span className="ic">◷</span>Overview</button>
             {tabs.list.map((p) => (
               <ProjectGlassCard key={p.id} s={s} p={p} selected={p.id === selectedId} expanded={p.id === selectedId}
-                onSelect={() => select(p.id)} onMenu={() => setNav({ view: 'project', projectId: p.id, tab: 'details' })} />
+                onSelect={() => select(p.id)} menuItems={[{ label: 'Open details', onClick: () => setNav({ view: 'project', projectId: p.id, tab: 'details' }) },
+                  ...(isAdmin ? [{ label: 'Delete project…', danger: true, onClick: () => setDelP(p.id) }] : [])]} />
             ))}
             {tabs.list.length === 0 && s.projects.length > 0 && <div className="empty-dark">Nothing here.</div>}
             {s.projects.length === 0 && <div className="empty-dark">No projects yet — create the first one.</div>}
@@ -91,6 +99,7 @@ function ManageReady({ st, s, nav, setNav, picker, setPicker, titlebar }: { st: 
           {nav.view === 'project' && !selectedId && <div className="center-fill muted">Create a project to get started.</div>}
           {nav.view === 'create' && <CreateProject s={s} onCreated={(id) => { select(id); setPicker(id); }} onCancel={() => setNav({ view: 'project' })} />}
           {nav.view === 'reports' && <Reports s={s} />}
+          {nav.view === 'overview' && <Overview s={s} onOpen={(id) => select(id)} />}
           {nav.view === 'tasksetup' && isAdmin && <TaskSetup s={s} />}
           {nav.view === 'fields' && <MasterFields s={s} isAdmin={isAdmin} />}
           {nav.view === 'team' && <Team s={s} isAdmin={isAdmin} />}

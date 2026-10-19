@@ -21,6 +21,8 @@ export function desktopWindowOptions(): Partial<BrowserWindowConstructorOptions>
   const base: Partial<BrowserWindowConstructorOptions> = {
     frame: false, transparent: true, hasShadow: false, skipTaskbar: true, alwaysOnTop: false,
     resizable: true, minimizable: false, maximizable: false, fullscreenable: false, backgroundColor: '#00000000',
+    // Windows: no thick frame / DWM material / shadow, otherwise a square backdrop shows behind the rounded panel
+    thickFrame: false, roundedCorners: false, backgroundMaterial: 'none',
   };
   if (process.platform === 'darwin') return { ...base, ...macWindowOptions() };
   return base;

@@ -12,6 +12,9 @@ export interface Settings {
   currentProjectId?: string;
   widgetVisible: boolean;
   sessionExpiresAt?: string;
+  /** 0.6.10 widget panel background opacity 0–100 (per device) */
+  widgetOpacity?: number;
+  widgetBlur?: boolean;
 }
 
 const dir = () => app.getPath('userData');

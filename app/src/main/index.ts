@@ -6,6 +6,7 @@ import { SyncEngine } from './sync';
 import { flushSettings, getSettings, updateSettings, type Bounds } from './settings';
 import { desktopWindowOptions, focusWidget, placeOnDesktop, widgetPhaseChanged } from './desktop-layer';
 import { checkForUpdates, initAutoUpdate } from './updater';
+import { safeHref } from '../common/linkify';
 
 const isSmoke = !!process.env.DESKLIST_SMOKE;
 if (process.env.DESKLIST_USER_DATA) app.setPath('userData', process.env.DESKLIST_USER_DATA);
@@ -50,6 +51,7 @@ function createWidget() {
     movable: !s.lockPosition, resizable: !s.lockPosition,
     webPreferences: { preload, contextIsolation: true, sandbox: false },
   });
+  widget.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:\/\//i.test(url)) void shell.openExternal(url); return { action: 'deny' }; });
   loadView(widget, 'widget');
   widget.once('ready-to-show', () => {
     if (!widget) return;
@@ -99,7 +101,7 @@ function openManage(v?: ManageView) {
   const save = () => { if (manage && !manage.isDestroyed()) updateSettings({ manageBounds: manage.getBounds() }); };
   manage.on('moved', save); manage.on('resized', save);
   manage.on('closed', () => { manage = null; });
-  manage.webContents.setWindowOpenHandler(({ url }) => { void shell.openExternal(url); return { action: 'deny' }; });
+  manage.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:\/\//i.test(url)) void shell.openExternal(url); return { action: 'deny' }; });
 }
 
 function applyLock(lock: boolean) {
@@ -161,7 +163,9 @@ function registerIpc() {
   handle('refresh', () => { sync.reconnect(); return sync.refresh(); });
   handle('openManage', (v?: ManageView) => openManage(v));
   handle('setCurrentProject', (id: string) => setCurrentProject(id));
-  handle('setSetting', (p: { lockPosition?: boolean; launchAtLogin?: boolean }) => {
+  handle('setSetting', (p: { lockPosition?: boolean; launchAtLogin?: boolean; widgetOpacity?: number; widgetBlur?: boolean }) => {
+    if (typeof p.widgetOpacity === 'number') updateSettings({ widgetOpacity: Math.max(0, Math.min(100, Math.round(p.widgetOpacity))) });
+    if (typeof p.widgetBlur === 'boolean') updateSettings({ widgetBlur: p.widgetBlur });
     if (p.lockPosition !== undefined) applyLock(p.lockPosition);
     if (p.launchAtLogin !== undefined) applyLoginItem(p.launchAtLogin);
     broadcast();
@@ -185,6 +189,11 @@ function registerIpc() {
   });
   handle('googleCancel', () => cancelGoogleSignIn());
   handle('copyText', (t: string) => { clipboard.writeText(String(t)); });
+  handle('openExternal', (url: string) => {
+    const href = safeHref(String(url ?? '')); if (!href) return false;
+    if (isSmoke) { ((globalThis as any).__desklistOpened ??= []).push(href); return true; }
+    void shell.openExternal(href); return true;
+  });
   handle('openFile', async (id: string, name: string) => {
     const fs = await import('node:fs'); const os = await import('node:os');
     const buf = await sync.download(`/api/files/${id}`);

@@ -33,9 +33,9 @@ export function Select({ value, onChange, children, className = '', disabled, ..
   useEffect(() => {
     if (!open) return;
     const down = (e: MouseEvent) => { if (!pop.current?.contains(e.target as Node) && !btn.current?.contains(e.target as Node)) close(); };
-    const t0 = Date.now(); const sc = (e: Event) => { if (Date.now() - t0 > 250 && !pop.current?.contains(e.target as Node)) close(); };
+    const sc = (e: Event) => { if (!pop.current?.contains(e.target as Node)) { const r = btn.current?.getBoundingClientRect(); if (!r || r.bottom < 0 || r.top > window.innerHeight) close(); else place(); } };
     (pop.current?.querySelector('.sel-search') as HTMLInputElement | null)?.focus({ preventScroll: true });
-    document.addEventListener('mousedown', down, true); const rz = () => close(); window.addEventListener('resize', rz); document.addEventListener('scroll', sc, true);
+    document.addEventListener('mousedown', down, true); const rz = () => place(); window.addEventListener('resize', rz); document.addEventListener('scroll', sc, true);
     return () => { document.removeEventListener('mousedown', down, true); window.removeEventListener('resize', rz); document.removeEventListener('scroll', sc, true); };
   }, [open]);
   const openIt = () => { if (disabled) return; setQ(''); setHi(Math.max(0, opts.findIndex((o) => o.value === val))); setOpen(true); };

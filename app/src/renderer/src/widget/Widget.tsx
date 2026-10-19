@@ -1,3 +1,6 @@
+import { WidgetOverview } from '../components/Overview';
+import { widgetLook, lookClass, OpacityControl } from '../components/WidgetLook';
+if (typeof document !== 'undefined') document.documentElement.dataset.view = 'widget';
 import { Progress, progressOf, blockedByItems } from '../components/Checklist';
 import { TaskEditPanel } from '../components/TaskEdit';
 import { Select } from '../components/Select';
@@ -11,6 +14,7 @@ import '../styles/v62.css';
 import '../styles/v66.css';
 import '../styles/v68.css';
 import '../styles/v69.css';
+import '../styles/v610.css';
 import { ProjTabs, RailItem, useProjectTabs } from '../components/ProjectList';
 import { TaskPanel, fieldsOf } from '../components/TaskPanel';
 import { Collapse } from '../components/Motion';
@@ -22,6 +26,8 @@ import type { Snapshot, Task } from '@desklist/shared';
 import { useAppState, actions } from '../lib/store';
 import { ago, domainOf, picOf, shortDate, statusOf, statusStyle, tasksOf } from '../lib/model';
 import { Avatar, CheckBox, StatusPill, SyncDot, checkedBy, syncLabel } from '../components/Common';
+import { Popover } from '../components/Popover';
+import { DeleteProjectModal } from '../manage/ProjectDetail';
 import { NotesMenu, NotesSheet, type NotesKind } from '../components/Notes';
 import { SignIn, LoadingState , PasskeyNudge } from '../components/SignIn';
 import { Calendar, Check, ChevronDown, ChevronUp, Note, Power, Refresh, Window, X } from '../components/Icons';
@@ -32,17 +38,21 @@ import { Calendar, Check, ChevronDown, ChevronUp, Note, Power, Refresh, Window, 
  */
 export function Widget() {
   const st = useAppState();
-  const [menu, setMenu] = useState(false);
+  const [menu, setMenu] = useState(false); const menuBtn = useRef<HTMLButtonElement>(null);
+  const [wview, setWview] = useState<string>(() => localStorage.getItem('dl-wview') ?? 'project');
+  useEffect(() => { const f = (e: Event) => { const v = (e as CustomEvent<string>).detail; localStorage.setItem('dl-wview', v); setWview(v); }; window.addEventListener('dl-wview', f); return () => window.removeEventListener('dl-wview', f); }, []);
   const [notesMenu, setNotesMenu] = useState(false);
+  const [wdel, setWdel] = useState<string | null>(null);
+  useEffect(() => { const f = (e: Event) => setWdel((e as CustomEvent<string>).detail); window.addEventListener('dl-wdel', f); return () => window.removeEventListener('dl-wdel', f); }, []);
   const [sheet, setSheet] = useState<NotesKind | null>(null);
   const [, tick] = useState(0);
   useEffect(() => { const t = setInterval(() => tick((x) => x + 1), 30_000); return () => clearInterval(t); }, []);
 
-  if (!st) return <div className="widget" />;
+  if (!st) return <div className="widget" style={widgetLook(st)} />;
   const locked = st.settings.lockPosition;
   if (st.phase !== 'ready' || !st.snapshot) {
     return (
-      <div className={`widget solo ${locked ? 'locked' : ''}`}>
+      <div className={`widget solo ${locked ? 'locked' : ''} ${lookClass(st)}`} style={widgetLook(st)}>
         <div className="wdet">
           <div className="w-top drag"><div className="switch"><span className="dotp" />Desklist</div>
             <button className="menu nodrag" title="Close widget" onClick={() => actions.closeWidget()}><X /></button></div>
@@ -55,7 +65,7 @@ export function Widget() {
   const p = s.projects.find((x) => x.id === st.settings.currentProjectId) ?? s.projects[0];
 
   return (
-    <div className={`widget ${locked ? 'locked' : ''}`}>
+    <div className={`widget ${locked ? 'locked' : ''} ${lookClass(st)}`} style={widgetLook(st)}>
       <div className="rail drag">
         <div className="rhd">Projects <em>{s.projects.length}</em></div>
         <RailList s={s} sel={p?.id} />
@@ -64,7 +74,12 @@ export function Widget() {
 
       <div className="wdet">
         <PasskeyNudge />
-        {p ? <Detail s={s} pId={p.id} menuOpen={menu} setMenu={setMenu} notesMenu={notesMenu} setNotesMenu={setNotesMenu} setSheet={setSheet}
+        {wview === 'overview' ? <>
+          <div className="w-top drag"><div className="switch"><span className="dotp" />Overview</div><span className="ml" />
+            <div className="menu-anchor nodrag"><button ref={menuBtn} className={`menu ${menu ? 'on' : ''}`} onClick={() => setMenu(!menu)} title="Menu" aria-label="Widget menu">⋯</button>
+              {menu && <WidgetMenu anchor={menuBtn} s={s} projectId="" locked={locked} launch={st.settings.launchAtLogin} onClose={() => setMenu(false)} />}</div></div>
+          <WidgetOverview s={s} onOpen={(id) => { void actions.setCurrentProject(id); window.dispatchEvent(new CustomEvent('dl-wview', { detail: 'project' })); }} /></>
+        : p ? <Detail s={s} pId={p.id} menuOpen={menu} setMenu={setMenu} notesMenu={notesMenu} setNotesMenu={setNotesMenu} setSheet={setSheet}
           locked={locked} launch={st.settings.launchAtLogin} />
           : <div className="w-empty">No projects yet. <button className="linkbtn" onClick={() => actions.openManage({ view: 'create' })}>Create one</button></div>}
         <div className="foot">
@@ -72,6 +87,12 @@ export function Widget() {
           <button className="add" onClick={() => actions.openManage({ view: 'project', projectId: p?.id })}>Open in Manage →</button>
         </div>
       </div>
+      {wdel && (() => { const dp = s.projects.find((x) => x.id === wdel); if (!dp) return null;
+        return <DeleteProjectModal compact name={dp.name} onCancel={() => setWdel(null)} onConfirm={async () => {
+          const r = await actions.request('DELETE', `/api/projects/${dp.id}`) as any; if (r && r.error) throw new Error(r.error);
+          setWdel(null); const next = s.projects.find((x) => x.id !== dp.id);
+          if (next && wview !== 'overview') void actions.setCurrentProject(next.id); else window.dispatchEvent(new CustomEvent('dl-wview', { detail: 'overview' }));
+          void actions.refresh(); }} />; })()}
       {sheet && p && <NotesSheet s={s} p={p} kind={sheet} setKind={setSheet} onClose={() => setSheet(null)} theme="dark" />}
     </div>
   );
@@ -82,7 +103,8 @@ function RailList({ s, sel }: { s: Snapshot; sel?: string }) {
   return (<>
     <div className="nodrag"><ProjTabs t={tabs} theme="dark" /></div>
     <div className="rail-list nodrag scroll">
-      {tabs.list.map((x) => <RailItem key={x.id} s={s} p={x} selected={x.id === sel} onClick={() => actions.setCurrentProject(x.id)} />)}
+      {tabs.list.map((x) => <div className="riwrap" key={x.id}><RailItem s={s} p={x} selected={x.id === sel} onClick={() => actions.setCurrentProject(x.id)} />
+        {s.me.role === 'admin' && <RailMenu name={x.name} id={x.id} />}</div>)}
     </div></>);
 }
 
@@ -95,7 +117,7 @@ function Detail({ s, pId, menuOpen, setMenu, notesMenu, setNotesMenu, setSheet, 
   const pic = picOf(s, p); const domain = domainOf(s, p);
   const status = statusOf(s, p);
   const [panel, setPanel] = useState<{ id: string; mode: 'detail' | 'ticked' } | null>(null);
-  const [mode, setMode] = useState<'edit' | 'view'>('edit');
+  const [mode, setMode] = useState<'edit' | 'view'>('edit'); const menuBtn = useRef<HTMLButtonElement>(null); const notesBtn = useRef<HTMLButtonElement>(null);
   return (
     <>
       <div className="w-top drag">
@@ -103,8 +125,8 @@ function Detail({ s, pId, menuOpen, setMenu, notesMenu, setNotesMenu, setSheet, 
         <StatusPill status={status} theme="dark" />
         <span className="nodrag"><ModeToggle mode={mode} setMode={setMode} compact /></span>
         <div className="menu-anchor nodrag">
-          <button className={`menu ${menuOpen ? 'on' : ''}`} onClick={() => setMenu(!menuOpen)} title="Menu" aria-label="Widget menu">⋯</button>
-          {menuOpen && <WidgetMenu s={s} projectId={p.id} locked={locked} launch={launch} onClose={() => setMenu(false)} />}
+          <button ref={menuBtn} className={`menu ${menuOpen ? 'on' : ''}`} onClick={() => setMenu(!menuOpen)} title="Menu" aria-label="Widget menu">⋯</button>
+          {menuOpen && <WidgetMenu anchor={menuBtn} s={s} projectId={p.id} locked={locked} launch={launch} onClose={() => setMenu(false)} />}
         </div>
       </div>
       <ProjectDescription s={s} p={p} editable={false} compact />
@@ -119,8 +141,8 @@ function Detail({ s, pId, menuOpen, setMenu, notesMenu, setNotesMenu, setSheet, 
       <div className="wtool">
         <span className="sect">Pending · {open.length}</span>
         <span className="notes-anchor nodrag">
-          <button className={`wchip ${notesMenu ? 'on' : ''}`} onClick={() => setNotesMenu(!notesMenu)}><Note />Notes{notesMenu ? <ChevronUp size={10} /> : <ChevronDown size={10} />}</button>
-          {notesMenu && <NotesMenu theme="dark" onPick={setSheet} onClose={() => setNotesMenu(false)} />}
+          <button ref={notesBtn} className={`wchip ${notesMenu ? 'on' : ''}`} onClick={() => setNotesMenu(!notesMenu)}><Note />Notes{notesMenu ? <ChevronUp size={10} /> : <ChevronDown size={10} />}</button>
+          {notesMenu && <NotesMenu anchor={notesBtn} theme="dark" onPick={setSheet} onClose={() => setNotesMenu(false)} />}
         </span>
       </div>
       {mode === 'view' ? <div className="wl scroll nodrag mswap"><ProjectView s={s} projectId={p.id} compact /></div> : <div className="wl scroll">
@@ -189,24 +211,34 @@ function WAdd({ projectId }: { projectId: string }) {
 
 void formatUsd; void CurrencySelect; void defaultCurrency;
 
-function WidgetMenu({ s, projectId, locked, launch, onClose }: { s: Snapshot; projectId: string; locked: boolean; launch: boolean; onClose: () => void }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const f = (e: MouseEvent) => { if (ref.current && !ref.current.parentElement!.contains(e.target as Node)) onClose(); };
-    document.addEventListener('mousedown', f); return () => document.removeEventListener('mousedown', f);
-  }, [onClose]);
+function WidgetMenu({ s, projectId, locked, launch, onClose, anchor }: { s: Snapshot; projectId: string; locked: boolean; launch: boolean; onClose: () => void; anchor: React.RefObject<HTMLElement | null> }) {
+  const st = useAppState();
+  const proj = s.projects.find((x) => x.id === projectId);
   const ck = (on: boolean) => (on ? <span className="ck"><Check size={11} w={3} /></span> : null);
-  const item = (label: React.ReactNode, fn: () => void, extra?: React.ReactNode) =>
-    <button className="pi" onClick={() => { fn(); onClose(); }}>{label}{extra}</button>;
+  const item = (label: React.ReactNode, fn: () => void, extra?: React.ReactNode, cls = '') =>
+    <button role="menuitem" className={`pi ${cls}`} onClick={() => { fn(); onClose(); }}>{label}{extra}</button>;
   return (
-    <div className="pop dark wmenu" ref={ref} role="menu">
+    <Popover anchor={anchor} className="dark wmenu" onClose={onClose}>
       {item(<><Window />Open Manage window</>, () => actions.openManage({ view: 'project', projectId }))}
       {item(<>Lock position</>, () => actions.setSetting({ lockPosition: !locked }), ck(locked))}
       {item(<>Launch at login</>, () => actions.setSetting({ launchAtLogin: !launch }), ck(launch))}
+      {item(<>{localStorage.getItem('dl-wview') === 'overview' ? 'Show current project' : 'Show overview'}</>, () => window.dispatchEvent(new CustomEvent('dl-wview', { detail: localStorage.getItem('dl-wview') === 'overview' ? 'project' : 'overview' })))}
       {item(<><Refresh />Sync now</>, () => actions.refresh())}
+      <div className="popsep" />
+      {st && <OpacityControl st={st} compact />}
       <div className="popsep" />
       {item(<><Power />Sign out ({s.me.initials})</>, () => actions.signOut())}
       {item(<><X />Close widget</>, () => actions.closeWidget())}
-    </div>
+      {proj && s.me.role === 'admin' && <><div className="popsep" />{item(<>Delete project…</>, () => window.dispatchEvent(new CustomEvent('dl-wdel', { detail: proj.id })), undefined, 'danger-item')}</>}
+    </Popover>
   );
+}
+
+function RailMenu({ name, id }: { name: string; id: string }) {
+  const [open, setOpen] = useState(false); const b = useRef<HTMLButtonElement>(null);
+  return <><button ref={b} className="rimenu" aria-label={`Project menu ${name}`} title="Project menu" onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>⋯</button>
+    {open && <Popover anchor={b} className="dark wmenu" onClose={() => setOpen(false)}>
+      <button role="menuitem" className="pi" onClick={() => { setOpen(false); void actions.setCurrentProject(id); }}>Show project</button>
+      <button role="menuitem" className="pi danger-item" onClick={() => { setOpen(false); window.dispatchEvent(new CustomEvent('dl-wdel', { detail: id })); }}>Delete project…</button>
+    </Popover>}</>;
 }

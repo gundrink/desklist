@@ -2,18 +2,13 @@ import { Select } from '../components/Select';
 import { useState } from 'react';
 import { CUSTOM_COLUMN_TYPES, CUSTOM_COLUMN_TYPE_LABELS, type CustomColumnType, type Project, type Snapshot } from '@desklist/shared';
 import { actions } from '../lib/store';
-import { FieldInput } from '../components/FieldInput';
 import { Plus, Trash } from '../components/Icons';
 
 interface Col { key: number; label: string; dataType: CustomColumnType; value: string }
 
 export function CreateProject({ s, onCreated, onCancel }: { s: Snapshot; onCreated: (id: string) => void; onCancel: () => void }) {
   const active = s.fields.filter((f) => !f.archived).sort((a, b) => a.sortOrder - b.sortOrder);
-  const core = active.find((f) => f.isCore);
   const [name, setName] = useState('');
-  const [use, setUse] = useState<Record<string, boolean>>(Object.fromEntries(active.map((f) => [f.id, true])));
-  const [req, setReq] = useState<Record<string, boolean>>({});
-  const [values, setValues] = useState<Record<string, string | null>>({});
   const [cols, setCols] = useState<Col[]>([]);
   const [notes, setNotes] = useState('');
   const [deadline, setDeadline] = useState('');
@@ -25,11 +20,11 @@ export function CreateProject({ s, onCreated, onCancel }: { s: Snapshot; onCreat
   const submit = async () => {
     setBusy(true); setErr(null);
     try {
-      const chosen = active.filter((f) => use[f.id] || f.isCore);
+      // 0.6.10: every active master field is attached automatically (default required flag); values are filled later in Details & fields
+      const chosen = active;
       const p = await actions.request<Project>('POST', '/api/projects', {
         name, notes, deadline: deadline || null,
-        fields: chosen.map((f) => ({ fieldId: f.id, required: !!req[f.id] })),
-        values: Object.fromEntries(Object.entries(values).filter(([k, v]) => use[k] && v != null && k !== core?.id)),
+        fields: chosen.map((f) => ({ fieldId: f.id, required: !!(f.options as { required?: boolean } | null)?.required })),
         customColumns: cols.filter((c) => c.label.trim()).map((c) => ({ label: c.label.trim(), dataType: c.dataType, value: c.value || null })),
       });
       onCreated(p.id);
@@ -39,26 +34,16 @@ export function CreateProject({ s, onCreated, onCancel }: { s: Snapshot; onCreat
   return (
     <>
       <div className="rhead"><div className="row"><h1>New project</h1></div>
-        <div className="sub">Pick master fields, add free-form columns for this project only.</div></div>
+        <div className="sub">Name it now — master fields are added automatically and filled in later under Details & fields.</div></div>
       <div className="rbody scroll">
         <div className="details">
           <div className="card">
-            <div className="fhead"><h3>Master fields</h3><span className="muted small">Uncheck fields this project doesn’t need</span></div>
-            <div className="grid">
-              <label className="f"><span>Project name <em>always on · required</em></span>
+            <div className="fhead"><h3>Project</h3></div>
+            <div className="grid cols2" data-section="project">
+              <label className="f"><span>Project name <em>required</em></span>
                 <div className="inp focus-ring"><input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Project H" autoFocus aria-label="Project name" /></div></label>
               <label className="f"><span>Deadline <em>optional</em></span>
                 <div className="inp focus-ring"><input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} aria-label="Deadline" /></div></label>
-              {active.filter((f) => !f.isCore).map((f) => (
-                <div className={`f ${use[f.id] ? '' : 'off'}`} key={f.id}>
-                  <span className="flabel">
-                    <input type="checkbox" checked={!!use[f.id]} onChange={(e) => setUse({ ...use, [f.id]: e.target.checked })} aria-label={`Use ${f.label}`} />
-                    {f.label}
-                    <label className="req"><input type="checkbox" checked={!!req[f.id]} disabled={!use[f.id]} onChange={(e) => setReq({ ...req, [f.id]: e.target.checked })} />required</label>
-                  </span>
-                  {use[f.id] && <FieldInput s={s} field={f} value={values[f.id] ?? null} onCommit={(v) => setValues({ ...values, [f.id]: v })} />}
-                </div>
-              ))}
             </div>
           </div>
           <div className="card">

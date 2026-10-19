@@ -34,3 +34,69 @@ input[type=checkbox],input[type=radio]{accent-color:#96ae9f}
 .gcard,.gcard *{--gtext:var(--text)}
 .gcard .gname,.gcard .t{color:var(--text)!important;opacity:1!important}
 .tpanel.compact{box-sizing:border-box;max-width:100%;min-width:0}.tpanel.compact .tph1{font-size:13px!important}.tpanel.compact .cprog .cpbar{width:60px}
+/* ---- 0.6.10 widget: truly transparent window, background opacity, no nested sign-in card ---- */
+html[data-view="widget"],html[data-view="widget"] body,html[data-view="widget"] #root{background:transparent!important}
+.widget{--wa:.85;--wba:.1;background:linear-gradient(160deg,rgba(28,29,28,var(--wa)),rgba(13,14,14,var(--wa)))!important;border:1px solid rgba(255,255,255,var(--wba))!important;border-radius:22px!important;overflow:hidden!important;backdrop-filter:none!important;box-shadow:none!important}
+.widget.wblur{backdrop-filter:blur(18px) saturate(120%)!important}
+.widget.wlow{text-shadow:0 1px 2px rgba(0,0,0,.55)}
+.widget .rail,.widget .wdet{background:transparent!important}
+.widget.solo .wdet{display:flex;flex-direction:column;height:100%;box-sizing:border-box}
+.widget.solo .wdet:has(.signin),.widget .center-fill:has(.signin){background:radial-gradient(420px 300px at 50% 30%,rgba(204,188,163,calc(.12*var(--wa))),transparent 65%)!important}
+.widget .center-fill{flex:1;display:flex;flex-direction:column;justify-content:center}
+.widget .signin{background:transparent!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important;border-radius:0!important;margin:auto!important;padding:8px 24px!important}
+/* opacity control */
+.opctl{display:flex;flex-direction:column;gap:8px;max-width:360px}
+.opctl.compact{padding:6px 10px 8px;max-width:none;min-width:200px}
+.opctl .oprow{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.opctl .oprow b{color:var(--text);font-weight:500}
+.opctl input[type=range]{width:100%;accent-color:#ccbca3}
+.opctl .opblur{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--text)}
+/* ---- 0.6.10 one input style: single border, single background, no stacked rings ---- */
+:root{--in-h:36px;--in-bg:#1a1b1a;--in-bd:rgba(255,255,255,.12);--in-bd-h:rgba(255,255,255,.2);--in-focus:rgba(248,247,244,.7);--in-ring:0 0 0 3px rgba(204,188,163,.16)}
+html[data-view="widget"]{--in-h:32px}
+input,textarea,select{outline:none!important}
+:root input:where(:not([type=checkbox],[type=radio],[type=range],[type=file])),:root textarea,:root .selx{
+  box-sizing:border-box!important;background:var(--in-bg)!important;border:1px solid var(--in-bd)!important;border-radius:8px!important;
+  color:var(--text)!important;font:inherit;font-size:13px!important;padding:0 11px!important;box-shadow:none!important;margin:0}
+:root input:where(:not([type=checkbox],[type=radio],[type=range],[type=file])),:root .selx{height:var(--in-h)!important;min-height:var(--in-h)!important;line-height:normal}
+:root textarea{padding:9px 11px!important;min-height:64px;line-height:1.45}
+:root input:hover:not(:focus):not(:disabled),:root textarea:hover:not(:focus):not(:disabled),:root .selx:hover{border-color:var(--in-bd-h)!important}
+:root input:where(:not([type=checkbox],[type=radio],[type=range])):focus,:root textarea:focus,:root .selx:focus,:root .selx.open{border-color:var(--in-focus)!important;box-shadow:var(--in-ring)!important;outline:none!important}
+input::placeholder,textarea::placeholder{color:var(--faint)!important}
+input:disabled,textarea:disabled{opacity:.5;cursor:not-allowed}
+/* native date field matches */
+input[type=date]{color-scheme:dark;font-family:var(--mono)!important;font-size:12.5px!important}
+input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.85) sepia(.2);opacity:.6;cursor:pointer}
+input[type=date]::-webkit-calendar-picker-indicator:hover{opacity:1}
+/* wrappers that hold an icon/addon own the border; the inner field has none */
+.inp,.ai,.amtin,.pwrow,.wcal{box-sizing:border-box;display:flex;align-items:center;gap:8px;height:var(--in-h)!important;min-height:var(--in-h)!important;padding:0 11px!important;background:var(--in-bg)!important;border:1px solid var(--in-bd)!important;border-radius:8px!important;box-shadow:none!important;color:var(--text)!important}
+.inp.area{height:auto!important;padding:0!important}
+.inp:hover,.ai:hover,.amtin:hover,.pwrow:hover,.wcal:hover{border-color:var(--in-bd-h)!important}
+.inp:focus-within,.ai:focus-within,.amtin:focus-within,.pwrow:focus-within,.wcal:focus-within{border-color:var(--in-focus)!important;box-shadow:var(--in-ring)!important}
+.inp input,.inp textarea,.ai input,.amtin input,.pwrow input,.wcal input,.wadd input,.ciadd input,.inp .selx,.amtin .selx,
+.inp input:focus,.inp textarea:focus,.ai input:focus,.amtin input:focus,.pwrow input:focus,.wcal input:focus,.wadd input:focus,.ciadd input:focus,.amtin .selx:focus,.amtin .selx.open{
+  border:0!important;background:transparent!important;box-shadow:none!important;padding:0!important;height:100%!important;min-height:0!important;flex:1;min-width:0;border-radius:0!important}
+.inp.area textarea{padding:9px 11px!important}
+.amtin .selx{flex:0 0 auto;width:auto!important;padding:0 4px!important}
+.wcal input{flex:0 0 auto;width:20px;color:transparent!important}
+.inp.focus-ring:focus-within{outline:none!important}
+/* icon-in-input (sign-in): input owns the border, the wrapper has none */
+.signin .ifield{border:0!important;background:none!important;box-shadow:none!important}
+.signin .ifield input{height:38px!important;padding:0 38px 0 34px!important}
+/* the widget add row is a single field: it owns the border */
+.wadd{border:1px solid var(--in-bd)!important;background:var(--in-bg)!important;border-radius:8px!important;box-shadow:none!important}
+.wadd:focus-within{border-color:var(--in-focus)!important;box-shadow:var(--in-ring)!important}
+.wadd .selx{border:0!important;background:rgba(255,255,255,.04)!important;height:24px!important;min-height:24px!important;padding:0 8px!important;width:auto!important}
+.wadd .wcal{border:0!important;background:transparent!important;padding:0 4px!important;height:auto!important;min-height:0!important;box-shadow:none!important}
+/* labels line up with fields */
+label>span:first-child,.rsgrid label>span,.te-grid label{font-size:12px;color:var(--muted)}
+/* disabled buttons: clearly inactive, not muddy */
+.btn:disabled,.btn[disabled],.wbtn:disabled,button.addfield:disabled{background:transparent!important;border:1px dashed rgba(255,255,255,.14)!important;color:var(--faint)!important;opacity:1!important;cursor:not-allowed;box-shadow:none!important}
+/* segmented controls (sheet tabs etc.) on dark */
+.seg{background:rgba(255,255,255,.04)!important;border:1px solid var(--border)!important;border-radius:9px!important;padding:3px!important}
+.seg button{background:transparent!important;color:var(--muted)!important;border:0!important}
+.seg button.on{background:rgba(248,247,244,.1)!important;color:var(--text)!important;box-shadow:inset 0 0 0 1px rgba(248,247,244,.2)!important}
+/* add-task row: plain row, fields own their borders */
+.addform,.rp .addform{border:0!important;background:transparent!important;padding:0!important}
+.addform .ai.date{flex:0 0 150px!important}.addform .ai.date input{width:auto!important}
+.addform .selx,.addform .ttype{flex:0 0 140px!important}

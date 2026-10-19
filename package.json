@@ -1,7 +1,7 @@
 {
   "name": "desklist",
   "private": true,
-  "version": "0.6.9",
+  "version": "0.6.10",
   "description": "Desklist — desktop-level team project checklists (Electron app + sync server)",
   "workspaces": [
     "shared",

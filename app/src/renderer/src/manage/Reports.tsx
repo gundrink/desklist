@@ -1,3 +1,4 @@
+import { Linkify } from '../components/Linkify';
 import { Select } from '../components/Select';
 import { useEffect, useState } from 'react';
 import { formatAmount, type Report, type Snapshot } from '@desklist/shared';
@@ -78,7 +79,7 @@ export function Reports({ s }: { s: Snapshot }) {
               return (
                 <div className="etr" key={i.id} data-expense={i.item}>
                   <span className="ell"><i className="pdot" style={{ background: 'var(--bronze)' }} />{i.projectName}</span>
-                  <span className="ell">{i.item}</span>
+                  <span className="ell"><Linkify text={i.item} /></span>
                   <span><Amount s={s} amount={i.amount} code={i.currency} /></span>
                   <span>{m && <><Avatar initials={m.initials} size="xs" /> {shortName(m.name)}</>}</span>
                   <span className="muted">{shortDate(i.spentOn ?? i.createdAt)}</span>

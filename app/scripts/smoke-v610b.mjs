@@ -1,0 +1,174 @@
+/** 0.6.10 contrast audit + Reports/Team/Settings/View screenshots on a temp team. */
+import { _electron as electron } from 'playwright-core';
+import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'; import { spawn } from 'node:child_process'; import readline from 'node:readline';
+import { CONTRAST_AUDIT, LOOK } from './contrast.mjs';
+import { execFileSync } from 'node:child_process';
+const shots = path.resolve(import.meta.dirname, '../../screenshots');
+const log = (...a) => console.log('[v610b]', ...a);
+const results = []; const check = (n, ok) => { results.push([n, !!ok]); log(ok ? 'PASS' : 'FAIL', n); };
+const R = Date.now().toString(36).slice(-5); const PW = 'Pw-' + Math.random().toString(36).slice(2, 12);
+const api = async (base, token, method, p, body) => (await fetch(base + p, { method, headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: body ? JSON.stringify(body) : undefined })).json();
+const srvProc = spawn(path.resolve(import.meta.dirname, '../../node_modules/.bin/tsx'), ['scripts/fake-google-server.ts'], { cwd: path.resolve(import.meta.dirname, '../../server'), stdio: ['ignore', 'pipe', 'inherit'] });
+const L = await new Promise((r) => readline.createInterface({ input: srvProc.stdout }).once('line', (l) => r(JSON.parse(l))));
+let total = 0; const allFails = [];
+const audit = async (win, name) => { await win.waitForTimeout(450); const a = await win.evaluate(CONTRAST_AUDIT); total += a.n; for (const f of a.fails) allFails.push(`${name}: ${f}`);
+  log(`${name}: ${a.n} checked, ${a.fails.length} below threshold`); };
+const hoverResults = [];
+const topmost = (loc) => loc.evaluate((e) => { const r = e.getBoundingClientRect(); const t = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return !!t && (t === e || e.contains(t)); });
+/** hover `target`; compare with resting `rest` (same element before hover, or a sibling), require lighter bg + 4.5:1 text */
+const hoverCheck = async (win, name, target, rest = null) => {
+  await win.mouse.move(1, 1); await win.waitForTimeout(450); const before = await (rest ?? target).evaluate(LOOK); await target.hover(); await win.waitForTimeout(450); const after = await target.evaluate(LOOK);
+  const ok = after.lum > before.lum + 0.003 && after.contrast >= 4.5;
+  hoverResults.push(`${name}: rest ${before.bg} -> hover ${after.bg}, text ${after.contrast.toFixed(1)}:1`); check(`hover ${name} lightens (${before.bg} -> ${after.bg}), text ${after.contrast.toFixed(1)}:1`, ok);
+};
+let app, step = '';
+try {
+  const as = await api(L.base, null, 'POST', '/api/accounts/signup', { username: `e2e_v64_${R}a`, password: PW });
+  const at = (await api(L.base, null, 'POST', '/api/accounts/redeem', { accountToken: as.accountToken, code: L.code })).token;
+  const pid = (await api(L.base, at, 'POST', '/api/projects', { name: `Audit ${R}`, hasExpenses: true })).id;
+  const t1 = await api(L.base, at, 'POST', `/api/projects/${pid}/tasks`, { title: 'Buy domain' });
+  const t2 = await api(L.base, at, 'POST', `/api/projects/${pid}/tasks`, { title: 'Hosting' });
+  await api(L.base, at, 'POST', `/api/projects/${pid}/tasks`, { title: 'Write docs', dueDate: '2026-10-21' });
+  for (const [t, amt] of [[t1, 12], [t2, 30]]) { await api(L.base, at, 'PATCH', `/api/tasks/${t.id}`, { hasExpense: true }); await api(L.base, at, 'PUT', `/api/tasks/${t.id}/reimbursement`, { item: t.title, category: 'Other', amount: amt, currency: 'USD' }); }
+  await api(L.base, at, 'PATCH', `/api/tasks/${t1.id}`, { done: true });
+  await api(L.base, at, 'POST', `/api/tasks/${t2.id}/items`, { title: 'Pick plan' });
+  await api(L.base, at, 'POST', `/api/tasks/${t2.id}/items`, { title: 'Compare plans at https://www.example.com/hosting/compare?plan=pro&region=sg-very-long-path-segment.' });
+  await api(L.base, at, 'PATCH', `/api/projects/${pid}`, { notes: 'Goal: ship the landing page.\nRepo: https://github.com/example-org/landing-page-with-a-really-long-repository-name/tree/main/apps/web\nDesign: www.figma.com/file/abc123\nLine four\nLine five\nLine six' });
+  const pad2 = (n) => String(n).padStart(2, '0'); const dd = new Date(Date.now() + 2 * 86400000); const DUE = `${dd.getFullYear()}-${pad2(dd.getMonth() + 1)}-${pad2(dd.getDate())}`;
+  await api(L.base, at, 'PATCH', `/api/projects/${pid}`, { deadline: DUE });
+  const p2 = (await api(L.base, at, 'POST', '/api/projects', { name: `Launch ${R}` })).id; await api(L.base, at, 'PATCH', `/api/projects/${p2}`, { deadline: DUE });
+  const doomed = (await api(L.base, at, 'POST', '/api/projects', { name: `Delete me ${R}` })).id; void doomed;
+  const wdelId = (await api(L.base, at, 'POST', '/api/projects', { name: `Widget del ${R}` })).id;
+  const mem = await api(L.base, at, 'POST', '/api/members', { name: 'Mia Member', role: 'member' });
+  app = await electron.launch({ executablePath: process.env.DESKLIST_EXE, args: ['--no-sandbox'], timeout: 30000,
+    env: { ...process.env, DESKLIST_SMOKE: '1', DESKLIST_SERVER_URL: L.base, DESKLIST_USER_DATA: fs.mkdtempSync(path.join(os.tmpdir(), 'dl610b-')) } });
+  const w = await app.firstWindow(); await w.locator('.signin').waitFor({ timeout: 20000 });
+  step = 'sign-in'; await audit(w, 'widget sign-in');
+  await w.getByRole('tab', { name: 'Create account' }).click().catch(() => w.locator('.authtabs button', { hasText: 'Create account' }).click()); await audit(w, 'widget create account');
+  await w.locator('.authtabs button', { hasText: 'Sign in' }).click().catch(() => {});
+  await w.getByLabel('Username').fill(`e2e_v64_${R}a`); await w.getByLabel('Password', { exact: true }).fill(PW);
+  await w.getByRole('button', { name: 'Sign in', exact: true }).click(); await w.locator('.rail').waitFor({ timeout: 25000 });
+  await w.locator('.pknudge button', { hasText: 'Not now' }).click({ timeout: 3000 }).catch(() => {});
+  await audit(w, 'widget 85%');
+  await app.evaluate(() => globalThis.__desklist); // noop
+  step = 'manage';
+  const [m] = await Promise.all([app.waitForEvent('window'), app.evaluate(() => globalThis.__desklist.openManage())]);
+  step = 'overview';
+  await m.locator('[data-overview]').waitFor({ timeout: 15000 }); check('Manage lands on Overview', true);
+  const ck0 = await m.locator(".ovtime").textContent(); await m.waitForTimeout(1300); const ck1 = await m.locator(".ovtime").textContent();
+  check(`clock ticks (${ck0} -> ${ck1})`, ck0 !== ck1);
+  const cell = m.locator(`.ovc[data-day="${DUE}"]`);
+  if (!(await cell.count())) await m.getByLabel('Next month').click();
+  check('calendar shows deadline dots', (await cell.locator('.dots i').count()) >= 2);
+  await m.waitForTimeout(400); await m.screenshot({ path: path.join(shots, 'v610-overview.png') }); await audit(m, 'overview');
+  await hoverCheck(m, 'calendar day', m.locator('.ovc:not(.empty):not(.today):not(.sel)').first());
+  await cell.click(); await m.locator(`.ovday[data-dayopen="${DUE}"] .ovp[data-ovproject="Audit ${R}"]`).waitFor({ timeout: 5000 });
+  check('day lists its projects', (await m.locator('.ovday .ovp').count()) >= 2);
+  await m.screenshot({ path: path.join(shots, 'v610-overview-day-open.png') });
+  await m.locator(`.ovday .ovp[data-ovproject="Audit ${R}"]`).click(); await m.locator('.tr[data-task="Hosting"]').waitFor({ timeout: 10000 }); check('clicking a day project opens it', true);
+  step = 'manage';
+  await m.locator(`.gcard[data-project="Audit ${R}"] .gname`).click(); await m.locator('.tr[data-task="Hosting"]').waitFor({ timeout: 15000 });
+  await audit(m, 'project checklist (edit)');
+  for (const tab of ['Details & fields', 'Reimbursement', 'Task details']) { await m.locator('.stabs .st', { hasText: tab }).first().click(); await audit(m, `tab ${tab}`); }
+  await m.locator('.stabs .st', { hasText: 'Checklist' }).first().click();
+  await m.locator('.tr[data-task="Hosting"] .expbtn').click(); await m.locator('.tpanel').waitFor(); await audit(m, 'task detail expanded');
+  await m.locator('.tr[data-task="Write docs"]').hover(); await m.getByLabel('Edit Write docs').click(); await m.locator('.teditp').waitFor(); await m.waitForTimeout(500); await audit(m, 'task edit panel');
+  await m.locator('.teditp').getByLabel('Assignee').evaluate((e) => e.scrollIntoView({ block: 'end' })); await m.locator('.teditp').getByLabel('Assignee').click(); await m.locator('.sel-pop').waitFor(); await audit(m, 'select popover open'); { const lo = m.locator('.sel-pop .sel-opt').last(); check('Select near bottom: last option topmost and inside viewport', await topmost(lo) && await lo.evaluate((e) => e.getBoundingClientRect().bottom <= innerHeight)); }
+  { const opts = m.locator('.sel-pop .sel-opt'); await hoverCheck(m, 'Select option', opts.nth(1), opts.nth(2)); await m.screenshot({ path: '/tmp/hov-select.png' }); }
+  await m.keyboard.press('Escape');
+  await m.getByLabel('Close edit').click().catch(() => {});
+  await hoverCheck(m, 'task row', m.locator('.tr[data-task="Hosting"]'));
+  await hoverCheck(m, 'tab', m.locator('.stabs .st', { hasText: 'Reimbursement' }).first());
+  await hoverCheck(m, 'sidebar project card', m.locator(`.gcard[data-project="Delete me ${R}"]`));
+  step = 'delete project (admin)';
+  await m.locator(`.gcard[data-project="Delete me ${R}"] .gmenu`).click(); const dm = m.locator('.gpop .pi', { hasText: 'Delete project' });
+  check('admin: Delete project in sidebar card menu', await dm.isVisible());
+  await hoverCheck(m, 'menu item', m.locator('.gpop .pi', { hasText: 'Open details' }), m.locator('.gpop .pi', { hasText: 'Open details' }));
+  await hoverCheck(m, 'destructive menu item', dm);
+  await m.screenshot({ path: path.join(shots, 'v610-delete-project-menu.png') }); await m.screenshot({ path: '/tmp/hov-menu.png' });
+  execFileSync('python3', ['-c', `from PIL import Image\na=Image.open('/tmp/hov-select.png');b=Image.open('/tmp/hov-menu.png')\nim=Image.new('RGB',(a.width+b.width,max(a.height,b.height)),(13,14,14));im.paste(a,(0,0));im.paste(b,(a.width,0));im.save('${path.join(shots, 'v610-hover-states.png')}')`]);
+  check('sidebar card ⋯: Delete item topmost at its center', await topmost(dm));
+  await dm.click(); await hoverCheck(m, 'secondary button', m.locator('.delmodal .btn.sec')); await m.getByLabel('Type project name to confirm').fill(`Delete me ${R}`); await m.locator('.delmodal .btn.danger').click();
+  await m.locator(`.gcard[data-project="Delete me ${R}"]`).waitFor({ state: 'detached', timeout: 10000 }).then(() => check('admin deleted a project from the sidebar menu', true), () => check('admin deleted a project from the sidebar menu', false));
+  await m.locator(`.gcard[data-project="Audit ${R}"] .gname`).click();
+  await m.locator('.pmenu .kebab').click(); const hdi = m.locator('.pmenu-pop .danger-item'); check('admin: Delete project in header ⋯ menu', await hdi.isVisible());
+  check('header ⋯: Delete item topmost at its center (portal)', await topmost(hdi)); await hdi.click({ trial: true }).then(() => check('header ⋯ Delete item clickable', true), () => check('header ⋯ Delete item clickable', false));
+  await m.screenshot({ path: path.join(shots, 'v610-header-menu.png') }); await m.keyboard.press('Escape');
+  await m.locator('.stabs .st', { hasText: 'Details & fields' }).first().click(); check('admin: Danger zone on Details & fields', await m.locator('[data-card="danger"] .btn.danger').isVisible());
+  await m.locator('.stabs .st', { hasText: 'Checklist' }).first().click();
+  step = 'description';
+  const pd = m.locator('.pdesc'); await pd.screenshot({ path: '/tmp/desc-a.png' });
+  check('description shows Show more for long text', await pd.locator('.more').isVisible());
+  await pd.locator('a.alink', { hasText: 'github.com' }).click(); await m.waitForTimeout(300);
+  const opened = await app.evaluate(() => globalThis.__desklistOpened ?? []);
+  check(`description link -> openExternal (${opened.at(-1)})`, opened.at(-1)?.startsWith('https://github.com/example-org/landing-page'));
+  check('window did not navigate', (await m.evaluate(() => location.href)).includes('view=manage') || !(await m.evaluate(() => location.href)).includes('github'));
+  await pd.getByLabel('Edit description').click(); const dta = pd.getByLabel('Edit project description'); await dta.waitFor();
+  const dt = await dta.evaluate((e) => { const c = getComputedStyle(e); return { resize: c.resize, h: e.clientHeight, sh: e.scrollHeight, bd: c.borderTopWidth, pbd: getComputedStyle(e.closest('.pdesc')).borderTopWidth }; });
+  check(`description editor auto-grows, no grip (resize ${dt.resize}, ${dt.h}/${dt.sh}px)`, dt.resize === 'none' && dt.sh <= dt.h + 4);
+  await pd.screenshot({ path: '/tmp/desc-b.png' });
+  execFileSync('python3', ['-c', `from PIL import Image\na=Image.open('/tmp/desc-a.png');b=Image.open('/tmp/desc-b.png')\nim=Image.new('RGB',(max(a.width,b.width),a.height+b.height+16),(13,14,14));im.paste(a,(0,0));im.paste(b,(0,a.height+16));im.save('${path.join(shots, 'v610-description.png')}')`]);
+  await dta.press('Escape');
+  await m.locator('.modetgl button', { hasText: 'View' }).click(); await m.waitForTimeout(500); await m.screenshot({ path: path.join(shots, 'v610-view-mode.png') }); await audit(m, 'view mode');
+  const vl = m.locator('.vcard a.alink', { hasText: 'example.com' }).first(); await vl.scrollIntoViewIfNeeded(); await m.screenshot({ path: path.join(shots, 'v610-links.png') });
+  await vl.click(); await m.waitForTimeout(300); const op2 = await app.evaluate(() => globalThis.__desklistOpened ?? []);
+  check(`checklist-item link in View mode -> openExternal (${op2.at(-1)})`, op2.at(-1) === 'https://www.example.com/hosting/compare?plan=pro&region=sg-very-long-path-segment');
+  await m.locator('.modetgl button', { hasText: 'Edit' }).click();
+  const views = [['reports', 'v610-reports.png'], ['tasksetup', 'v610-task-setup.png'], ['fields', null], ['team', 'v610-team.png'], ['settings', 'v610-settings.png'], ['create', null]];
+  for (const [v, shot] of views) { await app.evaluate((_, vv) => globalThis.__desklist.openManage({ view: vv }), v); await m.waitForTimeout(900); if (shot) await m.screenshot({ path: path.join(shots, shot) }); await audit(m, v); }
+  step = 'new project';
+  await app.evaluate(() => globalThis.__desklist.openManage({ view: 'create' })); await m.getByLabel('Project name').waitFor();
+  check('New project has no master-field rows / checkboxes', (await m.locator('.rbody .flabel input[type=checkbox], .rbody .req').count()) === 0 && !(await m.getByText('Uncheck fields').count()));
+  await m.getByLabel('Project name').fill(`Fresh ${R}`); await m.getByLabel('Deadline').fill(DUE); await m.waitForTimeout(200);
+  await m.screenshot({ path: path.join(shots, 'v610-new-project.png') });
+  await m.keyboard.press('Escape'); await m.getByLabel('Project description').click(); await m.locator('.form-actions .btn.pri').click(); await m.locator('.stabs .st >> visible=true', { hasText: 'Details & fields' }).first().waitFor({ timeout: 15000 });
+  await m.getByRole('button', { name: 'Blank project' }).click({ timeout: 5000 }).catch(() => {}); await m.waitForTimeout(400); await m.locator('.stabs .st >> visible=true', { hasText: 'Details & fields' }).first().click(); await m.waitForTimeout(600);
+  { const fp = (await api(L.base, at, 'GET', '/api/snapshot')); const pr = (fp.projects ?? []).find((x) => x.name === `Fresh ${R}`);
+    const masters = (fp.fields ?? []).filter((f) => !f.archived && !f.isCore);
+    const missing = []; for (const f of masters) if (!(await m.getByText(f.label, { exact: true }).count())) missing.push(f.label);
+    check(`new project: ${masters.length} master fields attached and shown empty in Details & fields (missing: ${missing.join(',') || 'none'})`, !!pr && missing.length === 0 && Object.values(pr.values ?? {}).filter((v, i) => v && Object.keys(pr.values)[i] !== masters.find((f) => f.isCore)?.id).length <= 1); }
+  step = 'widget opacity';
+  await app.evaluate(() => globalThis.__desklist.openManage({ view: 'settings' })); const sl = m.locator('[data-card="widget"]').getByLabel('Widget background opacity');
+  await sl.fill('100'); await audit(w, 'widget 100%'); await sl.fill('30'); await audit(w, 'widget 30%'); await sl.fill('85');
+  await w.locator('.menu-anchor .menu').click(); await w.locator('.wmenu .pi').first().waitFor();
+  await hoverCheck(w, 'widget menu item', w.locator('.wmenu .pi').nth(1), w.locator('.wmenu .pi').nth(2)); await w.keyboard.press('Escape');
+  await w.locator('.menu-anchor .menu').click(); await w.locator('.wmenu .pi', { hasText: 'Show overview' }).click();
+  await w.locator('[data-woverview]').waitFor({ timeout: 5000 }); await w.waitForTimeout(400); await w.screenshot({ path: path.join(shots, 'v610-widget-overview.png') }); await audit(w, 'widget overview');
+  check('widget overview lists upcoming projects', (await w.locator('[data-woverview] .ovp').count()) >= 2);
+  step = 'widget delete';
+  await w.locator('.menu-anchor .menu').click(); check('admin: widget ⋯ menu has Delete project', await w.locator('.wmenu .danger-item', { hasText: 'Delete project' }).isVisible() || (await w.locator('[data-woverview]').count()) > 0); await w.keyboard.press('Escape');
+  await w.locator(`.riwrap:has(.ri[data-project="Widget del ${R}"])`).hover(); await w.getByLabel(`Project menu Widget del ${R}`).click();
+  const wdi = w.locator('.wmenu .danger-item'); check('widget rail ⋯: Delete project item topmost', await wdi.isVisible() && await topmost(wdi));
+  await wdi.click(); await w.getByLabel('Type project name to confirm').fill(`Widget del ${R}`); await w.waitForTimeout(200);
+  await w.screenshot({ path: path.join(shots, 'v610-widget-delete.png') }); await audit(w, 'widget delete confirm');
+  await w.locator('.delmodal .btn.danger').click();
+  await w.locator(`.ri[data-project="Widget del ${R}"]`).waitFor({ state: 'detached', timeout: 10000 }).then(() => check('admin deleted a project from the widget', true), () => check('admin deleted a project from the widget', false));
+  check('widget switched to overview/next project after delete', await w.locator('[data-woverview], .wdet .w-top .switch').first().isVisible());
+  step = 'member view';
+  await Promise.race([app.close(), new Promise((r) => setTimeout(r, 6000))]); app = null;
+  const ms = await api(L.base, null, 'POST', '/api/accounts/signup', { username: `e2e_v64_${R}m`, password: PW });
+  const mtok0 = (await api(L.base, null, 'POST', '/api/accounts/redeem', { accountToken: ms.accountToken, code: mem.code })).token;
+  app = await electron.launch({ executablePath: process.env.DESKLIST_EXE, args: ['--no-sandbox'], timeout: 30000, env: { ...process.env, DESKLIST_SMOKE: '1', DESKLIST_SERVER_URL: L.base, DESKLIST_USER_DATA: fs.mkdtempSync(path.join(os.tmpdir(), 'dl610m-')) } });
+  const w2 = await app.firstWindow(); await w2.locator('.signin').waitFor({ timeout: 20000 });
+  await w2.getByLabel('Username').fill(`e2e_v64_${R}m`); await w2.getByLabel('Password', { exact: true }).fill(PW); await w2.getByRole('button', { name: 'Sign in', exact: true }).click(); await w2.locator('.rail').waitFor({ timeout: 25000 });
+  await w2.locator('.pknudge button', { hasText: 'Not now' }).click({ timeout: 3000 }).catch(() => {});
+  const [m2] = await Promise.all([app.waitForEvent('window'), app.evaluate(() => globalThis.__desklist.openManage({ view: 'project' }))]);
+  await m2.locator(`.gcard[data-project="Audit ${R}"] .gname`).click(); await m2.locator('.tr[data-task="Hosting"]').waitFor({ timeout: 15000 });
+  await m2.locator(`.gcard[data-project="Audit ${R}"] .gmenu`).click(); await m2.waitForTimeout(300);
+  const memSide = await m2.locator('.gpop .pi', { hasText: 'Delete project' }).count();
+  const memHead = await m2.locator('.pmenu .kebab').count();
+  await m2.keyboard.press('Escape'); await m2.locator('.stabs .st', { hasText: 'Details & fields' }).first().click(); await m2.waitForTimeout(400);
+  const memDanger = await m2.locator('[data-card="danger"]').count();
+  { await w2.locator('.menu-anchor .menu').click(); await w2.waitForTimeout(300); const wm = await w2.locator('.wmenu .danger-item').count(); const rm = await w2.locator('.rimenu').count(); await w2.keyboard.press('Escape');
+    check(`member: widget shows no Delete (menu ${wm}, rail ${rm})`, wm + rm === 0);
+    const mtok = mtok0;
+    const rr = await fetch(L.base + `/api/projects/${pid}`, { method: 'DELETE', headers: { authorization: `Bearer ${mtok}` } }); check(`server: member DELETE project -> ${rr.status}`, rr.status === 403); }
+  check(`member sees no delete (sidebar ${memSide}, header ${memHead}, danger zone ${memDanger})`, memSide + memHead + memDanger === 0);
+} catch (e) { console.error('[v610b] FAIL at', step, '-', e.message.split('\n').slice(0, 6).join(' / ')); results.push(['exception at ' + step, false]); }
+finally {
+  fs.writeFileSync('/tmp/contrast-fails.txt', allFails.join('\n')); fs.writeFileSync('/tmp/hover-results.txt', hoverResults.join('\n'));
+  log(`contrast: ${total} elements checked, ${allFails.length} failures`); check('contrast audit: 0 failures', allFails.length === 0);
+  await Promise.race([app?.close().catch(() => {}), new Promise((r) => setTimeout(r, 6000))]);
+  srvProc.kill('SIGTERM'); await Promise.race([new Promise((r) => srvProc.on('close', r)), new Promise((r) => setTimeout(r, 15000))]);
+  const failed = results.filter(([, ok]) => !ok); log(`${results.length - failed.length}/${results.length} checks passed`); if (failed.length) process.exitCode = 1; process.exit();
+}

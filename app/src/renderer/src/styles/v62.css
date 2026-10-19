@@ -30,9 +30,9 @@
 .copybtn.ok{animation:mCopied var(--m-fast) var(--ease)}
 /* sliding segmented indicators (In progress/Done, Edit/View) */
 .ptabs,.modetgl{position:relative;isolation:isolate}
-.ptabs::before,.modetgl::before{content:"";position:absolute;z-index:-1;top:3px;bottom:3px;left:3px;width:calc(50% - 5px);border-radius:8px;transition:transform var(--m) var(--ease);background:#fff}
+.ptabs::before,.modetgl::before{content:"";position:absolute;z-index:-1;top:3px;bottom:3px;left:3px;width:calc(50% - 5px);border-radius:8px;transition:transform var(--m) var(--ease);background:var(--surface)}
 .modetgl::before{top:2px;bottom:2px;left:2px;width:calc(50% - 3px);border-radius:6px;background:#111}
-.modetgl.compact::before{background:#fff}
+.modetgl.compact::before{background:var(--surface)}
 .ptabs.idx-1::before{transform:translateX(calc(100% + 4px))}
 .modetgl.idx-1::before{transform:translateX(calc(100% + 2px))}
 .ptabs button.on,.modetgl button.on{background:transparent!important}
@@ -56,7 +56,7 @@
 .signin .authtabs button{flex:1;padding:7px 0;font-size:12.5px}
 .signin input.acc{display:block;width:100%;box-sizing:border-box;margin:0 0 8px;padding:9px 11px;border-radius:9px;font-size:13px}
 .signin.dark input.acc{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#fff}
-.signin.light input.acc{background:#fff;border:1px solid #d4d4d4;color:#111}
+.signin.light input.acc{background:var(--surface);border:1px solid var(--border);color:var(--text)}
 .signin .altsign{display:flex;flex-direction:column;align-items:stretch;gap:6px;width:100%;margin-top:6px}
 .signin .altsign .or{font-size:11px;opacity:.55;text-align:center}
 .signin .passkey{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px}
@@ -65,33 +65,33 @@
 .settings .setcard{margin-bottom:12px}
 .settings .setrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0}
 .settings .setrow label{width:130px;font-size:12px;font-weight:600}
-.settings .setrow input{padding:7px 9px;border:1px solid #d4d4d4;border-radius:8px;font-size:12.5px;min-width:170px}
+.settings .setrow input{padding:7px 9px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;min-width:170px}
 .pkstatus{margin:6px 0}
-.pkedit{display:flex;gap:6px}.pkedit input{padding:4px 7px;border:1px solid #d4d4d4;border-radius:6px}
+.pkedit{display:flex;gap:6px}.pkedit input{padding:4px 7px;border:1px solid var(--border);border-radius:6px}
 .accname{min-width:150px}
 
 .pmenu{position:relative;margin-left:6px}.kebab{font-size:16px;line-height:1;padding:2px 8px}
-.pmenu-pop{position:absolute;right:0;top:28px;z-index:30;background:#fff;border:1px solid #ddd;border-radius:9px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:4px;min-width:160px}
-.danger-item{display:block;width:100%;text-align:left;padding:7px 10px;border:0;background:none;color:var(--danger);font-size:12.5px;border-radius:6px;cursor:pointer}.danger-item:hover{background:#f4f4f4}
-.modal-back{position:fixed;inset:0;background:rgba(0,0,0,.35);display:grid;place-items:center;z-index:100}
-.delmodal{background:#fff;border-radius:14px;padding:20px 22px;width:420px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
-.delmodal h3{margin:0 0 8px}.delmodal p{font-size:13px;color:#444}
-.delmodal input{width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #ccc;border-radius:8px;margin:6px 0 12px}
+.pmenu-pop{position:absolute;right:0;top:28px;z-index:30;background:var(--surface);border:1px solid var(--border);border-radius:9px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:4px;min-width:160px}
+.danger-item{display:block;width:100%;text-align:left;padding:7px 10px;border:0;background:none;color:var(--danger);font-size:12.5px;border-radius:6px;cursor:pointer}.danger-item:hover{background:var(--surface)}
+.modal-back{position:fixed;inset:0;background:rgba(255,255,255,0.06);display:grid;place-items:center;z-index:100}
+.delmodal{background:var(--surface);border-radius:14px;padding:20px 22px;width:420px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.delmodal h3{margin:0 0 8px}.delmodal p{font-size:13px;color:var(--text)}
+.delmodal input{width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin:6px 0 12px}
 .delmodal .mbtns{display:flex;justify-content:flex-end;gap:8px}
 .btn.danger.solid{background:var(--danger);color:#fff;border-color:var(--danger)}.btn.danger.solid:disabled{opacity:.4}
 .gcard.mleaving{transition:opacity .18s,transform .18s;opacity:0;transform:translateX(-8px)}
 .setupbody{display:grid;grid-template-columns:1.2fr 1fr;gap:14px;max-height:56vh}
 .setupbody .tplleft,.setupbody .tplright{overflow:auto}
 .tsh2{display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:12.5px}
-.setuprow{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #e3e3e3;border-radius:9px;margin-bottom:6px;cursor:pointer;font-size:13px;animation:mItem var(--m) var(--ease) both;transition:border-color var(--m-fast),background var(--m-fast)}
-.setuprow.on{border-color:#111;background:#f6f6f6}.setuprow .tn{flex:1;font-weight:600}.setuprow .tc{font-size:11.5px;color:#777}
-.selrow{display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid #eee;font-size:12.5px;animation:mItem var(--m) var(--ease) both}
-.selrow .num{width:18px;color:#888}
-.mft{display:flex;align-items:center;gap:8px;padding:12px 18px;border-top:1px solid #eee}
-.pdesc{margin:8px 0 6px;padding:9px 12px;border:1px solid #e6e6e6;border-radius:10px;background:#fafafa;animation:mFadeIn var(--m) var(--ease)}
-.pdesc-h{display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;text-transform:none;letter-spacing:.04em;color:#777;margin-bottom:4px}
-.pdesc-t{white-space:pre-wrap;font-size:13px;line-height:1.45;color:#222}
-.pdesc textarea{width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:8px;padding:7px 9px;font:inherit;font-size:13px;resize:vertical;min-height:44px;background:#fff}
+.setuprow{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:9px;margin-bottom:6px;cursor:pointer;font-size:13px;animation:mItem var(--m) var(--ease) both;transition:border-color var(--m-fast),background var(--m-fast)}
+.setuprow.on{border-color:var(--border-2);background:var(--surface)}.setuprow .tn{flex:1;font-weight:600}.setuprow .tc{font-size:11.5px;color:var(--muted)}
+.selrow{display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid var(--border);font-size:12.5px;animation:mItem var(--m) var(--ease) both}
+.selrow .num{width:18px;color:var(--muted)}
+.mft{display:flex;align-items:center;gap:8px;padding:12px 18px;border-top:1px solid var(--border)}
+.pdesc{margin:8px 0 6px;padding:9px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);animation:mFadeIn var(--m) var(--ease)}
+.pdesc-h{display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;text-transform:none;letter-spacing:.04em;color:var(--muted);margin-bottom:4px}
+.pdesc-t{white-space:pre-wrap;font-size:13px;line-height:1.45;color:var(--text)}
+.pdesc textarea{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;padding:7px 9px;font:inherit;font-size:13px;resize:vertical;min-height:44px;background:var(--surface)}
 .wdesc{display:flex;gap:6px;align-items:flex-start;margin:2px 12px 4px;font-size:11.5px;color:rgba(255,255,255,.72);cursor:pointer}
 .wdesc-t{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .wdesc.open .wdesc-t{white-space:pre-wrap}

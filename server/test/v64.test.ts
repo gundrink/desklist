@@ -102,4 +102,17 @@ describe('accounts', () => {
     expect((await db.query('SELECT count(*)::int n FROM desklist.reimbursements WHERE project_id=$1', [pid])).rows[0].n).toBe(0);
     expect((await api('GET', '/api/snapshot', undefined, at)).body.projects.some((p: any) => p.id === pid)).toBe(false);
   });
+  it('0.6.5: project from configured tasks gets tasks + admin fields in chosen order', async () => {
+    const at = (await api('POST', '/api/accounts/login', { username: u('boss'), password: 'admin-pass-1' })).body.token;
+    const a = (await api('PUT', '/api/task-setups', { title: 'Beli Domain', fields: [{ label: 'Domain', type: 'url' }, { label: 'Amount', type: 'amount', reimbursement: true }] }, at)).body;
+    const b = (await api('PUT', '/api/task-setups', { title: 'Buat Akun X', fields: [{ label: 'Username', type: 'text' }, { label: 'Password', type: 'password' }] }, at)).body;
+    const list = (await api('GET', '/api/task-setups', undefined, at)).body; expect(list.map((x: any) => x.title)).toEqual(expect.arrayContaining(['Beli Domain', 'Buat Akun X']));
+    const pr = await api('POST', '/api/projects', { name: `Tpl ${run}` }, at); const pid = pr.body.id ?? pr.body.project?.id;
+    const r = await api('POST', `/api/projects/${pid}/tasks-from-setups`, { setupIds: [b.id ?? b.setup?.id, a.id ?? a.setup?.id] }, at);
+    expect(r.status).toBe(201); expect(r.body.map((t: any) => t.title)).toEqual(['Buat Akun X', 'Beli Domain']);
+    const f = (await db.query(`SELECT t.title, tf.section, tf.label FROM desklist.task_fields tf JOIN desklist.tasks t ON t.id=tf.task_id WHERE t.project_id=$1`, [pid])).rows;
+    expect(f).toEqual(expect.arrayContaining([expect.objectContaining({ title: 'Buat Akun X', label: 'Password' }), expect.objectContaining({ title: 'Beli Domain', label: 'Amount', section: 'reimbursement' })]));
+    const man = await api('POST', `/api/projects/${pid}/tasks`, { title: 'beli domain' }, at); // manual, name matches
+    expect((await db.query(`SELECT count(*)::int n FROM desklist.task_fields WHERE task_id=$1`, [man.body.id])).rows[0].n).toBeGreaterThanOrEqual(2);
+  });
 });

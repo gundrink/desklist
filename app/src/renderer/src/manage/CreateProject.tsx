@@ -76,8 +76,8 @@ export function CreateProject({ s, onCreated, onCancel }: { s: Snapshot; onCreat
             <span className="hint">Text, URL, date, number, long text, currency</span>
           </div>
           <div className="card">
-            <div className="fhead"><h3>Notes</h3></div>
-            <textarea className="inp area" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything the team should know…" />
+            <div className="fhead"><h3>Project description</h3></div>
+            <textarea className="inp area" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What is this project about? Goal, scope, links…" aria-label="Project description" rows={4} />
           </div>
           {err && <div className="callout err">{err}</div>}
           <div className="form-actions">

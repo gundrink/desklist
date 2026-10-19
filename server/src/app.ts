@@ -463,6 +463,7 @@ export function createServer(opts: AppOptions) {
       if (b.name || b.color || b.sortOrder != null)
         await q.query(`UPDATE ${S}.projects SET name=COALESCE($2,name), color=COALESCE($3,color), sort_order=COALESCE($4,sort_order), updated_at=$5 WHERE id=$1 AND updated_at <= $5`,
           [p.id, b.name ?? null, b.color ?? null, b.sortOrder ?? null, ts]);
+      if (b.notes != null && req.member!.role !== 'admin') throw new HttpError(403, 'Only admins can edit the project description');
       if (b.notes != null)
         await q.query(`UPDATE ${S}.projects SET notes=$2, notes_updated_at=$3 WHERE id=$1 AND notes_updated_at <= $3`, [p.id, b.notes, ts]);
       for (const [fid, v] of Object.entries(b.values ?? {})) await setValue(q, req, p.id, fid, v, ts);
@@ -807,6 +808,23 @@ export function createServer(opts: AppOptions) {
       ON CONFLICT (task_id) DO UPDATE SET amount=EXCLUDED.amount, currency=EXCLUDED.currency, paid_by_member_id=EXCLUDED.paid_by_member_id, updated_at=now()`, [t.project_id, t.id, t.title, Number(m[1]), m[2], memberId]);
   }
   const mapSetup = (r: any) => ({ id: r.id, title: r.title, fields: r.fields, updatedAt: new Date(r.updated_at).toISOString() });
+  /** New-project template step: create one task per selected configured task (in the given order), setup applied. */
+  app.post('/api/projects/:id/tasks-from-setups', h(async (req, res) => {
+    const b = z.object({ setupIds: z.array(uuid).min(1).max(100) }).parse(req.body);
+    const p = await projectOf(db, req, req.params.id as string);
+    const { rows: setups } = await db.query(`SELECT id, title FROM ${S}.task_setups WHERE team_id=$1 AND id = ANY($2::uuid[])`, [req.member!.teamId, b.setupIds]);
+    const byId = new Map(setups.map((r: any) => [r.id, r.title as string]));
+    const out = [];
+    for (const id of b.setupIds) {
+      const title = byId.get(id); if (!title) continue;
+      const { rows: [t] } = await db.query(`INSERT INTO ${S}.tasks(project_id, title, created_by_member_id, notes, sort_order)
+        VALUES ($1,$2,$3,'',(SELECT COALESCE(MAX(sort_order),0)+1 FROM ${S}.tasks WHERE project_id=$1)) RETURNING *`, [p.id, title, req.member!.id]);
+      await applySetup(req.member!.teamId, t.id, title, req.member!.id);
+      out.push(mapTask(t));
+    }
+    changed(req, 'task', p.id);
+    res.status(201).json(out);
+  }));
   app.get('/api/task-setups', h(async (req, res) => {
     res.json((await db.query(`SELECT * FROM ${S}.task_setups WHERE team_id=$1 ORDER BY title`, [req.member!.teamId])).rows.map(mapSetup));
   }));

@@ -50,7 +50,7 @@ export function SignIn({ st, theme }: { st: AppState; theme: 'dark' | 'light' })
       <input className="code" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="XXXXX-XXXXX-XXXXX-XXXXX" autoFocus aria-label="Admin code" spellCheck={false} />
       {err && <div className="err">{err}</div>}
       <button className="btn pri" disabled={busy || code.trim().length < 4}>{busy ? 'Joining…' : 'Join'}</button>
-      <button type="button" className="linkbtn" onClick={() => { setPending(null); setErr(null); }}>Back to sign in</button>
+      <button type="button" className="linkbtn" onClick={() => { setPending(null); setErr(null); setTab('signin'); setPassword(''); setConfirm(''); }}>Back to sign in</button>
     </form>);
 
   return (

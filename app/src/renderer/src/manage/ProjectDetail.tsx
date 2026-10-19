@@ -1,3 +1,4 @@
+import { ProjectDescription } from '../components/Description';
 import { useState } from 'react';
 import { CUSTOM_COLUMN_TYPE_LABELS, type Snapshot, type Task } from '@desklist/shared';
 import type { ProjectTab } from '../../../common/ipc';
@@ -44,6 +45,7 @@ export function ProjectDetail({ s, projectId, tab, setTab, onDeleted }: {
             {p.deadline && <><span className="dotsep" />Deadline {shortDate(p.deadline, true)}</>}
             <span className="dotsep" />{done.length} of {all.length} done
           </span></div>
+        <ProjectDescription s={s} p={p} editable={mode === 'edit'} />
         <div className="stabs">
           <button className={`st ${tab === 'checklist' ? 'on' : ''}`} onClick={() => setTab('checklist')}>Checklist</button>
           <button className={`st ${tab === 'details' ? 'on' : ''}`} onClick={() => setTab('details')}>Details &amp; fields</button>
@@ -157,10 +159,6 @@ function Details({ s, pId, onDeleted }: { s: Snapshot; pId: string; onDeleted: (
           ))}
         </div>
         {msg && <div className="callout">{msg}</div>}
-      </div>
-      <div className="card">
-        <div className="fhead"><h3>Notes</h3></div>
-        <FieldInput s={s} dataType="longtext" value={p.notes} onCommit={(v) => actions.setProjectNotes(p.id, v ?? '')} placeholder="Project notes…" />
       </div>
     </div>
   );

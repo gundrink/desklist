@@ -1,3 +1,4 @@
+import { ProjectDescription } from '../components/Description';
 import { useEffect, useRef, useState } from 'react';
 import '../styles/widget.css';
 import '../styles/v5.css';
@@ -100,6 +101,7 @@ function Detail({ s, pId, menuOpen, setMenu, notesMenu, setNotesMenu, setSheet, 
           {menuOpen && <WidgetMenu s={s} projectId={p.id} locked={locked} launch={launch} onClose={() => setMenu(false)} />}
         </div>
       </div>
+      <ProjectDescription s={s} p={p} editable={false} compact />
       <div className="meta">{pic && <span className="ell">PIC: <b>{pic}</b></span>}{pic && domain && <span className="sep" />}{domain && <span className="ell">{domain}</span>}</div>
       {p.hasExpenses && (() => {
         const rs = s.reimbursements.filter((r) => r.projectId === p.id); const pend = rs.filter((r) => !r.reimbursed);

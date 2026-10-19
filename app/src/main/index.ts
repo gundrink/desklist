@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron';
 import path from 'node:path';
 import type { ManageView, Op } from '../common/ipc';
 import { SyncEngine } from './sync';
@@ -164,6 +164,13 @@ function registerIpc() {
     if (a === 'close') w.close(); else if (a === 'minimize') w.minimize(); else w.isMaximized() ? w.unmaximize() : w.maximize();
   });
   handle('checkForUpdates', () => checkForUpdates());
+  handle('exportCsv', async (query: string) => {
+    const csv = await sync.text('/api/reports/expenses.csv' + (query ? '?' + query : ''));
+    const r = await dialog.showSaveDialog((manage ?? undefined) as BrowserWindow, { defaultPath: 'desklist-expenses.csv', filters: [{ name: 'CSV', extensions: ['csv'] }] });
+    if (r.canceled || !r.filePath) return null;
+    (await import('node:fs')).writeFileSync(r.filePath, csv);
+    return r.filePath;
+  });
 }
 
 app.whenReady().then(() => {

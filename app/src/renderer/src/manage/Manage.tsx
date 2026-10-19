@@ -11,10 +11,14 @@ import { ProjectDetail } from './ProjectDetail';
 import { CreateProject } from './CreateProject';
 import { MasterFields } from './MasterFields';
 import { Team } from './Team';
+import { TemplatePicker } from './TemplatePicker';
+import { Reports } from './Reports';
+import '../styles/v5.css';
 
 export function Manage() {
   const st = useAppState();
   const [nav, setNav] = useState<ManageView>({ view: 'project' });
+  const [picker, setPicker] = useState<string | null>(null);
   useEffect(() => window.desklist.onNavigate(setNav), []);
   const plat = st?.platform ?? 'darwin';
 
@@ -46,6 +50,7 @@ export function Manage() {
           <div className="pchead"><span>Projects <em>{s.projects.length}</em></span>
             <button className="newbtn" onClick={() => setNav({ view: 'create' })}><Plus />New project</button></div>
           <div className="gscroll scroll">
+            {isAdmin && <button className={`adminrow ${nav.view === 'reports' ? 'on' : ''}`} onClick={() => setNav({ view: 'reports' })}>▦ Admin · Reports<span>{s.me.initials === 'AD' ? 'Andi D.' : s.me.initials}</span></button>}
             {s.projects.map((p) => (
               <ProjectGlassCard key={p.id} s={s} p={p} selected={p.id === selectedId} expanded={p.id === selectedId}
                 onSelect={() => select(p.id)} onMenu={() => setNav({ view: 'project', projectId: p.id, tab: 'details' })} />
@@ -63,9 +68,11 @@ export function Manage() {
           {nav.view === 'project' && selectedId && <ProjectDetail key={selectedId} s={s} projectId={selectedId} tab={nav.tab ?? 'checklist'}
             setTab={(tab) => setNav({ view: 'project', projectId: selectedId, tab })} onDeleted={() => setNav({ view: 'project' })} />}
           {nav.view === 'project' && !selectedId && <div className="center-fill muted">Create a project to get started.</div>}
-          {nav.view === 'create' && <CreateProject s={s} onCreated={(id) => select(id)} onCancel={() => setNav({ view: 'project' })} />}
+          {nav.view === 'create' && <CreateProject s={s} onCreated={(id) => { select(id); setPicker(id); }} onCancel={() => setNav({ view: 'project' })} />}
+          {nav.view === 'reports' && <Reports s={s} />}
           {nav.view === 'fields' && <MasterFields s={s} isAdmin={isAdmin} />}
           {nav.view === 'team' && <Team s={s} isAdmin={isAdmin} />}
+          {picker && <TemplatePicker s={s} projectId={picker} onClose={() => setPicker(null)} />}
           <div className="footer"><span className="note" title={st.lastError ?? undefined}>
             <SyncDot connection={st.connection} />Changes sync to the desktop widget · {syncLabel(st.connection, st.pending, ago(st.lastSyncedAt))}
             {st.lastError && <span className="errtxt"> · {st.lastError}</span>}</span>

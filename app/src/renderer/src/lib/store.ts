@@ -37,6 +37,9 @@ export const actions = {
     m({ kind: 'task.create', projectId, id: uuid(), title: title.trim(), dueDate: dueDate || null, notes }),
   updateTask: (id: string, patch: Extract<Op, { kind: 'task.update' }>['patch']) => m({ kind: 'task.update', id, patch }),
   deleteTask: (id: string) => m({ kind: 'task.delete', id }),
+  updateProject: (id: string, patch: Extract<Op, { kind: 'project.update' }>['patch']) => m({ kind: 'project.update', id, patch }),
+  addTaskWithExpense: (projectId: string, title: string, dueDate: string | null, expenseAmount: number, expenseCurrency: string) =>
+    m({ kind: 'task.create', projectId, id: uuid(), title: title.trim(), dueDate, hasExpense: true, expenseAmount, expenseCurrency }),
   setProjectNotes: (id: string, notes: string) => m({ kind: 'project.update', id, patch: { notes } }),
   setFieldValue: (projectId: string, fieldId: string, value: string | null) => m({ kind: 'project.update', id: projectId, patch: { values: { [fieldId]: value } } }),
   addFieldToProject: (projectId: string, fieldId: string, value?: string | null) => m({ kind: 'project.addField', projectId, fieldId, value }),

@@ -7,9 +7,11 @@ import { AddTaskForm } from '../components/AddTaskForm';
 import { FieldInput } from '../components/FieldInput';
 import { NotesMenu, NotesSheet, type NotesKind } from '../components/Notes';
 import { Calendar, ChevronDown, ChevronUp, Note, Trash, Check } from '../components/Icons';
+import { Amount, CurrencySelect, Toggle, defaultCurrency, rateNote } from '../components/Money';
+import { ReimbursementTab, pendingLabel } from './Reimbursement';
 
 export function ProjectDetail({ s, projectId, tab, setTab, onDeleted }: {
-  s: Snapshot; projectId: string; tab: 'checklist' | 'details'; setTab: (t: 'checklist' | 'details') => void; onDeleted: () => void;
+  s: Snapshot; projectId: string; tab: 'checklist' | 'details' | 'reimbursement'; setTab: (t: 'checklist' | 'details' | 'reimbursement') => void; onDeleted: () => void;
 }) {
   const p = s.projects.find((x) => x.id === projectId)!;
   const { all, open, done } = tasksOf(s, p.id);
@@ -30,6 +32,10 @@ export function ProjectDetail({ s, projectId, tab, setTab, onDeleted }: {
         <div className="stabs">
           <button className={`st ${tab === 'checklist' ? 'on' : ''}`} onClick={() => setTab('checklist')}>Checklist</button>
           <button className={`st ${tab === 'details' ? 'on' : ''}`} onClick={() => setTab('details')}>Details &amp; fields</button>
+          {p.hasExpenses && <button className={`st ${tab === 'reimbursement' ? 'on' : ''}`} onClick={() => setTab('reimbursement')}>Reimbursement
+            {pendingLabel(s, p.id).count > 0 && <span className="pendpill">{pendingLabel(s, p.id).count} pending</span>}</button>}
+          <span className="ml" />
+          <span className="exptgl"><Toggle on={p.hasExpenses} onChange={(v) => { actions.updateProject(p.id, { hasExpenses: v }); if (!v && tab === 'reimbursement') setTab('checklist'); }} label="Ada pengeluaran" /></span>
         </div>
       </div>
       <div className="rbody scroll">
@@ -39,23 +45,24 @@ export function ProjectDetail({ s, projectId, tab, setTab, onDeleted }: {
               <span className="ncwrap">
                 <button className={`nc hdr ${menu || sheet ? 'on' : ''}`} onClick={() => setMenu(!menu)}><Note />Notes{menu ? <ChevronUp /> : <ChevronDown />}</button>
                 {menu && <NotesMenu theme="light" onPick={setSheet} onClose={() => setMenu(false)} />}
-              </span></div>
+              </span>{p.hasExpenses && <span className="cexp">▤ Pengeluaran</span>}</div>
             <div className="shd"><span className="chk"><Check size={10} /></span>Done · {done.length}<span className="ln" />
               <button className="hide" onClick={() => setHideDone(!hideDone)}>{hideDone ? 'Show completed' : 'Hide completed'}</button></div>
-            {!hideDone && done.map((t) => <Row key={t.id} s={s} t={t} />)}
+            {!hideDone && done.map((t) => <Row key={t.id} s={s} t={t} exp={p.hasExpenses} />)}
             {done.length === 0 && <div className="empty-row">Nothing checked off yet.</div>}
             <div className="shd" style={{ marginTop: 14 }}><span className="ring" />Pending · {open.length}<span className="ln" /><span className="hide static">Sort: due date</span></div>
-            {open.map((t) => <Row key={t.id} s={s} t={t} />)}
-            <AddTaskForm projectId={p.id} theme="light" />
+            {open.map((t) => <Row key={t.id} s={s} t={t} exp={p.hasExpenses} />)}
+            <AddTaskForm projectId={p.id} theme="light" s={s} />
           </>
-        ) : <Details s={s} pId={p.id} onDeleted={onDeleted} />}
+        ) : tab === 'reimbursement' && p.hasExpenses ? <ReimbursementTab s={s} projectId={p.id} /> : <Details s={s} pId={p.id} onDeleted={onDeleted} />}
       </div>
       {sheet && <NotesSheet s={s} p={p} kind={sheet} setKind={setSheet} onClose={() => setSheet(null)} theme="light" />}
     </>
   );
 }
 
-function Row({ s, t }: { s: Snapshot; t: Task }) {
+function Row({ s, t, exp }: { s: Snapshot; t: Task; exp?: boolean }) {
+  const [editExp, setEditExp] = useState(false);
   const cb = checkedBy(s, t.approvedByMemberId, t.approvedAt);
   const [editNote, setEditNote] = useState(false);
   const [note, setNote] = useState(t.notes);
@@ -72,8 +79,11 @@ function Row({ s, t }: { s: Snapshot; t: Task }) {
           : <span className="none">—</span>}</span>
         <button className={`nc ${editNote ? 'ed' : t.notes ? '' : 'empty'}`} onClick={() => { setNote(t.notes); setEditNote(!editNote); }} title="Input notes">
           {editNote ? <><Note />Editing note…</> : t.notes ? <><Note />{t.notes}</> : '—'}</button>
+        {exp && <button className={`cexp val ${t.hasExpense ? '' : 'none'}`} title="Ada pengeluaran — click to edit" onClick={() => setEditExp(!editExp)}>
+          {t.hasExpense && t.expenseAmount != null ? <Amount s={s} amount={t.expenseAmount} code={t.expenseCurrency ?? defaultCurrency(s)} /> : '—'}</button>}
         <button className="rowdel" title="Delete task" onClick={() => actions.deleteTask(t.id)}><Trash /></button>
       </div>
+      {editExp && <ExpenseEditor s={s} t={t} onClose={() => setEditExp(false)} />}
       {editNote && (
         <div className="neditor">
           <div className="nehd"><Note />Input notes <span>· {t.title}</span></div>
@@ -85,6 +95,26 @@ function Row({ s, t }: { s: Snapshot; t: Task }) {
         </div>
       )}
     </>
+  );
+}
+
+function ExpenseEditor({ s, t, onClose }: { s: Snapshot; t: Task; onClose: () => void }) {
+  const [on, setOn] = useState<boolean>(true);
+  const [cur, setCur] = useState(t.expenseCurrency ?? defaultCurrency(s));
+  const [amt, setAmt] = useState(t.expenseAmount != null ? String(t.expenseAmount) : '');
+  const save = () => {
+    const n = Number(amt.replace(',', '.'));
+    void actions.updateTask(t.id, on && amt && n >= 0 ? { hasExpense: true, expenseAmount: n, expenseCurrency: cur } : { hasExpense: false });
+    onClose();
+  };
+  return (
+    <div className="neditor expedit">
+      <div className="nehd">Ada pengeluaran <span>· {t.title}</span></div>
+      <div className="exprow"><Toggle on={on} onChange={setOn} label="Ada pengeluaran" />
+        {on && <div className="inp nominal"><CurrencySelect value={cur} onChange={setCur} /><input autoFocus inputMode="decimal" value={amt} onChange={(e) => setAmt(e.target.value)} placeholder="0.00" aria-label="Nominal" /></div>}
+        <span className="nehint">{rateNote(s)} · counts toward Reimbursement</span>
+        <button className="btn sec sm" onClick={onClose}>Cancel</button><button className="btn pri sm" onClick={save}>Save</button></div>
+    </div>
   );
 }
 

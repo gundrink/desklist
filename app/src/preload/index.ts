@@ -22,5 +22,6 @@ const api: DesklistBridge = {
   closeWidget: () => call('closeWidget'),
   windowControl: (a) => call('windowControl', a),
   checkForUpdates: () => call('checkForUpdates'),
+  exportCsv: (q) => call('exportCsv', q),
 };
 contextBridge.exposeInMainWorld('desklist', api);

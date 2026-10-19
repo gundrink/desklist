@@ -15,7 +15,8 @@ export interface Settings {
 
 const dir = () => app.getPath('userData');
 const file = (n: string) => path.join(dir(), n);
-const DEFAULT_SERVER = process.env.DESKLIST_SERVER_URL || 'http://localhost:8787';
+// Default server URL is baked in at build time (MAIN_VITE_DESKLIST_SERVER_URL); env DESKLIST_SERVER_URL overrides at runtime.
+const DEFAULT_SERVER = process.env.DESKLIST_SERVER_URL || import.meta.env.MAIN_VITE_DESKLIST_SERVER_URL || 'http://localhost:8787';
 
 let cached: Settings | null = null;
 export function getSettings(): Settings {

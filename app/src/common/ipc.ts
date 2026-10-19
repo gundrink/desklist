@@ -3,10 +3,10 @@ import type { CustomColumnType, Snapshot } from '@desklist/shared';
 
 /** Mutations that are applied optimistically, queued in the offline outbox and replayed on reconnect. */
 export type Op =
-  | { kind: 'task.create'; projectId: string; id: string; title: string; dueDate?: string | null; notes?: string }
-  | { kind: 'task.update'; id: string; patch: { title?: string; done?: boolean; dueDate?: string | null; notes?: string; bicMemberId?: string | null } }
+  | { kind: 'task.create'; projectId: string; id: string; title: string; dueDate?: string | null; notes?: string; hasExpense?: boolean; expenseAmount?: number | null; expenseCurrency?: string | null }
+  | { kind: 'task.update'; id: string; patch: { title?: string; done?: boolean; dueDate?: string | null; notes?: string; bicMemberId?: string | null; hasExpense?: boolean; expenseAmount?: number | null; expenseCurrency?: string | null } }
   | { kind: 'task.delete'; id: string }
-  | { kind: 'project.update'; id: string; patch: { name?: string; notes?: string; values?: Record<string, string | null> } }
+  | { kind: 'project.update'; id: string; patch: { name?: string; notes?: string; values?: Record<string, string | null>; hasExpenses?: boolean; reimburseNote?: string } }
   | { kind: 'project.addField'; projectId: string; fieldId: string; value?: string | null }
   | { kind: 'column.create'; projectId: string; id: string; label: string; dataType: CustomColumnType; value?: string | null }
   | { kind: 'column.update'; id: string; patch: { label?: string; value?: string | null } }
@@ -27,7 +27,7 @@ export interface AppState {
   settings: { lockPosition: boolean; launchAtLogin: boolean; currentProjectId: string | null };
 }
 
-export type ManageView = { view: 'project'; projectId?: string; tab?: 'checklist' | 'details' } | { view: 'create' } | { view: 'fields' } | { view: 'team' };
+export type ManageView = { view: 'project'; projectId?: string; tab?: 'checklist' | 'details' | 'reimbursement' } | { view: 'reports' } | { view: 'create' } | { view: 'fields' } | { view: 'team' };
 
 export interface DesklistBridge {
   getState(): Promise<AppState>;
@@ -45,4 +45,6 @@ export interface DesklistBridge {
   closeWidget(): Promise<void>;
   windowControl(action: 'close' | 'minimize' | 'maximize'): Promise<void>;
   checkForUpdates(): Promise<string>;
+  /** Download the admin expense CSV and save it via a native Save dialog. Returns the saved path or null. */
+  exportCsv(query: string): Promise<string | null>;
 }

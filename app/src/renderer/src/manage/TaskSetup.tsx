@@ -1,3 +1,4 @@
+import { Select, ChipInput } from '../components/Select';
 import { useEffect, useState } from 'react';
 import { TASK_FIELD_TYPES, TASK_FIELD_TYPE_LABELS, type Snapshot, type TaskFieldType } from '@desklist/shared';
 import { actions } from '../lib/store';
@@ -43,9 +44,9 @@ export function TaskSetup({ s }: { s: Snapshot }) {
             {fields.map((f, i) => (
               <div className="tsfield" key={i} data-setupfield={f.label}>
                 <input value={f.label} onChange={(e) => upd(i, { label: e.target.value })} placeholder="Field name" aria-label={`Field ${i + 1} name`} />
-                <select value={f.type} onChange={(e) => upd(i, { type: e.target.value as TaskFieldType })} aria-label={`Field ${i + 1} type`}>
-                  {TASK_FIELD_TYPES.map((t) => <option key={t} value={t}>{TASK_FIELD_TYPE_LABELS[t]}</option>)}</select>
-                {f.type === 'dropdown' ? <input value={(f.options.choices ?? []).join(', ')} onChange={(e) => upd(i, { options: { choices: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) } })} placeholder="Option A, Option B" aria-label={`Field ${i + 1} options`} /> : <span className="muted small">—</span>}
+                <Select value={f.type} onChange={(e) => upd(i, { type: e.target.value as TaskFieldType })} aria-label={`Field ${i + 1} type`}>
+                  {TASK_FIELD_TYPES.map((t) => <option key={t} value={t}>{TASK_FIELD_TYPE_LABELS[t]}</option>)}</Select>
+                {f.type === 'dropdown' ? <ChipInput value={f.options.choices ?? []} onChange={(v) => upd(i, { options: { choices: v } })} aria-label={`Field ${i + 1} options`} /> : <span className="muted small">—</span>}
                 <label className="tsr"><input type="checkbox" checked={f.reimbursement} onChange={(e) => upd(i, { reimbursement: e.target.checked })} aria-label={`Field ${i + 1} reimbursement`} />Reimbursement</label>
                 <button className="rowdel" title="Remove field" onClick={() => setFields(fields.filter((_, j) => j !== i))}>×</button>
               </div>))}

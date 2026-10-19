@@ -1,3 +1,4 @@
+import { Select, ChipInput } from './Select';
 import { useEffect, useRef, useState } from 'react';
 import { CURRENCY_CODES, MAX_FILE_BYTES, REIMB_CATEGORIES, TASK_FIELD_TYPES, TASK_FIELD_TYPE_LABELS, type Snapshot, type Task, type TaskField, type TaskFieldType } from '@desklist/shared';
 import { actions } from '../lib/store';
@@ -60,8 +61,8 @@ function FieldRow({ s, f, theme }: { s: Snapshot; f: TaskField; theme: Theme }) 
         try { setShown((await actions.request<{ value: string | null }>('GET', `/api/task-fields/${f.id}/reveal`)).value ?? ''); } catch (e) { setErr((e as Error).message); }
       }}>{shown != null ? '◉' : '◎'}</button></span>;
   } else if (f.type === 'dropdown') {
-    editor = <select value={v} aria-label={f.label} onChange={(e) => { setV(e.target.value); void save(e.target.value || null); }}>
-      <option value="">—</option>{(f.options.choices ?? []).map((c) => <option key={c}>{c}</option>)}</select>;
+    editor = <Select value={v} aria-label={f.label} onChange={(e) => { setV(e.target.value); void save(e.target.value || null); }}>
+      <option value="">—</option>{(f.options.choices ?? []).map((c) => <option key={c}>{c}</option>)}</Select>;
   } else if (f.type === 'file') {
     const file = filesOf(s, f.taskId).find((x) => x.fieldId === f.id);
     editor = <span className="filecell">{file ? <button type="button" className="linkbtn" onClick={() => window.desklist.openFile(file.id, file.name)}>{file.name}</button> : <span className="muted">No file</span>}
@@ -72,8 +73,8 @@ function FieldRow({ s, f, theme }: { s: Snapshot; f: TaskField; theme: Theme }) 
     const n = Number(num);
     editor = <span className="amtcell"><input inputMode="decimal" value={num ?? ''} placeholder="0.00" aria-label={f.label}
       onChange={(e) => setV(e.target.value ? `${e.target.value} ${cur}` : '')} onBlur={blur} />
-      <select className="cursel" value={cur} aria-label={`${f.label} currency`} onChange={(e) => { setCurPick(e.target.value); if (num) { const nv = `${num} ${e.target.value}`; setV(nv); void save(nv); } }}>
-        {CURRENCY_CODES.map((c) => <option key={c}>{c}</option>)}</select>
+      <Select className="cursel" value={cur} aria-label={`${f.label} currency`} onChange={(e) => { setCurPick(e.target.value); if (num) { const nv = `${num} ${e.target.value}`; setV(nv); void save(nv); } }}>
+        {CURRENCY_CODES.map((c) => <option key={c}>{c}</option>)}</Select>
       {n > 0 && usdOf(s, n, cur) && <em className="usd">≈ {usdOf(s, n, cur)}</em>}</span>;
   } else {
     const t = f.type === 'number' ? 'text' : f.type === 'url' ? 'text' : f.type;
@@ -106,7 +107,7 @@ export function AddField({ s, taskId, section = 'fields', theme, placeholder }: 
     if (!type || !label.trim()) return;
     try {
       await actions.request('POST', `/api/tasks/${taskId}/fields`, { label: label.trim(), type, section,
-        options: type === 'dropdown' ? { choices: opts.split(',').map((x) => x.trim()).filter(Boolean) } : type === 'amount' ? { currency: defaultCurrency(s) } : {} });
+        options: type === 'dropdown' ? { choices: opts ? opts.split('\u0001') : [] } : type === 'amount' ? { currency: defaultCurrency(s) } : {} });
       setType(null); setLabel(''); setOpts(''); setErr('');
     } catch (e) { setErr((e as Error).message); }
   };
@@ -115,7 +116,7 @@ export function AddField({ s, taskId, section = 'fields', theme, placeholder }: 
       <span className="tfic">{ICON[type]}</span>
       <input autoFocus value={label} onChange={(e) => setLabel(e.target.value)} placeholder={`${TASK_FIELD_TYPE_LABELS[type]} field name`} aria-label="Field name"
         onKeyDown={(e) => { if (e.key === 'Enter') void create(); if (e.key === 'Escape') setType(null); }} />
-      {type === 'dropdown' && <input value={opts} onChange={(e) => setOpts(e.target.value)} placeholder="Options, comma separated" aria-label="Dropdown options" />}
+      {type === 'dropdown' && <ChipInput value={opts ? opts.split('\u0001') : []} onChange={(v) => setOpts(v.join('\u0001'))} aria-label="Dropdown options" />}
       <button type="button" className="btn pri xs" onClick={create} disabled={!label.trim()}>Add</button>
       <button type="button" className="btn sec xs" onClick={() => setType(null)}>Cancel</button>
       {err && <span className="tferr">{err}</span>}
@@ -163,11 +164,11 @@ export function ReimbSection({ s, t, theme }: { s: Snapshot; t: Task; theme: The
       <div className="rsh"><span>▤ REIMBURSEMENT</span><em>{r || saved ? 'Saved to Reimbursement tab' : 'Fill in to add to Reimbursement'}</em></div>
       <div className="rsgrid">
         <label><span>Item / Domain name</span><input value={item} onChange={(e) => setItem(e.target.value)} onBlur={() => save()} aria-label="Reimbursement item" /></label>
-        <label><span>Category</span><select value={cat} onChange={(e) => { setCat(e.target.value); void save(e.target.value); }} aria-label="Reimbursement category">
-          {REIMB_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></label>
+        <label><span>Category</span><Select value={cat} onChange={(e) => { setCat(e.target.value); void save(e.target.value); }} aria-label="Reimbursement category">
+          {REIMB_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</Select></label>
         <label><span>Amount</span><span className="amtin"><input inputMode="decimal" value={amt} onChange={(e) => setAmt(e.target.value)} onBlur={() => save()} placeholder="0.00" aria-label="Reimbursement amount"
           onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />
-          <select className="cursel" value={cur} aria-label="Reimbursement currency" onChange={(e) => { setCur(e.target.value); void save(cat, e.target.value); }}>{CURRENCY_CODES.map((c) => <option key={c}>{c}</option>)}</select>
+          <Select className="cursel" value={cur} aria-label="Reimbursement currency" onChange={(e) => { setCur(e.target.value); void save(cat, e.target.value); }}>{CURRENCY_CODES.map((c) => <option key={c}>{c}</option>)}</Select>
           <em>{n > 0 && usdOf(s, n, cur) ? `≈ ${usdOf(s, n, cur)}` : ''}</em></span></label>
       </div>
       <FieldList s={s} taskId={t.id} section="reimbursement" theme={theme} placeholder="Vendor, Invoice no., Purchase date…" />

@@ -1,3 +1,4 @@
+import { Select } from './Select';
 import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { CUSTOM_COLUMN_TYPES, CUSTOM_COLUMN_TYPE_LABELS, type CustomColumnType, type Project, type Snapshot } from '@desklist/shared';
@@ -96,8 +97,8 @@ function ColumnEditor({ s, p }: { s: Snapshot; p: Project }) {
       <form className="stack" onSubmit={add}>
         <div className="row2">
           <label className="f"><span>Column label</span><div className="inp"><input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Repo link" autoFocus /></div></label>
-          <label className="f"><span>Type</span><div className="inp sel"><select value={type} onChange={(e) => setType(e.target.value as CustomColumnType)}>
-            {CUSTOM_COLUMN_TYPES.map((t) => <option key={t} value={t}>{CUSTOM_COLUMN_TYPE_LABELS[t]}</option>)}</select></div></label>
+          <label className="f"><span>Type</span><div className="inp sel"><Select value={type} onChange={(e) => setType(e.target.value as CustomColumnType)}>
+            {CUSTOM_COLUMN_TYPES.map((t) => <option key={t} value={t}>{CUSTOM_COLUMN_TYPE_LABELS[t]}</option>)}</Select></div></label>
         </div>
         <label className="f"><span>Value <em>optional</em></span>
           {type === 'longtext' ? <textarea className="inp area" value={value} onChange={(e) => setValue(e.target.value)} />
@@ -126,8 +127,8 @@ function FieldAdder({ s, p, onAdded }: { s: Snapshot; p: Project; onAdded: () =>
   if (!avail.length) return <div className="empty-note">This project already uses every master field. Admins can add more under <b>Master fields</b>.</div>;
   return (
     <div className="stack">
-      <label className="f"><span>Master field</span><div className="inp sel"><select value={fid} onChange={(e) => { setFid(e.target.value); setValue(null); }}>
-        {avail.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</select></div></label>
+      <label className="f"><span>Master field</span><div className="inp sel"><Select value={fid} onChange={(e) => { setFid(e.target.value); setValue(null); }}>
+        {avail.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</Select></div></label>
       {f && <label className="f"><span>Value <em>optional</em></span><FieldInput key={f.id} s={s} field={f} value={value} onCommit={setValue} /></label>}
       <div><button className="btn pri sm" disabled={!fid} onClick={() => { void actions.addFieldToProject(p.id, fid, value); onAdded(); }}><Plus size={12} /> Add field to project</button></div>
     </div>

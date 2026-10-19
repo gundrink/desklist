@@ -1,6 +1,6 @@
 /* Desklist v6 — monochrome. Loaded last in both windows. */
 :root{--teal:#111;--teal-d:#111;--accent:#fff}
-.av{filter:grayscale(1)}
+
 .btn.pri{background:#111;color:#fff;box-shadow:none;border:1px solid #111}
 .btn.pri:disabled{opacity:.4}
 .btn.sec{background:#fff;color:#111;border:1px solid #d4d4d4}
@@ -30,7 +30,7 @@
 .tgl.on i{background:#111!important}.tgl.dark.on i{background:#fff!important}
 .tgl.on i:after{background:#fff}.tgl.dark.on i:after{background:#111}
 .wtag,.amt b{color:inherit}
-.stp,.stsel{filter:grayscale(1)}
+
 
 /* project lists: tabs + pie + compact cards; wider */
 .pcol{width:300px;min-width:300px}
@@ -136,7 +136,7 @@
 .tdpending{border:1px dashed #bbb;border-radius:10px;padding:10px 14px;color:#555;font-size:12px}
 .rtable.ro .rth,.rtable.ro .rtr{grid-template-columns:70px 1.6fr 90px 1.2fr 60px 100px 1.2fr}
 /* hard monochrome guarantee for any remaining accent colours */
-html{filter:grayscale(1)}
+
 .newbtn{background:#fff!important;color:#111!important;box-shadow:none!important}
 .adminrow,.adminrow.on{background:rgba(255,255,255,.08)!important;border-color:rgba(255,255,255,.25)!important;color:#fff!important}
 .gcard.sel,.gcard.v6.sel{border-color:#fff!important;box-shadow:none!important}

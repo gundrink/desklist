@@ -1,3 +1,4 @@
+import { Select, ChipInput } from '../components/Select';
 import { useState } from 'react';
 import { FIELD_DATA_TYPES, FIELD_TYPE_LABELS, slugKey, type FieldDataType, type FieldDefinition, type Snapshot } from '@desklist/shared';
 import { actions } from '../lib/store';
@@ -61,7 +62,7 @@ function FieldRow({ f, usage, isAdmin, onPatch, onUp, onDown, first, last, archi
       <span className="mono key">{f.key}</span>
       <span className="type">{FIELD_TYPE_LABELS[f.dataType]}{f.isSecret && <span className="badge secret"><Lock size={11} />encrypted</span>}{f.isCore && <span className="badge">always on</span>}</span>
       <span>{['select', 'currency', 'text', 'email', 'url'].includes(f.dataType) && !f.isCore
-        ? <div className="inp sm"><input value={opts} disabled={ro} placeholder={f.dataType === 'select' ? 'Choice A, Choice B' : f.dataType === 'currency' ? 'IDR' : 'hint'} onChange={(e) => setOpts(e.target.value)} onBlur={saveOpts} /></div>
+        ? f.dataType === 'select' && !ro ? <ChipInput value={opts.split(',').map((x) => x.trim()).filter(Boolean)} onChange={(v) => { setOpts(v.join(', ')); onPatch({ options: { ...f.options, choices: v } }); }} aria-label="Choices" /> : <div className="inp sm"><input value={opts} disabled={ro} placeholder={f.dataType === 'select' ? 'Choice A, Choice B' : f.dataType === 'currency' ? 'IDR' : 'hint'} onChange={(e) => setOpts(e.target.value)} onBlur={saveOpts} /></div>
         : <span className="muted small">—</span>}</span>
       <span className="muted small">{usage} project{usage === 1 ? '' : 's'}</span>
       <span>{!f.isCore && isAdmin && <button className="btn sec sm" onClick={() => onPatch({ archived: !archived })}>{archived ? 'Restore' : 'Archive'}</button>}</span>
@@ -84,10 +85,10 @@ function NewField({ onCreate }: { onCreate: (b: object) => Promise<void> }) {
       <div className="newfield">
         <label className="f"><span>Label</span><div className="inp"><input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Hosting provider" /></div></label>
         <label className="f"><span>Key <em>auto</em></span><div className="inp"><input className="mono" value={key || (label ? slugKey(label) : '')} onChange={(e) => setKey(e.target.value)} /></div></label>
-        <label className="f"><span>Type</span><div className="inp sel"><select value={type} onChange={(e) => setType(e.target.value as FieldDataType)}>
-          {FIELD_DATA_TYPES.map((t) => <option key={t} value={t}>{FIELD_TYPE_LABELS[t]}</option>)}</select></div></label>
+        <label className="f"><span>Type</span><div className="inp sel"><Select value={type} onChange={(e) => setType(e.target.value as FieldDataType)}>
+          {FIELD_DATA_TYPES.map((t) => <option key={t} value={t}>{FIELD_TYPE_LABELS[t]}</option>)}</Select></div></label>
         <label className="f"><span>{type === 'select' ? 'Choices (comma separated)' : type === 'currency' ? 'Currency' : 'Options'}</span>
-          <div className="inp"><input value={opts} disabled={type !== 'select' && type !== 'currency'} onChange={(e) => setOpts(e.target.value)} placeholder={type === 'select' ? 'A, B, C' : type === 'currency' ? 'IDR' : '—'} /></div></label>
+          {type === 'select' ? <ChipInput value={opts.split(',').map((x) => x.trim()).filter(Boolean)} onChange={(v) => setOpts(v.join(', '))} aria-label="Choices" /> : <div className="inp"><input value={opts} disabled={type !== 'currency'} onChange={(e) => setOpts(e.target.value)} placeholder={type === 'currency' ? 'IDR' : '—'} /></div>}</label>
         <button className="btn pri" disabled={!label.trim()}><Plus size={12} /> Add field</button>
       </div>
     </form>

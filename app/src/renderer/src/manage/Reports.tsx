@@ -1,3 +1,4 @@
+import { Select } from '../components/Select';
 import { useEffect, useState } from 'react';
 import { formatAmount, type Report, type Snapshot } from '@desklist/shared';
 import { actions } from '../lib/store';
@@ -34,9 +35,9 @@ export function Reports({ s }: { s: Snapshot }) {
         <div className="row"><h1>Admin · Reports</h1><span className="lpill admin">Admin</span>
           <span className="rmeta"><Avatar initials={s.me.initials} size="sm" />Signed in as <b>{shortName(s.me.name)}</b><span className="dotsep" />{s.projects.length} projects</span></div>
         <div className="filters">
-          <label className="flt">PROJECT<select value={projectId} onChange={(e) => setProjectId(e.target.value)}><option value="">All projects</option>{s.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-          <label className="flt">STATUS<select value={status} onChange={(e) => setStatus(e.target.value as never)}><option value="all">All</option><option value="reimbursed">Reimbursed</option><option value="not">Not reimbursed</option></select></label>
-          <label className="flt">MONTH<select value={month} onChange={(e) => setMonth(e.target.value)}><option value="">All</option>{months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}</select></label>
+          <label className="flt">PROJECT<Select value={projectId} onChange={(e) => setProjectId(e.target.value)}><option value="">All projects</option>{s.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></label>
+          <label className="flt">STATUS<Select value={status} onChange={(e) => setStatus(e.target.value as never)}><option value="all">All</option><option value="reimbursed">Reimbursed</option><option value="not">Not reimbursed</option></Select></label>
+          <label className="flt">MONTH<Select value={month} onChange={(e) => setMonth(e.target.value)}><option value="">All</option>{months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}</Select></label>
           <span className="small muted ml">Amounts in {cur} · ≈ USD at live rate{s.prices.stale ? ' (cached)' : ''}</span>
         </div>
       </div>

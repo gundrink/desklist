@@ -1,3 +1,4 @@
+import { Select } from '../components/Select';
 import { ProjectDescription } from '../components/Description';
 import { useEffect, useRef, useState } from 'react';
 import '../styles/widget.css';
@@ -5,6 +6,7 @@ import '../styles/v5.css';
 import '../styles/v6.css';
 import '../styles/v61.css';
 import '../styles/v62.css';
+import '../styles/v66.css';
 import { ProjTabs, RailItem, useProjectTabs } from '../components/ProjectList';
 import { TaskPanel, fieldsOf } from '../components/TaskPanel';
 import { Collapse } from '../components/Motion';
@@ -167,9 +169,9 @@ function WAdd({ projectId }: { projectId: string }) {
     <form className={`wadd nodrag ${title ? 'active' : ''}`} onSubmit={submit}>
       <span className="plus">+</span>
       <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Add a task…" aria-label="New task title" />
-      <select className="wtype" value={type} onChange={(e) => setType(e.target.value as never)} aria-label="Task type" title="Task type">
-        <option value="standard">Standard</option><option value="social">Social account</option></select>
-      {type === 'social' && <select className="wtype" value={plat} onChange={(e) => setPlat(e.target.value)} aria-label="Platform">{SOCIAL_PLATFORMS.map((x) => <option key={x}>{x}</option>)}</select>}
+      <Select className="wtype" value={type} onChange={(e) => setType(e.target.value as never)} aria-label="Task type" title="Task type">
+        <option value="standard">Standard</option><option value="social">Social account</option></Select>
+      {type === 'social' && <Select className="wtype" value={plat} onChange={(e) => setPlat(e.target.value)} aria-label="Platform">{SOCIAL_PLATFORMS.map((x) => <option key={x}>{x}</option>)}</Select>}
       <label className="wcal" title="Due date (optional)"><Calendar size={12} w={2} /><input type="date" value={due} onChange={(e) => setDue(e.target.value)} aria-label="Due date" /></label>
       <button className="wbtn" disabled={!title.trim()}>Add</button>
     </form>

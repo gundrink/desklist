@@ -1,7 +1,10 @@
+import { Logo } from './Logo';
 import { useEffect, useState } from 'react';
 import type { AppState } from '../../../common/ipc';
 import { actions } from '../lib/store';
 
+const UserIc = () => <svg className="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" /></svg>;
+const LockIc = () => <svg className="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>;
 const clean = (x: unknown) => (x as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
 const withTimeout = <T,>(p: Promise<T>, url: string) => Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error(`No answer from ${url} after 20 seconds. Check your connection or the server URL and try again.`)), 20_000))]);
 
@@ -22,7 +25,7 @@ export function SignIn({ st, theme }: { st: AppState; theme: 'dark' | 'light' })
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(st.lastError);
   const [adv, setAdv] = useState(false);
-  const [pk, setPk] = useState(false);
+  const [pk, setPk] = useState(false); const [show, setShow] = useState(false);
   const expired = /expired/i.test(st.lastError ?? '');
   // flag set before the call: the widget switches to the signed-in view as soon as the session lands
   const run = async (fn: () => Promise<void>) => { setBusy(true); setErr(null); localStorage.setItem('dl-pk-nudge', '1'); try { await withTimeout(fn(), url); } catch (x) { localStorage.removeItem('dl-pk-nudge'); setErr(clean(x)); } finally { setBusy(false); } };
@@ -44,7 +47,7 @@ export function SignIn({ st, theme }: { st: AppState; theme: 'dark' | 'light' })
 
   if (pending) return (
     <form className={`signin ${theme} mswap`} onSubmit={submit}>
-      <div className="logo">✓</div>
+      <div className="brand"><Logo size={30} /></div>
       <h2>Enter the code from your admin</h2>
       <p>Account <b>{pending.username}</b> is created. Enter the code your admin gave you to join your team.</p>
       <input className="code" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="XXXXX-XXXXX-XXXXX-XXXXX" autoFocus aria-label="Admin code" spellCheck={false} />
@@ -55,16 +58,17 @@ export function SignIn({ st, theme }: { st: AppState; theme: 'dark' | 'light' })
 
   return (
     <form className={`signin ${theme}`} onSubmit={submit}>
-      <div className="logo">✓</div>
+      <div className="brand"><Logo size={30} /><h2>{tab === 'create' ? 'Create your account' : 'Welcome back'}</h2></div>
       <div className={`ptabs authtabs ${theme} idx-${tab === 'create' ? 1 : 0}`} role="tablist">
         <button type="button" role="tab" className={tab === 'signin' ? 'on' : ''} onClick={() => { setTab('signin'); setErr(null); }}>Sign in</button>
         <button type="button" role="tab" className={tab === 'create' ? 'on' : ''} onClick={() => { setTab('create'); setErr(null); }}>Create account</button>
       </div>
       {expired && <p>Your session expired. Sign in again.</p>}
       <div className="mswap" key={tab}>
-        <input className="acc" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Username" aria-label="Username" autoFocus autoComplete="username" spellCheck={false} />
-        <input className="acc" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" aria-label="Password" autoComplete={tab === 'create' ? 'new-password' : 'current-password'} />
-        {tab === 'create' && <input className="acc" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Confirm password" aria-label="Confirm password" autoComplete="new-password" />}
+        <label className="ifield"><UserIc /><input className="acc" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Username" aria-label="Username" autoFocus autoComplete="username" spellCheck={false} /></label>
+        <label className="ifield"><LockIc /><input className="acc" type={show ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" aria-label="Password" autoComplete={tab === 'create' ? 'new-password' : 'current-password'} />
+          <button type="button" className="eyebtn" onClick={() => setShow(!show)} aria-label={show ? 'Hide password' : 'Show password'}>{show ? 'Hide' : 'Show'}</button></label>
+        {tab === 'create' && <label className="ifield"><LockIc /><input className="acc" type={show ? 'text' : 'password'} value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Confirm password" aria-label="Confirm password" autoComplete="new-password" /></label>}
       </div>
       {adv && <input className="url" value={url} onChange={(e) => setUrl(e.target.value)} aria-label="Server URL" />}
       {err && <div className="err">{err}</div>}

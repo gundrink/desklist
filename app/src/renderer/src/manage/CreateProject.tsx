@@ -1,3 +1,4 @@
+import { Select } from '../components/Select';
 import { useState } from 'react';
 import { CUSTOM_COLUMN_TYPES, CUSTOM_COLUMN_TYPE_LABELS, type CustomColumnType, type Project, type Snapshot } from '@desklist/shared';
 import { actions } from '../lib/store';
@@ -65,8 +66,8 @@ export function CreateProject({ s, onCreated, onCancel }: { s: Snapshot; onCreat
             {cols.map((c) => (
               <div className="colrow" key={c.key}>
                 <div className="inp"><input value={c.label} onChange={(e) => setCol(c.key, { label: e.target.value })} placeholder="Column label" aria-label="Column label" /></div>
-                <div className="inp sel narrow"><select value={c.dataType} onChange={(e) => setCol(c.key, { dataType: e.target.value as CustomColumnType })} aria-label="Column type">
-                  {CUSTOM_COLUMN_TYPES.map((t) => <option key={t} value={t}>{CUSTOM_COLUMN_TYPE_LABELS[t]}</option>)}</select></div>
+                <div className="inp sel narrow"><Select value={c.dataType} onChange={(e) => setCol(c.key, { dataType: e.target.value as CustomColumnType })} aria-label="Column type">
+                  {CUSTOM_COLUMN_TYPES.map((t) => <option key={t} value={t}>{CUSTOM_COLUMN_TYPE_LABELS[t]}</option>)}</Select></div>
                 <div className="inp"><input type={c.dataType === 'date' ? 'date' : c.dataType === 'number' ? 'number' : 'text'} value={c.value}
                   onChange={(e) => setCol(c.key, { value: e.target.value })} placeholder="Value (optional)" aria-label="Column value" /></div>
                 <button className="iconbtn" onClick={() => setCols(cols.filter((x) => x.key !== c.key))} title="Remove"><Trash /></button>

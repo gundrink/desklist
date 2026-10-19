@@ -1,3 +1,4 @@
+import { Select } from './Select';
 import { useState } from 'react';
 import { actions } from '../lib/store';
 import { SOCIAL_PLATFORMS, type Snapshot } from '@desklist/shared';
@@ -21,9 +22,9 @@ export function AddTaskForm({ projectId, theme, autoFocus, onDone }: { projectId
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Add a task…" autoFocus={autoFocus} aria-label="New task title"
           onKeyDown={(e) => { if (e.key === 'Escape') onDone?.(); }} />
       </label>
-      <select className="ttype" value={type} onChange={(e) => setType(e.target.value as never)} aria-label="Task type">
-        <option value="standard">Standard</option><option value="social">Social media account</option></select>
-      {type === 'social' && <select className="ttype" value={plat} onChange={(e) => setPlat(e.target.value)} aria-label="Platform">{SOCIAL_PLATFORMS.map((x) => <option key={x}>{x}</option>)}</select>}
+      <Select className="ttype" value={type} onChange={(e) => setType(e.target.value as never)} aria-label="Task type">
+        <option value="standard">Standard</option><option value="social">Social media account</option></Select>
+      {type === 'social' && <Select className="ttype" value={plat} onChange={(e) => setPlat(e.target.value)} aria-label="Platform">{SOCIAL_PLATFORMS.map((x) => <option key={x}>{x}</option>)}</Select>}
       <label className="ai date" title="Due date (optional)"><Calendar size={14} w={2} />
         <input type="date" value={due} onChange={(e) => setDue(e.target.value)} aria-label="Due date" />
       </label>

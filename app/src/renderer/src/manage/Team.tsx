@@ -1,3 +1,4 @@
+import { Select } from '../components/Select';
 import { PasskeysCard } from '../components/Passkeys';
 import { useState as useStateG } from 'react';
 import { actions as act } from '../lib/store';
@@ -66,7 +67,7 @@ export function Team({ s, isAdmin }: { s: Snapshot; isAdmin: boolean }) {
         {isAdmin && (
           <form className="card newmember" onSubmit={(e) => { e.preventDefault(); void run(() => actions.request('POST', '/api/members', { name, role })).then(() => setName('')); }}>
             <div className="inp"><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" aria-label="Member name" /></div>
-            <div className="inp sel narrow"><select value={role} onChange={(e) => setRole(e.target.value as 'member' | 'admin')}><option value="member">Member</option><option value="admin">Admin</option></select></div>
+            <div className="inp sel narrow"><Select value={role} onChange={(e) => setRole(e.target.value as 'member' | 'admin')}><option value="member">Member</option><option value="admin">Admin</option></Select></div>
             <button className="btn pri" disabled={!name.trim()}><Plus size={12} /> Add member &amp; generate code</button>
           </form>
         )}

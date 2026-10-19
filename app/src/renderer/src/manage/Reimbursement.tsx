@@ -1,3 +1,4 @@
+import { Select } from '../components/Select';
 import { useState } from 'react';
 import { convert, formatAmount, type Reimbursement as R, type Snapshot } from '@desklist/shared';
 import { actions } from '../lib/store';
@@ -39,8 +40,8 @@ export function ReimbursementTab({ s, projectId }: { s: Snapshot; projectId: str
               <span><Amount s={s} amount={r.amount} code={r.currency} cls="stack" /></span>
               <span>{m && <Avatar initials={m.initials} size="sm" title={m.name} />}</span>
               <span>{isAdmin
-                ? <select className={`stsel ${r.status}`} value={r.status} onChange={(e) => actions.request('PATCH', `/api/reimbursements/${r.id}`, { status: e.target.value })}>
-                    {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+                ? <Select className={`stsel ${r.status}`} value={r.status} onChange={(e) => actions.request('PATCH', `/api/reimbursements/${r.id}`, { status: e.target.value })}>
+                    {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Select>
                 : <span className={`stp ${r.status}`}>{STATUS_LABEL[r.status]}</span>}</span>
               <span className="ell muted small">{t ? t.title : '—'}</span>
             </div>

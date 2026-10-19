@@ -33,7 +33,7 @@ win:
   target:
     - target: nsis
       arch: [x64]
-  icon: build/icon.png
+  icon: build/icon.ico
   extraResources:                    # koffi native module for the desktop-layer attach (user32)
     - from: build/koffi-prebuilds/win32_x64
       to: koffi/win32_x64

@@ -151,7 +151,7 @@ function registerIpc() {
   handle('signIn', (code: string, url?: string) => sync.signIn(code, url));
   handle('signOut', () => sync.signOut());
   handle('mutate', (op: Op) => sync.mutate(op));
-  handle('request', async (m: string, p: string, b?: unknown) => { const r = await sync.http(m, p, b); void sync.refresh(); return r; });
+  handle('request', async (m: string, p: string, b?: unknown) => { await sync.drain(); const r = await sync.http(m, p, b); void sync.refresh(); return r; });
   handle('refresh', () => { sync.reconnect(); return sync.refresh(); });
   handle('openManage', (v?: ManageView) => openManage(v));
   handle('setCurrentProject', (id: string) => setCurrentProject(id));
@@ -169,7 +169,7 @@ function registerIpc() {
   });
   handle('checkForUpdates', () => checkForUpdates());
   handle('uploadFile', async (taskId: string, name: string, mime: string, data: Uint8Array, fieldId?: string | null) => {
-    const r = await sync.upload(taskId, name, mime, data, fieldId); void sync.refresh(); return r;
+    await sync.drain(); const r = await sync.upload(taskId, name, mime, data, fieldId); void sync.refresh(); return r;
   });
   handle('openFile', async (id: string, name: string) => {
     const fs = await import('node:fs'); const os = await import('node:os');

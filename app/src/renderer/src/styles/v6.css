@@ -135,3 +135,13 @@
 .tdf b{font-weight:550;overflow:hidden;text-overflow:ellipsis}
 .tdpending{border:1px dashed #bbb;border-radius:10px;padding:10px 14px;color:#555;font-size:12px}
 .rtable.ro .rth,.rtable.ro .rtr{grid-template-columns:70px 1.6fr 90px 1.2fr 60px 100px 1.2fr}
+/* hard monochrome guarantee for any remaining accent colours */
+html{filter:grayscale(1)}
+.newbtn{background:#fff!important;color:#111!important;box-shadow:none!important}
+.adminrow,.adminrow.on{background:rgba(255,255,255,.08)!important;border-color:rgba(255,255,255,.25)!important;color:#fff!important}
+.gcard.sel,.gcard.v6.sel{border-color:#fff!important;box-shadow:none!important}
+.widget .rail{width:186px;min-width:186px}
+.widget .ptabs button{font-size:10.5px;padding:4px 4px;white-space:nowrap}
+.widget .ptabs button em{margin-left:3px;padding:0 4px}
+.rnew{color:#fff!important}
+.addform{border-color:#ccc!important;background:#fafafa!important}

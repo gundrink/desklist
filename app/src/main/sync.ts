@@ -222,6 +222,13 @@ export class SyncEngine extends EventEmitter {
     void this.flush();
   }
 
+  /** Wait (bounded) until queued optimistic ops reached the server, so online-only requests see e.g. a just-created task. */
+  async drain(timeoutMs = 8000) {
+    const end = Date.now() + timeoutMs;
+    void this.flush();
+    while (this.outbox.length && Date.now() < end) await new Promise((r) => setTimeout(r, 100));
+  }
+
   async flush() {
     if (this.flushing || !this.token) return;
     this.flushing = true;

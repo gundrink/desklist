@@ -171,10 +171,10 @@ html body .wcl:not(.empty):hover{background:var(--hover)!important}
 .wtile>span{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wtv{display:flex;align-items:center;justify-content:space-between;gap:4px}.wtv b{font-size:20px;font-weight:400;color:var(--text)}.wtv b small{font-size:11px;color:var(--muted)}
 .wtile.late{background:rgba(120,16,40,.35);border-color:rgba(242,163,163,.25)}.wtile.late b{color:#f6b8b8}
-.wn{display:grid;grid-template-columns:8px minmax(0,1fr) 56px 30px 74px;align-items:center;gap:8px;width:100%;padding:7px 6px;border:0;border-top:1px solid rgba(248,247,244,.06);background:transparent;color:var(--text);font:inherit;font-size:12.5px;text-align:left;cursor:pointer;border-radius:0}
-.wn:first-of-type{border-top:0}
-html body .wn:hover{background:var(--hover)!important;border-radius:7px}
-.wn .dot{width:7px;height:7px;border-radius:50%}.wnn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wnrow{display:grid;grid-template-columns:8px minmax(0,1fr) 56px 30px 74px;align-items:center;gap:8px;width:100%;padding:7px 6px;border:0;border-top:1px solid rgba(248,247,244,.06);background:transparent;color:var(--text);font:inherit;font-size:12.5px;text-align:left;cursor:pointer;border-radius:0}
+.wnrow:first-of-type{border-top:0}
+html body .wnrow:hover{background:var(--hover)!important;border-radius:7px}
+.wnrow .dot{width:7px;height:7px;border-radius:50%}.wnn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wnb{height:3px;border-radius:3px;background:rgba(248,247,244,.12);overflow:hidden}.wnb i{display:block;height:100%;background:var(--sage)}
 .wnp{font-size:10.5px;color:var(--muted);text-align:right}.wnr{font-size:10.5px;color:var(--muted);text-align:right;white-space:nowrap}.wnr.late{color:#f6b8b8}
 html body .ovtime .secs{opacity:1}
@@ -194,8 +194,8 @@ html body .wov .wtiles{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 @container wov (min-width:540px){html body .wov .wtiles{grid-template-columns:repeat(4,minmax(0,1fr))!important}}
 html body .wov .wtile>span{white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;min-height:0!important}
 html body .wov .wtile{box-sizing:border-box}
-html body .wov .wovcard,html body .wov .wtiles,html body .wov .wn{box-sizing:border-box;max-width:100%}
-html body .wov .wn{grid-template-columns:8px minmax(0,1fr) minmax(24px,56px) 30px auto}
+html body .wov .wovcard,html body .wov .wtiles,html body .wov .wnrow{box-sizing:border-box;max-width:100%}
+html body .wov .wnrow{grid-template-columns:8px minmax(0,1fr) minmax(24px,56px) 30px auto}
 html body .wov.w611 .ovclock.compact .ovclockb{min-width:0}
 html body .wov.w611 .ovclock.compact .ovwhen{overflow:hidden}
 html body .wov.w611 .ovclockh{flex-wrap:wrap;row-gap:6px}
@@ -216,3 +216,20 @@ html body .widget .wdet .w-top>.gp{display:none!important}
 html body .seg.wviewseg.icononly .vl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 html body .seg.wviewseg.icononly button{padding:4px 7px;position:relative}
 html body .widget .wdet .w-top>*{flex-shrink:0}html body .widget .wdet .w-top>.switch{flex-shrink:1}
+/* ===== 0.6.13 ===== */
+/* task titles: always take the free space; icons/meta shrink first; never depend on animations to be visible */
+html body .wt>.t,html body .tr>.tt{flex:1 1 auto!important;min-width:0!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:1!important;visibility:visible!important}
+html body .wt>:not(.t):not(.cbx):not(.check),html body .tr>:not(.tt):not(.cbx):not(.check){flex-shrink:1;min-width:0}
+html body .wt>.wn{flex:0 0 auto!important;width:auto!important;display:inline-flex!important}
+html body .wt .t{color:var(--text)}
+.tr,.wt,.tfrow,.rtr,.vcard,.gcard,.ri{animation-fill-mode:none!important}
+/* widget header: view switch always fully visible with text; the project name truncates instead */
+html body .widget .wdet .w-top .seg.wviewseg{flex:0 0 auto!important}
+html body .widget .wdet .w-top .seg.wviewseg .vl{position:static!important;width:auto!important;height:auto!important;clip:auto!important}
+html body .widget .wdet .w-top .switch{flex:1 1 0!important;min-width:0!important}
+/* widget rail Overview row */
+html body .rov{display:flex;align-items:center;gap:8px;margin:2px 10px 8px;padding:8px 10px;border-radius:9px;border:1px solid rgba(248,247,244,.1);background:rgba(248,247,244,.04);color:var(--text);font:inherit;font-size:12.5px;font-weight:var(--w-med,500);cursor:pointer;text-align:left}
+html body .rov svg{color:var(--bronze)}
+html body .rov:hover{background:rgba(248,247,244,.08)!important}
+html body .rov.on{background:rgba(204,188,163,.12)!important;border-color:rgba(204,188,163,.45)!important;box-shadow:inset 3px 0 0 var(--bronze)}
+html body .wtool .wmode{margin-right:6px}html body .wtool{display:flex;align-items:center;gap:6px}

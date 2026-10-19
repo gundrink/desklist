@@ -218,7 +218,7 @@ export function WidgetOverview({ s, onOpen }: { s: Snapshot; onOpen: (id: string
       <div className="wovcard wnear s4" data-wnear>
         <div className="wdh">Nearest projects<em className="mono">{near.length}</em></div>
         {near.length ? near.map((p) => { const t = tasksOf(s, p.id); const late = p.deadline! < today; const pc = t.all.length ? t.done.length / t.all.length : 0;
-          return <button key={p.id} className={`wn ${late ? 'late' : ''}`} data-wnproject={p.name} title={p.name} onClick={() => onOpen(p.id)}>
+          return <button key={p.id} className={`wnrow ${late ? 'late' : ''}`} data-wnproject={p.name} title={p.name} onClick={() => onOpen(p.id)}>
             <span className="dot" style={{ background: statusStyle(statusOf(s, p)).color }} /><span className="wnn">{p.name}</span>
             <span className="wnb"><i style={{ width: `${pc * 100}%` }} /></span><span className="mono wnp">{t.done.length}/{t.all.length}</span>
             <span className={`mono wnr ${late ? 'late' : ''}`}>{relDay(p.deadline!).replace(/^In /, 'in ')}</span></button>; })

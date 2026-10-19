@@ -57,14 +57,14 @@ try {
   await w.locator('.wviewseg button', { hasText: 'Overview' }).click(); await w.locator('[data-woverview]').waitFor({ timeout: 5000 }); check('widget header toggle → Overview', true);
   const op = (v) => w.evaluate((n) => window.desklist.setSetting({ widgetOpacity: n }), v).then(() => w.waitForTimeout(500));
   { const wo = await w.evaluate(() => { const q = (x) => document.querySelectorAll(x).length; const sq = [...document.querySelectorAll('.wcl:not(.empty)')].map((e) => { const r = e.getBoundingClientRect(); return Math.abs(r.width - r.height); });
-      return { calw: document.querySelector('.wcgrid').getBoundingClientRect().width, cal: q('.wcl:not(.empty)'), tiles: q('.wtile'), near: q('.wn'), sq: Math.max(...sq), today: !!document.querySelector('.wcl.today') }; });
+      return { calw: document.querySelector('.wcgrid').getBoundingClientRect().width, cal: q('.wcl:not(.empty)'), tiles: q('.wtile'), near: q('.wnrow'), sq: Math.max(...sq), today: !!document.querySelector('.wcl.today') }; });
     check(`widget overview layout: clock card, mini month (${wo.cal} square cells, max |w-h| ${wo.sq.toFixed(1)}), ${wo.tiles} tiles, ${wo.near} nearest`, wo.calw > 250 && wo.cal >= 28 && wo.sq <= 1.5 && wo.tiles === 4 && wo.near === 5 && wo.today); }
-  const wn = await w.$$eval('.wn', (els) => els.map((e) => e.dataset.wnproject.split(' ')[0])); check(`widget nearest sorted, overdue first (${wn.join(', ')})`, wn[0] === 'Late' && wn[1] === 'Alpha');
+  const wn = await w.$$eval('.wnrow', (els) => els.map((e) => e.dataset.wnproject.split(' ')[0])); check(`widget nearest sorted, overdue first (${wn.join(', ')})`, wn[0] === 'Late' && wn[1] === 'Alpha');
   await w.locator(`.wcl[data-wday="${dstr(2)}"]`).click(); check('widget: tapping a day lists its projects inline', (await w.locator('.wdaylist .ovp').count()) === 3); await w.locator(`.wcl[data-wday="${dstr(2)}"]`).click();
   await w.waitForTimeout(600); await w.screenshot({ path: path.join(shots, 'v611-widget-overview.png') }); await audit(w, 'widget overview 85%');
   check('widget overview: no horizontal overflow', (await noHOverflow(w)).length === 0);
   const inside = () => w.evaluate(() => { const sc = document.querySelector('.wov'); const R = sc.getBoundingClientRect(); const cs = getComputedStyle(sc); const L = R.left + parseFloat(cs.paddingLeft) - 0.5, Rt = R.right - parseFloat(cs.paddingRight) - (sc.offsetWidth - sc.clientWidth) + 0.5; const bad = [];
-    for (const e of sc.querySelectorAll('.wtile, .wn, .wovcard, .wtile > span, .wtv b')) { const r = e.getBoundingClientRect(); if (r.left < L || r.right > Rt) bad.push(`${e.className || e.tagName}:${e.dataset.wtile ?? ''} ${Math.round(r.left)}-${Math.round(r.right)} vs ${Math.round(L)}-${Math.round(Rt)}`);
+    for (const e of sc.querySelectorAll('.wtile, .wnrow, .wovcard, .wtile > span, .wtv b')) { const r = e.getBoundingClientRect(); if (r.left < L || r.right > Rt) bad.push(`${e.className || e.tagName}:${e.dataset.wtile ?? ''} ${Math.round(r.left)}-${Math.round(r.right)} vs ${Math.round(L)}-${Math.round(Rt)}`);
       if (e.matches('.wtile > span') && e.scrollWidth > e.clientWidth + 1) bad.push('label clipped: ' + e.textContent); }
     return bad; });
   for (const ww of [560, 630, 700, 800]) { await app.evaluate(({ BrowserWindow }, ww) => { const x = BrowserWindow.getAllWindows().find((b) => b.webContents.getURL().includes('widget')); const b = x.getBounds(); x.setBounds({ ...b, width: ww }); }, ww); await w.waitForTimeout(500);
@@ -78,7 +78,7 @@ try {
   await op(85); await audit(w, 'widget analog 85%'); await w.screenshot({ path: path.join(shots, 'v611-widget-overview-analog.png') });
   check('widget analog: no horizontal overflow', (await noHOverflow(w)).length === 0);
   await w.locator('.wov .clockseg button', { hasText: 'Digital' }).click();
-  await w.locator('.wn').nth(1).click(); await w.locator('.wviewseg button.on', { hasText: 'Project' }).waitFor({ timeout: 5000 }); check('widget nearest row opens that project in the widget', (await w.locator('.w-top .switch .ell').textContent()).startsWith('Alpha'));
+  await w.locator('.wnrow').nth(1).click(); await w.locator('.wviewseg button.on', { hasText: 'Project' }).waitFor({ timeout: 5000 }); check('widget nearest row opens that project in the widget', (await w.locator('.w-top .switch .ell').textContent()).startsWith('Alpha'));
   await w.locator('.wviewseg button', { hasText: 'Overview' }).click(); await w.locator('[data-woverview]').waitFor();
   await w.locator('.wviewseg button', { hasText: 'Project' }).click(); await w.locator('.wviewseg button.on', { hasText: 'Project' }).waitFor({ timeout: 5000 }); check('widget header toggle → Project', true);
   step = 'manage overview';

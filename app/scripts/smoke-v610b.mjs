@@ -134,7 +134,7 @@ try {
   await hoverCheck(w, 'widget menu item', w.locator('.wmenu .pi').nth(1), w.locator('.wmenu .pi').nth(2)); await w.keyboard.press('Escape');
   await w.locator('.menu-anchor .menu').click(); await w.locator('.wmenu .pi', { hasText: 'Show overview' }).click();
   await w.locator('[data-woverview]').waitFor({ timeout: 5000 }); await w.waitForTimeout(400); await w.screenshot({ path: path.join(shots, 'v610-widget-overview.png') }); await audit(w, 'widget overview');
-  check('widget overview lists upcoming projects', (await w.locator('[data-woverview] .wn').count()) >= 2);
+  check('widget overview lists upcoming projects', (await w.locator('[data-woverview] .wnrow').count()) >= 2);
   step = 'widget delete';
   await w.locator('.menu-anchor .menu').click(); check('admin: widget ⋯ menu has Delete project', await w.locator('.wmenu .danger-item', { hasText: 'Delete project' }).isVisible() || (await w.locator('[data-woverview]').count()) > 0); await w.keyboard.press('Escape');
   await w.locator(`.riwrap:has(.ri[data-project="Widget del ${R}"])`).hover(); await w.getByLabel(`Project menu Widget del ${R}`).click();

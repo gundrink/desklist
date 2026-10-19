@@ -69,7 +69,8 @@ export function Widget() {
     <div className={`widget ${locked ? 'locked' : ''} ${lookClass(st)}`} style={widgetLook(st)}>
       <div className="rail drag">
         <div className="rhd">Projects <em>{s.projects.length}</em></div>
-        <RailList s={s} sel={p?.id} />
+        <button className={`rov nodrag ${wview === 'overview' ? 'on' : ''}`} data-rail="overview" aria-current={wview === 'overview' ? 'page' : undefined} onClick={() => window.dispatchEvent(new CustomEvent('dl-wview', { detail: 'overview' }))}><Grid size={14} />Overview</button>
+        <RailList s={s} sel={wview === 'overview' ? undefined : p?.id} />
         <button className="rnew nodrag" onClick={() => actions.openManage({ view: 'create' })}>+ New</button>
       </div>
 
@@ -104,7 +105,7 @@ function RailList({ s, sel }: { s: Snapshot; sel?: string }) {
   return (<>
     <div className="nodrag"><ProjTabs t={tabs} theme="dark" /></div>
     <div className="rail-list nodrag scroll">
-      {tabs.list.map((x) => <div className="riwrap" key={x.id}><RailItem s={s} p={x} selected={x.id === sel} onClick={() => actions.setCurrentProject(x.id)} />
+      {tabs.list.map((x) => <div className="riwrap" key={x.id}><RailItem s={s} p={x} selected={x.id === sel} onClick={() => { void actions.setCurrentProject(x.id); window.dispatchEvent(new CustomEvent('dl-wview', { detail: 'project' })); }} />
         {s.me.role === 'admin' && <RailMenu name={x.name} id={x.id} />}</div>)}
     </div></>);
 }
@@ -124,8 +125,7 @@ function Detail({ s, pId, menuOpen, setMenu, notesMenu, setNotesMenu, setSheet, 
       <div className="w-top drag">
         <div className="switch" title={p.name}><span className="dotp" style={{ background: statusStyle(status).color }} /><span className="ell">{p.name}</span></div>
         <StatusPill status={status} theme="dark" />
-        <ViewToggle v="project" iconOnly />
-        <span className="nodrag"><ModeToggle mode={mode} setMode={setMode} compact /></span>
+        <ViewToggle v="project" />
         <div className="menu-anchor nodrag">
           <button ref={menuBtn} className={`menu ${menuOpen ? 'on' : ''}`} onClick={() => setMenu(!menuOpen)} title="Menu" aria-label="Widget menu">⋯</button>
           {menuOpen && <WidgetMenu anchor={menuBtn} s={s} projectId={p.id} locked={locked} launch={launch} onClose={() => setMenu(false)} />}
@@ -142,6 +142,7 @@ function Detail({ s, pId, menuOpen, setMenu, notesMenu, setNotesMenu, setSheet, 
       <div className="prog"><div className="lbl"><span><b>{done.length} of {all.length}</b> done</span><span>{pct}%</span></div><div className="bar"><i style={{ width: `${pct}%` }} /></div></div>
       <div className="wtool">
         <span className="sect">Pending · {open.length}</span>
+        <span className="ml" /><span className="nodrag wmode"><ModeToggle mode={mode} setMode={setMode} compact /></span>
         <span className="notes-anchor nodrag">
           <button ref={notesBtn} className={`wchip ${notesMenu ? 'on' : ''}`} onClick={() => setNotesMenu(!notesMenu)}><Note />Notes{notesMenu ? <ChevronUp size={10} /> : <ChevronDown size={10} />}</button>
           {notesMenu && <NotesMenu anchor={notesBtn} theme="dark" onPick={setSheet} onClose={() => setNotesMenu(false)} />}

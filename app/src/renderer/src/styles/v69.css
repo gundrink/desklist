@@ -1,6 +1,6 @@
 /* 0.6.9 polish — Geist (OFL, bundled), sentence-case captions, tidy type scale */
-@font-face{font-family:'Geist';src:url('../fonts/Geist-Variable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:block}
-@font-face{font-family:'Geist Mono';src:url('../fonts/GeistMono-Variable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:block}
+@font-face{font-family:'Geist';src:url('../fonts/Geist-Variable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}
+@font-face{font-family:'Geist Mono';src:url('../fonts/GeistMono-Variable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}
 :root{--font:'Geist',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;--mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;--w-reg:400;--w-med:432;--w-semi:580}
 html,body,button,input,textarea,select,.selx,.sel-pop,.modal,.pop,.signin,.widget{font-family:var(--font)!important}
 body{font-size:13px;font-weight:var(--w-reg);letter-spacing:-.003em}

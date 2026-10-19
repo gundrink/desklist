@@ -1,0 +1,21 @@
+{
+  "name": "desklist",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Desklist — desktop-level team project checklists (Electron app + sync server)",
+  "workspaces": ["shared", "server", "app"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "typecheck": "npm run typecheck -w shared && npm run typecheck -w server && npm run typecheck -w app",
+    "build": "npm run build -w server && npm run build -w app",
+    "db:migrate": "npm run migrate -w server",
+    "db:seed": "npm run seed -w server",
+    "server:dev": "npm run dev -w server",
+    "server:start": "npm run start -w server",
+    "app:dev": "npm run dev -w app",
+    "app:start": "npm run start -w app",
+    "test": "npm test -w server",
+    "dist:mac": "npm run dist:mac -w app",
+    "dist:win": "npm run dist:win -w app"
+  }
+}

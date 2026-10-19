@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import '../styles/widget.css';
 import '../styles/v5.css';
+import '../styles/v6.css';
+import { ProjTabs, RailItem, useProjectTabs } from '../components/ProjectList';
+import { TaskPanel, fieldsOf } from '../components/TaskPanel';
 import { formatAmount, formatUsd, convert } from '@desklist/shared';
 import { CurrencySelect, defaultCurrency, usdOf } from '../components/Money';
 import type { Snapshot, Task } from '@desklist/shared';
@@ -43,17 +46,7 @@ export function Widget() {
     <div className={`widget ${locked ? 'locked' : ''}`}>
       <div className="rail drag">
         <div className="rhd">Projects <em>{s.projects.length}</em></div>
-        <div className="rail-list nodrag scroll">
-          {s.projects.map((x) => {
-            const t = tasksOf(s, x.id); const c = statusStyle(statusOf(s, x)).color;
-            return (
-              <button key={x.id} className={`ri ${x.id === p?.id ? 'sel' : ''}`} onClick={() => actions.setCurrentProject(x.id)} data-project={x.name}>
-                <div className="ri1"><span className="gdot" style={{ background: c }} /><span className="rn">{x.name}</span></div>
-                <div className="ri2"><div className="rb"><i style={{ width: `${t.pct}%`, background: c }} /></div><span>{t.done.length}/{t.all.length}</span></div>
-              </button>
-            );
-          })}
-        </div>
+        <RailList s={s} sel={p?.id} />
         <button className="rnew nodrag" onClick={() => actions.openManage({ view: 'create' })}>+ New</button>
       </div>
 
@@ -71,6 +64,15 @@ export function Widget() {
   );
 }
 
+function RailList({ s, sel }: { s: Snapshot; sel?: string }) {
+  const tabs = useProjectTabs(s);
+  return (<>
+    <div className="nodrag"><ProjTabs t={tabs} theme="dark" /></div>
+    <div className="rail-list nodrag scroll">
+      {tabs.list.map((x) => <RailItem key={x.id} s={s} p={x} selected={x.id === sel} onClick={() => actions.setCurrentProject(x.id)} />)}
+    </div></>);
+}
+
 function Detail({ s, pId, menuOpen, setMenu, notesMenu, setNotesMenu, setSheet, locked, launch }: {
   s: Snapshot; pId: string; menuOpen: boolean; setMenu: (b: boolean) => void; notesMenu: boolean; setNotesMenu: (b: boolean) => void;
   setSheet: (k: NotesKind) => void; locked: boolean; launch: boolean;
@@ -79,6 +81,7 @@ function Detail({ s, pId, menuOpen, setMenu, notesMenu, setNotesMenu, setSheet, 
   const { all, open, done, pct } = tasksOf(s, p.id);
   const pic = picOf(s, p); const domain = domainOf(s, p);
   const status = statusOf(s, p);
+  const [panel, setPanel] = useState<{ id: string; mode: 'detail' | 'ticked' } | null>(null);
   return (
     <>
       <div className="w-top drag">
@@ -105,8 +108,8 @@ function Detail({ s, pId, menuOpen, setMenu, notesMenu, setNotesMenu, setSheet, 
         </span>
       </div>
       <div className="wl scroll">
-        {open.map((t) => <WTask key={t.id} s={s} t={t} />)}
-        {open.length === 0 && <div className="w-hint">Nothing pending 🎉</div>}
+        {open.map((t) => <WTask key={t.id} s={s} t={t} panel={panel?.id === t.id ? panel.mode : null} setPanel={(m) => setPanel(m ? { id: t.id, mode: m } : null)} />)}
+        {open.length === 0 && <div className="w-hint">Nothing pending</div>}
         {p.hasExpenses && s.reimbursements.some((r) => r.projectId === p.id) && <>
           <div className="divider">Reimbursement · {s.reimbursements.filter((r) => r.projectId === p.id).length} items</div>
           {s.reimbursements.filter((r) => r.projectId === p.id).map((r) => (
@@ -115,27 +118,31 @@ function Detail({ s, pId, menuOpen, setMenu, notesMenu, setNotesMenu, setSheet, 
               <span className={`wst ${r.status}`}>{r.status === 'paid' ? 'Paid' : r.status === 'approved' ? 'Approved' : 'Pending'}</span></div>))}
         </>}
         {done.length > 0 && <div className="divider">Done · {done.length}</div>}
-        {done.slice().reverse().map((t) => <WTask key={t.id} s={s} t={t} />)}
+        {done.slice().reverse().map((t) => <WTask key={t.id} s={s} t={t} panel={panel?.id === t.id ? panel.mode : null} setPanel={(m) => setPanel(m ? { id: t.id, mode: m } : null)} />)}
       </div>
       <WAdd projectId={p.id} />
-      {p.hasExpenses && <WQuickReimb s={s} projectId={p.id} />}
     </>
   );
 }
 
-function WTask({ s, t }: { s: Snapshot; t: Task }) {
+function WTask({ s, t, panel, setPanel }: { s: Snapshot; t: Task; panel: 'detail' | 'ticked' | null; setPanel: (m: 'detail' | 'ticked' | null) => void }) {
   const cb = checkedBy(s, t.approvedByMemberId, t.approvedAt);
-  return (
-    <div className={`wt ${t.done ? 'done' : ''}`} data-task={t.title}
-      title={t.done ? `Checked by ${cb.text}${t.notes ? '\n' + t.notes : ''}` : `Click to check · auto-approved by you${t.notes ? '\n' + t.notes : ''}`}>
-      <CheckBox theme="dark" done={t.done} label={t.title} onClick={() => actions.toggleTask(t)} />
+  const r = s.reimbursements.find((x) => x.taskId === t.id);
+  const nf = fieldsOf(s, t.id).length;
+  const tick = () => { void actions.toggleTask(t); setPanel(t.done ? null : 'ticked'); };
+  return (<>
+    <div className={`wt ${t.done ? 'done' : ''} ${panel ? 'open' : ''}`} data-task={t.title} onClick={() => setPanel(panel ? null : 'detail')}
+      title={t.done ? `Checked by ${cb.text}${t.notes ? '\n' + t.notes : ''}` : `Click to expand · tick to approve${t.notes ? '\n' + t.notes : ''}`}>
+      <CheckBox theme="dark" done={t.done} label={t.title} onClick={tick} />
       <span className="t">{t.title}</span>
-      {t.hasExpense && t.expenseAmount != null && <span className="wtag">{formatAmount(t.expenseAmount, t.expenseCurrency ?? s.currency)}{usdOf(s, t.expenseAmount, t.expenseCurrency ?? s.currency) ? ` ≈ ${usdOf(s, t.expenseAmount, t.expenseCurrency ?? s.currency)}` : ''}</span>}
+      {t.hasExpense && r && <span className="wtag">{formatAmount(r.amount, r.currency)}{usdOf(s, r.amount, r.currency) ? ` ≈ ${usdOf(s, r.amount, r.currency)}` : ''}</span>}
+      {nf > 0 && !t.done && <span className="wn" title={`${nf} fields`}>▤</span>}
       {!t.done && t.notes && <span className="wn"><Note /></span>}
       {!t.done && t.dueDate && <span className="wd">{shortDate(t.dueDate)}</span>}
       {t.done && cb.m && <Avatar initials={cb.m.initials} size="sm" title={`Checked by ${cb.text}`} />}
     </div>
-  );
+    {panel && <div className="nodrag"><TaskPanel s={s} t={t} theme="dark" mode={panel} compact onClose={() => setPanel(null)} /></div>}
+  </>);
 }
 
 function WAdd({ projectId }: { projectId: string }) {
@@ -154,30 +161,7 @@ function WAdd({ projectId }: { projectId: string }) {
   );
 }
 
-/** Quick add reimbursement straight from the widget: item + nominal (default currency per admin). */
-function WQuickReimb({ s, projectId }: { s: Snapshot; projectId: string }) {
-  const [item, setItem] = useState(''); const [amt, setAmt] = useState(''); const [cur, setCur] = useState(defaultCurrency(s)); const [err, setErr] = useState('');
-  const n = Number(amt.replace(',', '.'));
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault(); if (!item.trim() || !amt || !(n >= 0)) return;
-    try { await actions.request('POST', `/api/projects/${projectId}/reimbursements`, { item, amount: n, currency: cur, category: 'Other' }); setItem(''); setAmt(''); setErr(''); }
-    catch (x) { setErr((x as Error).message); }
-  };
-  const u = n > 0 ? usdOf(s, n, cur) : null;
-  return (
-    <form className="wqr nodrag" onSubmit={submit}>
-      <div className="wqh">Quick add reimbursement</div>
-      <div className="wqrow">
-        <input value={item} onChange={(e) => setItem(e.target.value)} placeholder="Item" aria-label="Reimbursement item" />
-        <CurrencySelect value={cur} onChange={setCur} theme="dark" compact />
-        <input className="wqa" inputMode="decimal" value={amt} onChange={(e) => setAmt(e.target.value)} placeholder="0.00" aria-label="Reimbursement nominal" />
-        <button className="wbtn" disabled={!item.trim() || !amt}>Add</button>
-      </div>
-      <div className="wqf"><span>{err || `Nominal in ${cur} · default currency (per admin)`}</span><span>{u ? `≈ ${u}` : ''}</span></div>
-    </form>
-  );
-}
-void formatUsd;
+void formatUsd; void CurrencySelect; void defaultCurrency;
 
 function WidgetMenu({ s, projectId, locked, launch, onClose }: { s: Snapshot; projectId: string; locked: boolean; launch: boolean; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);

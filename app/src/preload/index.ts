@@ -23,6 +23,8 @@ const api: DesklistBridge = {
   windowControl: (a) => call('windowControl', a),
   checkForUpdates: () => call('checkForUpdates'),
   exportCsv: (q) => call('exportCsv', q),
+  uploadFile: (t, n, m, d, f) => call('uploadFile', t, n, m, d, f),
+  openFile: (id, n) => call('openFile', id, n),
 };
 contextBridge.exposeInMainWorld('desklist', api);
 

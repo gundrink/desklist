@@ -26,7 +26,7 @@ export function applyOp(s: Snapshot, op: Op, me: Member | null, at: string): Sna
       if (tasks.some((t) => t.id === op.id)) break;
       const max = Math.max(0, ...tasks.filter((t) => t.projectId === op.projectId).map((t) => t.sortOrder));
       tasks.push({ id: op.id, projectId: op.projectId, title: op.title, done: false, doneAt: null, dueDate: op.dueDate ?? null,
-        bicMemberId: null, createdByMemberId: me?.id ?? null, approvedByMemberId: null, approvedAt: null, notes: op.notes ?? '',
+        bicMemberId: null, createdByMemberId: me?.id ?? null, approvedByMemberId: null, approvedAt: null, notes: op.notes ?? '', doneNote: '',
         hasExpense: !!op.hasExpense, expenseAmount: op.expenseAmount ?? null, expenseCurrency: op.hasExpense ? op.expenseCurrency ?? s.currency ?? 'SOL' : null,
         sortOrder: max + 1, createdAt: at, updatedAt: at });
       break;
@@ -154,6 +154,20 @@ export class SyncEngine extends EventEmitter {
     return json as T;
   }
 
+  /** Upload raw bytes as a task file (stored in Postgres bytea on the server). */
+  async upload(taskId: string, name: string, mime: string, data: Uint8Array, fieldId?: string | null): Promise<unknown> {
+    const r = await fetch(this.serverUrl + `/api/tasks/${taskId}/files`, { method: 'POST', body: Buffer.from(data), signal: AbortSignal.timeout(60_000),
+      headers: { 'content-type': 'application/octet-stream', 'x-filename': encodeURIComponent(name), 'x-mime': mime || 'application/octet-stream',
+        ...(fieldId ? { 'x-field-id': fieldId } : {}), ...(this.token ? { authorization: `Bearer ${this.token}` } : {}) } });
+    const body = await r.text();
+    if (!r.ok) { let m = `HTTP ${r.status}`; try { m = JSON.parse(body).error ?? m; } catch { /* */ } throw new ApiError(r.status, m); }
+    return JSON.parse(body);
+  }
+  async download(path: string): Promise<Buffer> {
+    const r = await fetch(this.serverUrl + path, { headers: this.token ? { authorization: `Bearer ${this.token}` } : {}, signal: AbortSignal.timeout(60_000) });
+    if (!r.ok) throw new ApiError(r.status, `HTTP ${r.status}`);
+    return Buffer.from(await r.arrayBuffer());
+  }
   /** GET a non-JSON resource (CSV export). */
   async text(path: string): Promise<string> {
     const r = await fetch(this.serverUrl + path, { headers: this.token ? { authorization: `Bearer ${this.token}` } : {}, signal: AbortSignal.timeout(20_000) });

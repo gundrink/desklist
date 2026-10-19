@@ -15,6 +15,7 @@ export function CreateProject({ s, onCreated, onCancel }: { s: Snapshot; onCreat
   const [values, setValues] = useState<Record<string, string | null>>({});
   const [cols, setCols] = useState<Col[]>([]);
   const [notes, setNotes] = useState('');
+  const [deadline, setDeadline] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const addCol = () => setCols([...cols, { key: Date.now(), label: '', dataType: 'text', value: '' }]);
@@ -25,7 +26,7 @@ export function CreateProject({ s, onCreated, onCancel }: { s: Snapshot; onCreat
     try {
       const chosen = active.filter((f) => use[f.id] || f.isCore);
       const p = await actions.request<Project>('POST', '/api/projects', {
-        name, notes,
+        name, notes, deadline: deadline || null,
         fields: chosen.map((f) => ({ fieldId: f.id, required: !!req[f.id] })),
         values: Object.fromEntries(Object.entries(values).filter(([k, v]) => use[k] && v != null && k !== core?.id)),
         customColumns: cols.filter((c) => c.label.trim()).map((c) => ({ label: c.label.trim(), dataType: c.dataType, value: c.value || null })),
@@ -45,6 +46,8 @@ export function CreateProject({ s, onCreated, onCancel }: { s: Snapshot; onCreat
             <div className="grid">
               <label className="f"><span>Project name <em>always on · required</em></span>
                 <div className="inp focus-ring"><input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Project H" autoFocus aria-label="Project name" /></div></label>
+              <label className="f"><span>Deadline <em>optional</em></span>
+                <div className="inp focus-ring"><input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} aria-label="Deadline" /></div></label>
               {active.filter((f) => !f.isCore).map((f) => (
                 <div className={`f ${use[f.id] ? '' : 'off'}`} key={f.id}>
                   <span className="flabel">

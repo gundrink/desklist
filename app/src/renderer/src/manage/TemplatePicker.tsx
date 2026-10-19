@@ -103,7 +103,7 @@ export function TemplatePicker({ s, projectId, onClose }: { s: Snapshot; project
           </div>
         </div>
         <div className="mfoot">
-          <div className="exptoggle"><Toggle on={expenses} onChange={setExpenses} label="Ada pengeluaran" />
+          <div className="exptoggle"><Toggle on={expenses} onChange={setExpenses} label="Has expenses" />
             <span className="small muted">Track expenses &amp; reimbursements · default {s.currency} (per admin)</span></div>
           {err && <span className="errtxt">{err}</span>}
           <span className="small muted ml">{rateNote(s)}</span>

@@ -14,6 +14,8 @@ import { Team } from './Team';
 import { TemplatePicker } from './TemplatePicker';
 import { Reports } from './Reports';
 import '../styles/v5.css';
+import '../styles/v6.css';
+import { ProjTabs, useProjectTabs } from '../components/ProjectList';
 
 export function Manage() {
   const st = useAppState();
@@ -38,6 +40,11 @@ export function Manage() {
     return <div className="win">{titlebar}<div className="center-fill">{st && st.phase === 'signedOut' ? <SignIn st={st} theme="light" /> : st ? <LoadingState st={st} /> : 'Loading…'}</div></div>;
   }
   const s = st.snapshot;
+  return <ManageReady st={st} s={s} nav={nav} setNav={setNav} picker={picker} setPicker={setPicker} titlebar={titlebar} />;
+}
+
+function ManageReady({ st, s, nav, setNav, picker, setPicker, titlebar }: { st: NonNullable<ReturnType<typeof useAppState>>; s: NonNullable<NonNullable<ReturnType<typeof useAppState>>['snapshot']>; nav: ManageView; setNav: (v: ManageView) => void; picker: string | null; setPicker: (v: string | null) => void; titlebar: React.ReactNode }) {
+  const tabs = useProjectTabs(s);
   const selectedId = nav.view === 'project' ? (nav.projectId && s.projects.some((p) => p.id === nav.projectId) ? nav.projectId : st.settings.currentProjectId ?? s.projects[0]?.id) : undefined;
   const select = (id: string) => { setNav({ view: 'project', projectId: id, tab: nav.view === 'project' ? nav.tab : undefined }); void actions.setCurrentProject(id); };
   const isAdmin = s.me.role === 'admin';
@@ -50,11 +57,13 @@ export function Manage() {
           <div className="pchead"><span>Projects <em>{s.projects.length}</em></span>
             <button className="newbtn" onClick={() => setNav({ view: 'create' })}><Plus />New project</button></div>
           <div className="gscroll scroll">
-            {isAdmin && <button className={`adminrow ${nav.view === 'reports' ? 'on' : ''}`} onClick={() => setNav({ view: 'reports' })}>▦ Admin · Reports<span>{s.me.initials === 'AD' ? 'Andi D.' : s.me.initials}</span></button>}
-            {s.projects.map((p) => (
+            {isAdmin && <button className={`adminrow ${nav.view === 'reports' ? 'on' : ''}`} onClick={() => setNav({ view: 'reports' })}>▦ Admin · Reports<span>{s.me.name}</span></button>}
+            <ProjTabs t={tabs} theme="dark" />
+            {tabs.list.map((p) => (
               <ProjectGlassCard key={p.id} s={s} p={p} selected={p.id === selectedId} expanded={p.id === selectedId}
                 onSelect={() => select(p.id)} onMenu={() => setNav({ view: 'project', projectId: p.id, tab: 'details' })} />
             ))}
+            {tabs.list.length === 0 && s.projects.length > 0 && <div className="empty-dark">Nothing here.</div>}
             {s.projects.length === 0 && <div className="empty-dark">No projects yet — create the first one.</div>}
           </div>
           <div className="pcfoot">
@@ -76,7 +85,7 @@ export function Manage() {
           <div className="footer"><span className="note" title={st.lastError ?? undefined}>
             <SyncDot connection={st.connection} />Changes sync to the desktop widget · {syncLabel(st.connection, st.pending, ago(st.lastSyncedAt))}
             {st.lastError && <span className="errtxt"> · {st.lastError}</span>}</span>
-            <span className="note right">{s.team.isDemo ? 'DEMO DATA · ' : ''}{s.team.name} · signed in as {s.me.name}</span>
+            <span className="note right">{s.team.name} · signed in as {s.me.name}</span>
           </div>
         </div>
       </div>

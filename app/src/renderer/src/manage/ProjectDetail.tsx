@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { CUSTOM_COLUMN_TYPE_LABELS, type Snapshot, type Task } from '@desklist/shared';
+import type { ProjectTab } from '../../../common/ipc';
 import { actions } from '../lib/store';
 import { domainOf, dueSoon, initialsOf, picOf, projectFields, shortDate, statusOf, tasksOf } from '../lib/model';
 import { Avatar, CheckBox, StatusPill, checkedBy } from '../components/Common';
@@ -7,35 +8,43 @@ import { AddTaskForm } from '../components/AddTaskForm';
 import { FieldInput } from '../components/FieldInput';
 import { NotesMenu, NotesSheet, type NotesKind } from '../components/Notes';
 import { Calendar, ChevronDown, ChevronUp, Note, Trash, Check } from '../components/Icons';
-import { Amount, CurrencySelect, Toggle, defaultCurrency, rateNote } from '../components/Money';
+import { Amount, Toggle, defaultCurrency, rateNote } from '../components/Money';
+import { TaskPanel, fieldsOf, reimbOfTask } from '../components/TaskPanel';
 import { ReimbursementTab, pendingLabel } from './Reimbursement';
+import { TaskDetailsTab } from './TaskDetails';
 
 export function ProjectDetail({ s, projectId, tab, setTab, onDeleted }: {
-  s: Snapshot; projectId: string; tab: 'checklist' | 'details' | 'reimbursement'; setTab: (t: 'checklist' | 'details' | 'reimbursement') => void; onDeleted: () => void;
+  s: Snapshot; projectId: string; tab: ProjectTab; setTab: (t: ProjectTab) => void; onDeleted: () => void;
 }) {
   const p = s.projects.find((x) => x.id === projectId)!;
   const { all, open, done } = tasksOf(s, p.id);
   const pic = picOf(s, p); const domain = domainOf(s, p);
   const [menu, setMenu] = useState(false);
   const [sheet, setSheet] = useState<NotesKind | null>(null);
-  const [hideDone, setHideDone] = useState(false);
+  const [hideDone, setHideDone] = useState(true);
+  const [panel, setPanel] = useState<{ id: string; mode: 'detail' | 'ticked' } | null>(null);
+  const pend = pendingLabel(s, p.id).count;
+  const exp = p.hasExpenses || all.some((t) => t.hasExpense);
+  const row = (t: Task) => <Row key={t.id} s={s} t={t} exp={exp} panel={panel?.id === t.id ? panel.mode : null}
+    setPanel={(m) => setPanel(m ? { id: t.id, mode: m } : null)} />;
   return (
     <>
       <div className="rhead">
         <div className="row"><h1>{p.name}</h1><StatusPill status={statusOf(s, p)} theme="light" />
-          {p.isDemo && <span className="demo-badge">Demo data</span>}
           <span className="rmeta">
             {pic && <><Avatar initials={initialsOf(pic)} size="sm" />PIC: <b>{pic}</b></>}
             {domain && <><span className="dotsep" />{domain}</>}
+            {p.deadline && <><span className="dotsep" />Deadline {shortDate(p.deadline, true)}</>}
             <span className="dotsep" />{done.length} of {all.length} done
           </span></div>
         <div className="stabs">
           <button className={`st ${tab === 'checklist' ? 'on' : ''}`} onClick={() => setTab('checklist')}>Checklist</button>
           <button className={`st ${tab === 'details' ? 'on' : ''}`} onClick={() => setTab('details')}>Details &amp; fields</button>
-          {p.hasExpenses && <button className={`st ${tab === 'reimbursement' ? 'on' : ''}`} onClick={() => setTab('reimbursement')}>Reimbursement
-            {pendingLabel(s, p.id).count > 0 && <span className="pendpill">{pendingLabel(s, p.id).count} pending</span>}</button>}
+          <button className={`st ${tab === 'reimbursement' ? 'on' : ''}`} onClick={() => setTab('reimbursement')}>Reimbursement
+            {pend > 0 && <span className="pendpill">{pend} pending</span>}</button>
+          <button className={`st ${tab === 'taskdetails' ? 'on' : ''}`} onClick={() => setTab('taskdetails')}>Task details <span className="cntpill">{done.length}</span></button>
           <span className="ml" />
-          <span className="exptgl"><Toggle on={p.hasExpenses} onChange={(v) => { actions.updateProject(p.id, { hasExpenses: v }); if (!v && tab === 'reimbursement') setTab('checklist'); }} label="Ada pengeluaran" /></span>
+          <span className="exptgl"><Toggle on={p.hasExpenses} onChange={(v) => actions.updateProject(p.id, { hasExpenses: v })} label="Has expenses" /></span>
         </div>
       </div>
       <div className="rbody scroll">
@@ -45,45 +54,50 @@ export function ProjectDetail({ s, projectId, tab, setTab, onDeleted }: {
               <span className="ncwrap">
                 <button className={`nc hdr ${menu || sheet ? 'on' : ''}`} onClick={() => setMenu(!menu)}><Note />Notes{menu ? <ChevronUp /> : <ChevronDown />}</button>
                 {menu && <NotesMenu theme="light" onPick={setSheet} onClose={() => setMenu(false)} />}
-              </span>{p.hasExpenses && <span className="cexp">▤ Pengeluaran</span>}</div>
+              </span>{exp && <span className="cexp">▤ Expense</span>}</div>
             <div className="shd"><span className="chk"><Check size={10} /></span>Done · {done.length}<span className="ln" />
               <button className="hide" onClick={() => setHideDone(!hideDone)}>{hideDone ? 'Show completed' : 'Hide completed'}</button></div>
-            {!hideDone && done.map((t) => <Row key={t.id} s={s} t={t} exp={p.hasExpenses} />)}
+            {(!hideDone || panel) && done.filter((t) => !hideDone || panel?.id === t.id).map(row)}
             {done.length === 0 && <div className="empty-row">Nothing checked off yet.</div>}
             <div className="shd" style={{ marginTop: 14 }}><span className="ring" />Pending · {open.length}<span className="ln" /><span className="hide static">Sort: due date</span></div>
-            {open.map((t) => <Row key={t.id} s={s} t={t} exp={p.hasExpenses} />)}
+            {open.map(row)}
             <AddTaskForm projectId={p.id} theme="light" s={s} />
           </>
-        ) : tab === 'reimbursement' && p.hasExpenses ? <ReimbursementTab s={s} projectId={p.id} /> : <Details s={s} pId={p.id} onDeleted={onDeleted} />}
+        ) : tab === 'reimbursement' ? <ReimbursementTab s={s} projectId={p.id} />
+          : tab === 'taskdetails' ? <TaskDetailsTab s={s} projectId={p.id} />
+          : <Details s={s} pId={p.id} onDeleted={onDeleted} />}
       </div>
+      <div className="footnote small muted">{rateNote(s)}</div>
       {sheet && <NotesSheet s={s} p={p} kind={sheet} setKind={setSheet} onClose={() => setSheet(null)} theme="light" />}
     </>
   );
 }
 
-function Row({ s, t, exp }: { s: Snapshot; t: Task; exp?: boolean }) {
-  const [editExp, setEditExp] = useState(false);
+function Row({ s, t, exp, panel, setPanel }: { s: Snapshot; t: Task; exp?: boolean; panel: 'detail' | 'ticked' | null; setPanel: (m: 'detail' | 'ticked' | null) => void }) {
   const cb = checkedBy(s, t.approvedByMemberId, t.approvedAt);
   const [editNote, setEditNote] = useState(false);
   const [note, setNote] = useState(t.notes);
   const saveNote = () => { setEditNote(false); if (note !== t.notes) void actions.updateTask(t.id, { notes: note }); };
+  const r = reimbOfTask(s, t.id);
+  const nf = fieldsOf(s, t.id).length;
+  const tick = () => { if (t.done) { void actions.toggleTask(t); setPanel(null); } else { void actions.toggleTask(t); setPanel('ticked'); } };
   return (
     <>
-      <div className={`tr ${t.done ? 'done' : ''} ${editNote ? 'editing' : ''}`} data-task={t.title}>
-        <CheckBox theme="light" done={t.done} label={t.title} onClick={() => actions.toggleTask(t)} />
-        <span className="tt" title={t.title}>{t.title}</span>
-        {!t.done && <span className="tip">Click to check · auto-approved</span>}
+      <div className={`tr ${t.done ? 'done' : ''} ${editNote ? 'editing' : ''} ${panel ? 'open' : ''}`} data-task={t.title}>
+        <CheckBox theme="light" done={t.done} label={t.title} onClick={tick} />
+        <button className="tt expbtn" title="Click to expand" onClick={() => setPanel(panel ? null : 'detail')}>
+          <span className="chev">{panel ? '▾' : '▸'}</span>{t.title}{nf > 0 && <em className="nf">{nf} field{nf > 1 ? 's' : ''}</em>}</button>
         <span className="cdue">{t.done ? <span className="when">{shortDate(t.dueDate ?? t.doneAt)}</span>
-          : t.dueDate ? <span className={`due ${dueSoon(t.dueDate) ? 'soon' : ''}`}><Calendar />Due {shortDate(t.dueDate)}</span> : <span className="none">—</span>}</span>
+          : t.dueDate ? <span className={`due ${dueSoon(t.dueDate) ? 'soon' : ''}`}>{dueSoon(t.dueDate) ? <b className="bang">!</b> : <Calendar />}Due {shortDate(t.dueDate)}</span> : <span className="none">—</span>}</span>
         <span className="who">{t.done && cb.m ? <><Avatar initials={cb.m.initials} size="sm" /><span className="cbt" title={`Checked by ${cb.m.name}`}>{cb.text}</span></>
           : <span className="none">—</span>}</span>
         <button className={`nc ${editNote ? 'ed' : t.notes ? '' : 'empty'}`} onClick={() => { setNote(t.notes); setEditNote(!editNote); }} title="Input notes">
           {editNote ? <><Note />Editing note…</> : t.notes ? <><Note />{t.notes}</> : '—'}</button>
-        {exp && <button className={`cexp val ${t.hasExpense ? '' : 'none'}`} title="Ada pengeluaran — click to edit" onClick={() => setEditExp(!editExp)}>
-          {t.hasExpense && t.expenseAmount != null ? <Amount s={s} amount={t.expenseAmount} code={t.expenseCurrency ?? defaultCurrency(s)} /> : '—'}</button>}
+        {exp && <span className={`cexp val ${t.hasExpense ? '' : 'none'}`}>
+          {t.hasExpense && r ? <Amount s={s} amount={r.amount} code={r.currency} /> : t.hasExpense && t.expenseAmount != null ? <Amount s={s} amount={t.expenseAmount} code={t.expenseCurrency ?? defaultCurrency(s)} /> : '—'}</span>}
         <button className="rowdel" title="Delete task" onClick={() => actions.deleteTask(t.id)}><Trash /></button>
       </div>
-      {editExp && <ExpenseEditor s={s} t={t} onClose={() => setEditExp(false)} />}
+      {panel && <TaskPanel s={s} t={t} theme="light" mode={panel} onClose={() => setPanel(null)} />}
       {editNote && (
         <div className="neditor">
           <div className="nehd"><Note />Input notes <span>· {t.title}</span></div>
@@ -95,26 +109,6 @@ function Row({ s, t, exp }: { s: Snapshot; t: Task; exp?: boolean }) {
         </div>
       )}
     </>
-  );
-}
-
-function ExpenseEditor({ s, t, onClose }: { s: Snapshot; t: Task; onClose: () => void }) {
-  const [on, setOn] = useState<boolean>(true);
-  const [cur, setCur] = useState(t.expenseCurrency ?? defaultCurrency(s));
-  const [amt, setAmt] = useState(t.expenseAmount != null ? String(t.expenseAmount) : '');
-  const save = () => {
-    const n = Number(amt.replace(',', '.'));
-    void actions.updateTask(t.id, on && amt && n >= 0 ? { hasExpense: true, expenseAmount: n, expenseCurrency: cur } : { hasExpense: false });
-    onClose();
-  };
-  return (
-    <div className="neditor expedit">
-      <div className="nehd">Ada pengeluaran <span>· {t.title}</span></div>
-      <div className="exprow"><Toggle on={on} onChange={setOn} label="Ada pengeluaran" />
-        {on && <div className="inp nominal"><CurrencySelect value={cur} onChange={setCur} /><input autoFocus inputMode="decimal" value={amt} onChange={(e) => setAmt(e.target.value)} placeholder="0.00" aria-label="Nominal" /></div>}
-        <span className="nehint">{rateNote(s)} · counts toward Reimbursement</span>
-        <button className="btn sec sm" onClick={onClose}>Cancel</button><button className="btn pri sm" onClick={save}>Save</button></div>
-    </div>
   );
 }
 

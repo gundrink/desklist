@@ -168,6 +168,19 @@ function registerIpc() {
     if (a === 'close') w.close(); else if (a === 'minimize') w.minimize(); else w.isMaximized() ? w.unmaximize() : w.maximize();
   });
   handle('checkForUpdates', () => checkForUpdates());
+  handle('uploadFile', async (taskId: string, name: string, mime: string, data: Uint8Array, fieldId?: string | null) => {
+    const r = await sync.upload(taskId, name, mime, data, fieldId); void sync.refresh(); return r;
+  });
+  handle('openFile', async (id: string, name: string) => {
+    const fs = await import('node:fs'); const os = await import('node:os');
+    const buf = await sync.download(`/api/files/${id}`);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'desklist-'));
+    const fp = path.join(dir, name.replace(/[\\/:*?"<>|]/g, '_') || 'file');
+    fs.writeFileSync(fp, buf);
+    const err = await shell.openPath(fp);
+    if (err) throw new Error(err);
+    return fp;
+  });
   handle('exportCsv', async (query: string) => {
     const csv = await sync.text('/api/reports/expenses.csv' + (query ? '?' + query : ''));
     const r = await dialog.showSaveDialog((manage ?? undefined) as BrowserWindow, { defaultPath: 'desklist-expenses.csv', filters: [{ name: 'CSV', extensions: ['csv'] }] });

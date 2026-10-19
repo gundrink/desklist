@@ -5,7 +5,7 @@ import { member, shortDate, shortName } from '../lib/model';
 import { Avatar } from '../components/Common';
 import { Amount, CurrencyList, usdOf } from '../components/Money';
 
-const MONTHS_ID = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+const MONTHS_ID = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const monthLabel = (m: string) => { const [y, mo] = m.split('-'); return `${MONTHS_ID[Number(mo) - 1]} ${y}`; };
 
 /** Admin · Reports — expenses only (no pemasukan). Ticks mark items as reimbursed; CSV export. */
@@ -33,8 +33,8 @@ export function Reports({ s }: { s: Snapshot }) {
           <span className="rmeta"><Avatar initials={s.me.initials} size="sm" />Signed in as <b>{shortName(s.me.name)}</b><span className="dotsep" />{s.projects.length} projects</span></div>
         <div className="filters">
           <label className="flt">PROJECT<select value={projectId} onChange={(e) => setProjectId(e.target.value)}><option value="">All projects</option>{s.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-          <label className="flt">STATUS<select value={status} onChange={(e) => setStatus(e.target.value as never)}><option value="all">All</option><option value="reimbursed">Sudah di-reimburse</option><option value="not">Belum di-reimburse</option></select></label>
-          <label className="flt">BULAN<select value={month} onChange={(e) => setMonth(e.target.value)}><option value="">Semua</option>{months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}</select></label>
+          <label className="flt">STATUS<select value={status} onChange={(e) => setStatus(e.target.value as never)}><option value="all">All</option><option value="reimbursed">Reimbursed</option><option value="not">Not reimbursed</option></select></label>
+          <label className="flt">MONTH<select value={month} onChange={(e) => setMonth(e.target.value)}><option value="">All</option>{months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}</select></label>
           <span className="small muted ml">Amounts in {cur} · ≈ USD at live rate{s.prices.stale ? ' (cached)' : ''}</span>
         </div>
       </div>
@@ -42,18 +42,18 @@ export function Reports({ s }: { s: Snapshot }) {
         {err && <div className="callout err">{err}</div>}
         {r && <>
           <div className="stats">
-            {stat('d-teal', 'Total pengeluaran', r.total)}
-            {stat('d-green', 'Sudah di-reimburse', r.reimbursed)}
-            {stat('d-amber', 'Belum di-reimburse', r.notReimbursed)}
-            {stat('d-blue', 'Jumlah item', r.count, 'item')}
+            {stat('d-teal', 'Total expenses', r.total)}
+            {stat('d-green', 'Reimbursed', r.reimbursed)}
+            {stat('d-amber', 'Not reimbursed', r.notReimbursed)}
+            {stat('d-blue', 'Items', r.count, 'item')}
           </div>
           <div className="rgrid">
             <div className="card chart">
-              <div className="fhead"><h3>Pengeluaran per project</h3><span className="muted small">{month ? monthLabel(month) : 'Semua bulan'} · in {cur}</span></div>
+              <div className="fhead"><h3>Expenses per project</h3><span className="muted small">{month ? monthLabel(month) : 'All months'} · in {cur}</span></div>
               <div className="bars">
                 {r.perProject.map((p) => (
                   <div className="bcol" key={p.projectId} title={`${p.name}: ${formatAmount(p.total, cur)}`}>
-                    <div className="bval">{p.total > 0 ? <><b>{formatAmount(p.total, cur)}</b><em>{usdOf(s, p.total, cur) ? `≈ ${usdOf(s, p.total, cur)}` : ''}</em></> : !p.hasExpenses ? <em>Tanpa pengeluaran</em> : null}</div>
+                    <div className="bval">{p.total > 0 ? <><b>{formatAmount(p.total, cur)}</b><em>{usdOf(s, p.total, cur) ? `≈ ${usdOf(s, p.total, cur)}` : ''}</em></> : !p.hasExpenses ? <em>No expenses</em> : null}</div>
                     <div className="bar" style={{ height: `${Math.max(2, (p.total / max) * 150)}px` }} />
                     <div className="bl">{p.name}</div>
                   </div>))}
@@ -69,7 +69,7 @@ export function Reports({ s }: { s: Snapshot }) {
           <div className="card elist">
             <div className="fhead"><h3>Expense list</h3><span className="muted small">Showing {r.items.length} · tick when reimbursed</span>
               <button className="btn sec sm ml" onClick={async () => { try { const pth = await window.desklist.exportCsv(query); if (pth) setMsg(`Saved ${pth}`); } catch (e) { setErr((e as Error).message); } }}>Export CSV</button></div>
-            <div className="eth"><span>Project</span><span>Task / item</span><span>Nominal</span><span>Paid by</span><span>Date</span><span>Reimbursed</span></div>
+            <div className="eth"><span>Project</span><span>Task / item</span><span>Amount</span><span>Paid by</span><span>Date</span><span>Reimbursed</span></div>
             {r.items.map((i) => {
               const m = member(s, i.paidByMemberId); const p = s.projects.find((x) => x.id === i.projectId);
               return (

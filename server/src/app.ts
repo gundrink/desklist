@@ -601,6 +601,7 @@ export function createServer(opts: AppOptions) {
       bicMemberId: uuid.nullable().optional(), sortOrder: z.number().int().optional(), notes: z.string().max(5000).optional(),
       hasExpense: z.boolean().optional(), expenseAmount: amount.nullable().optional(), expenseCurrency: currency.nullable().optional(),
       doneNote: z.string().max(20000).optional(),
+      taskType: z.enum(TASK_TYPES).optional(), platform: z.string().max(40).optional(),
       updatedAt: z.string().optional(),
     }).parse(req.body);
     const t = await taskOf(db, req, req.params.id as string);
@@ -614,6 +615,7 @@ export function createServer(opts: AppOptions) {
     if (b.notes !== undefined) set('notes', b.notes);
     if (b.doneNote !== undefined) set('done_note', b.doneNote);
     if (b.bicMemberId !== undefined) set('bic_member_id', b.bicMemberId);
+    if (b.taskType !== undefined) set('task_type', b.taskType);
     if (b.hasExpense !== undefined) set('has_expense', b.hasExpense);
     if (b.expenseAmount !== undefined) set('expense_amount', b.expenseAmount);
     if (b.expenseCurrency !== undefined) set('expense_currency', b.expenseCurrency);
@@ -637,7 +639,16 @@ export function createServer(opts: AppOptions) {
       if (row.has_expense || b.hasExpense === false) await syncTaskExpense(db, row, req.member!.id);
       if (row.has_expense) await db.query(`UPDATE ${S}.projects SET has_expenses=true WHERE id=$1 AND NOT has_expenses`, [row.project_id]);
     }
-    if (applied) changed(req, 'task', t.id);
+    // structure changes from edits only ever ADD fields; filled values are never removed
+    if (applied && b.title !== undefined && b.title !== t.title) await applySetup(req.member!.teamId, t.id, row.title, req.member!.id);
+    if (applied && b.taskType === 'social') {
+      const have = new Set((await db.query(`SELECT lower(label) l FROM ${S}.task_fields WHERE task_id=$1 AND section='fields'`, [t.id])).rows.map((r: any) => r.l));
+      for (const [i, f] of SOCIAL_FIELDS.entries()) if (!have.has(f.label.toLowerCase()))
+        await db.query(`INSERT INTO ${S}.task_fields(task_id, section, label, type, options, sort_order) VALUES ($1,'fields',$2,$3,$4,$5)`, [t.id, f.label, f.type, JSON.stringify(f.options ?? {}), 100 + i]);
+    }
+    if (b.platform && SOCIAL_PLATFORMS.includes(b.platform) && (b.taskType === 'social' || row.task_type === 'social'))
+      await db.query(`UPDATE ${S}.task_fields SET value=$2 WHERE task_id=$1 AND section='fields' AND label='Platform'`, [t.id, b.platform]);
+    if (applied || b.platform) changed(req, 'task', t.id);
     res.json({ ...mapTask(row), applied });
   }));
   app.delete('/api/tasks/:id', h(async (req, res) => {

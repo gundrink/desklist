@@ -1,3 +1,4 @@
+import { TaskEditPanel } from '../components/TaskEdit';
 import { Select } from '../components/Select';
 import { ProjectDescription } from '../components/Description';
 import { useEffect, useRef, useState } from 'react';
@@ -142,6 +143,7 @@ function WTask({ s, t, panel, setPanel }: { s: Snapshot; t: Task; panel: 'detail
   const r = s.reimbursements.find((x) => x.taskId === t.id);
   const nf = fieldsOf(s, t.id).length;
   const tick = () => { void actions.toggleTask(t); setPanel(t.done ? null : 'ticked'); };
+  const [editing, setEditing] = useState(false);
   return (<>
     <div className={`wt ${t.done ? 'done' : ''} ${panel ? 'open' : ''}`} data-task={t.title} onClick={() => setPanel(panel ? null : 'detail')}
       title={t.done ? `Checked by ${cb.text}${t.notes ? '\n' + t.notes : ''}` : `Click to expand · tick to approve${t.notes ? '\n' + t.notes : ''}`}>
@@ -153,7 +155,9 @@ function WTask({ s, t, panel, setPanel }: { s: Snapshot; t: Task; panel: 'detail
       {!t.done && t.notes && <span className="wn"><Note /></span>}
       {!t.done && t.dueDate && <span className="wd">{shortDate(t.dueDate)}</span>}
       {t.done && cb.m && <Avatar initials={cb.m.initials} size="sm" title={`Checked by ${cb.text}`} />}
+      <button className="rowedit nodrag" title="Edit task" aria-label={`Edit ${t.title}`} onClick={(e) => { e.stopPropagation(); setEditing(!editing); }}>✎</button>
     </div>
+    <Collapse open={editing}>{editing && <div className="nodrag"><TaskEditPanel s={s} t={t} compact onClose={() => setEditing(false)} /></div>}</Collapse>
     <Collapse open={!!panel}>{panel && <div className="nodrag"><TaskPanel s={s} t={t} theme="dark" mode={panel} compact onClose={() => setPanel(null)} /></div>}</Collapse>
   </>);
 }

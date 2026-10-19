@@ -4,7 +4,7 @@ import type { CustomColumnType, Snapshot } from '@desklist/shared';
 /** Mutations that are applied optimistically, queued in the offline outbox and replayed on reconnect. */
 export type Op =
   | { kind: 'task.create'; projectId: string; id: string; title: string; dueDate?: string | null; notes?: string; hasExpense?: boolean; expenseAmount?: number | null; expenseCurrency?: string | null; taskType?: 'standard' | 'social'; platform?: string }
-  | { kind: 'task.update'; id: string; patch: { title?: string; done?: boolean; doneNote?: string; dueDate?: string | null; notes?: string; bicMemberId?: string | null; hasExpense?: boolean; expenseAmount?: number | null; expenseCurrency?: string | null } }
+  | { kind: 'task.update'; id: string; patch: { title?: string; done?: boolean; doneNote?: string; dueDate?: string | null; notes?: string; bicMemberId?: string | null; hasExpense?: boolean; expenseAmount?: number | null; expenseCurrency?: string | null; sortOrder?: number } }
   | { kind: 'task.delete'; id: string }
   | { kind: 'project.update'; id: string; patch: { name?: string; notes?: string; values?: Record<string, string | null>; hasExpenses?: boolean; reimburseNote?: string } }
   | { kind: 'project.addField'; projectId: string; fieldId: string; value?: string | null }

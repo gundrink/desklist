@@ -115,4 +115,22 @@ describe('accounts', () => {
     const man = await api('POST', `/api/projects/${pid}/tasks`, { title: 'beli domain' }, at); // manual, name matches
     expect((await db.query(`SELECT count(*)::int n FROM desklist.task_fields WHERE task_id=$1`, [man.body.id])).rows[0].n).toBeGreaterThanOrEqual(2);
   });
+  it('0.6.7: edit task (rename, due, assignee, type) keeps values; setup-name rename adds fields; members can edit', async () => {
+    const at = (await api('POST', '/api/accounts/login', { username: u('boss'), password: 'admin-pass-1' })).body.token;
+    const mt = (await api('POST', '/api/accounts/login', { username: u('newmem'), password: 'newmem-pass-1' })).body.token;
+    const pid = (await api('POST', '/api/projects', { name: `Edit ${run}` }, at)).body.id;
+    const t = (await api('POST', `/api/projects/${pid}/tasks`, { title: 'Scratch' }, at)).body;
+    const f = (await api('POST', `/api/tasks/${t.id}/fields`, { label: 'Note A', type: 'text', section: 'fields' }, at)).body;
+    await api('PATCH', `/api/task-fields/${f.id ?? f.field?.id}`, { value: 'keep me' }, at);
+    const r = await api('PATCH', `/api/tasks/${t.id}`, { title: 'beli domain', dueDate: '2026-12-01', bicMemberId: memberId, taskType: 'social', platform: 'TikTok' }, mt);
+    expect(r.status).toBe(200); expect(r.body.title).toBe('beli domain'); expect(r.body.dueDate).toBe('2026-12-01'); expect(r.body.bicMemberId).toBe(memberId); expect(r.body.taskType).toBe('social');
+    const rows = (await db.query(`SELECT label, value FROM desklist.task_fields WHERE task_id=$1`, [t.id])).rows;
+    const L = rows.map((x: any) => x.label);
+    expect(rows.find((x: any) => x.label === 'Note A')?.value).toBe('keep me');
+    expect(L).toEqual(expect.arrayContaining(['Domain', 'Amount', 'Platform', 'Username / handle']));
+    expect(rows.find((x: any) => x.label === 'Platform')?.value).toBe('TikTok');
+    await api('PATCH', `/api/tasks/${t.id}`, { title: 'Something else' }, at);
+    expect((await db.query(`SELECT count(*)::int n FROM desklist.task_fields WHERE task_id=$1`, [t.id])).rows[0].n).toBe(rows.length);
+    expect((await api('POST', `/api/tasks/${t.id}/fields`, { label: 'Member field', type: 'text', section: 'fields' }, mt)).status).toBe(403);
+  });
 });

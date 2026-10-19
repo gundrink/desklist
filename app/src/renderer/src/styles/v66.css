@@ -136,3 +136,17 @@ html,body{background:var(--bg);color:var(--text)}
 .lpill[class*="prog"],.gp[class*="prog"],.lpill[class*="wip"],.gp[class*="wip"]{background:rgba(245,158,11,.14)!important;color:var(--warn)!important;border-color:rgba(245,158,11,.4)!important}
 .lpill[class*="done"],.gp[class*="done"]{background:rgba(34,197,94,.14)!important;color:var(--ok)!important;border-color:rgba(34,197,94,.4)!important}
 .lpill[class*="over"],.gp[class*="over"],.lpill[class*="late"]{background:rgba(239,68,68,.14)!important;color:var(--danger)!important}
+/* 0.6.7 task editing */
+.renamein{flex:1;min-width:120px;padding:4px 8px!important;font:inherit;font-size:13px;background:var(--surface-2)!important;border:1px solid var(--accent)!important;color:var(--text)!important;border-radius:6px!important;box-shadow:0 0 0 3px var(--accent-soft)}
+.rowedit{opacity:0;border:0;background:none;color:var(--muted);cursor:pointer;padding:2px 6px;border-radius:6px;transition:opacity var(--m-fast)}
+.tr:hover .rowedit,.wt:hover .rowedit,.rowedit:focus-visible{opacity:1}.rowedit:hover{color:var(--accent);background:var(--accent-soft)}
+.teditp{margin:4px 0 8px 28px;padding:12px 14px;background:var(--surface);border:1px solid var(--accent);border-radius:var(--r);box-shadow:var(--shadow-s);color:var(--text)}
+.teditp.compact{margin:4px 6px 6px;padding:10px}
+.te-h{display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px}
+.te-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.teditp.compact .te-grid{grid-template-columns:1fr 1fr}
+.te-grid label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--muted)}
+.te-grid input:not([type=checkbox]){padding:6px 9px;background:var(--surface-2)!important;border:1px solid var(--border-2)!important;border-radius:var(--r)!important;color:var(--text)!important;font:inherit;font-size:12.5px;color-scheme:dark}
+.te-grid .te-chk{flex-direction:row;align-items:center;gap:6px;font-size:12.5px;color:var(--text)}
+.te-btns{display:flex;align-items:center;gap:8px;margin-top:10px}
+.tr{position:relative}.tr .rowedit{position:absolute;right:30px;top:50%;transform:translateY(-50%);z-index:2}

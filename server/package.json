@@ -1,6 +1,6 @@
 {
   "name": "@desklist/server",
-  "version": "0.6.6",
+  "version": "0.6.7",
   "private": true,
   "type": "module",
   "description": "Desklist sync server (REST + WebSocket). The only process that touches PostgreSQL.",

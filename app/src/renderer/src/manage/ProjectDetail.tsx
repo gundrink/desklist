@@ -1,3 +1,4 @@
+import { RenameInput, TaskEditPanel } from '../components/TaskEdit';
 import { ProjectDescription } from '../components/Description';
 import { useState } from 'react';
 import { CUSTOM_COLUMN_TYPE_LABELS, type Snapshot, type Task } from '@desklist/shared';
@@ -88,7 +89,7 @@ export function ProjectDetail({ s, projectId, tab, setTab, onDeleted }: {
 
 function Row({ s, t, exp, panel, setPanel }: { s: Snapshot; t: Task; exp?: boolean; panel: 'detail' | 'ticked' | null; setPanel: (m: 'detail' | 'ticked' | null) => void }) {
   const cb = checkedBy(s, t.approvedByMemberId, t.approvedAt);
-  const [editNote, setEditNote] = useState(false);
+  const [editNote, setEditNote] = useState(false); const [renaming, setRenaming] = useState(false); const [editing, setEditing] = useState(false);
   const [note, setNote] = useState(t.notes);
   const saveNote = () => { setEditNote(false); if (note !== t.notes) void actions.updateTask(t.id, { notes: note }); };
   const r = reimbOfTask(s, t.id);
@@ -98,8 +99,10 @@ function Row({ s, t, exp, panel, setPanel }: { s: Snapshot; t: Task; exp?: boole
     <>
       <div className={`tr ${t.done ? 'done' : ''} ${editNote ? 'editing' : ''} ${panel ? 'open' : ''}`} data-task={t.title}>
         <CheckBox theme="light" done={t.done} label={t.title} onClick={tick} />
-        <button className="tt expbtn" title="Click to expand" onClick={() => setPanel(panel ? null : 'detail')}>
-          <span className="chev">{panel ? '▾' : '▸'}</span>{t.title}{platformOf(s, t) && <span className="platpill">{platformOf(s, t)}</span>}{nf > 0 && <em className="nf">{nf} field{nf > 1 ? 's' : ''}</em>}</button>
+        {renaming ? <RenameInput t={t} onDone={() => setRenaming(false)} /> :
+        <button className="tt expbtn" title="Click to expand · double-click to rename" onClick={() => setPanel(panel ? null : 'detail')} onDoubleClick={(e) => { e.preventDefault(); setRenaming(true); }}>
+          <span className="chev">{panel ? '▾' : '▸'}</span>{t.title}{platformOf(s, t) && <span className="platpill">{platformOf(s, t)}</span>}{nf > 0 && <em className="nf">{nf} field{nf > 1 ? 's' : ''}</em>}</button>}
+        {!renaming && <button className="rowedit" title="Edit task" aria-label={`Edit ${t.title}`} onClick={() => setEditing(!editing)}>✎</button>}
         <span className="cdue">{t.done ? <span className="when">{shortDate(t.dueDate ?? t.doneAt)}</span>
           : t.dueDate ? <span className={`due ${dueSoon(t.dueDate) ? 'soon' : ''}`}>{dueSoon(t.dueDate) ? <b className="bang">!</b> : <Calendar />}Due {shortDate(t.dueDate)}</span> : <span className="none">—</span>}</span>
         <span className="who">{t.done && cb.m ? <><Avatar initials={cb.m.initials} size="sm" /><span className="cbt" title={`Checked by ${cb.m.name}`}>{cb.text}</span></>
@@ -110,6 +113,7 @@ function Row({ s, t, exp, panel, setPanel }: { s: Snapshot; t: Task; exp?: boole
           {t.hasExpense && r ? <Amount s={s} amount={r.amount} code={r.currency} /> : t.hasExpense && t.expenseAmount != null ? <Amount s={s} amount={t.expenseAmount} code={t.expenseCurrency ?? defaultCurrency(s)} /> : '—'}</span>}
         <button className="rowdel" title="Delete task" onClick={(e) => leave((e.currentTarget as HTMLElement).closest('.tr'), () => actions.deleteTask(t.id))}><Trash /></button>
       </div>
+      <Collapse open={editing}>{editing && <TaskEditPanel s={s} t={t} onClose={() => setEditing(false)} />}</Collapse>
       <Collapse open={!!panel}>{panel && <TaskPanel s={s} t={t} theme="light" mode={panel} onClose={() => setPanel(null)} />}</Collapse>
       {editNote && (
         <div className="neditor">

@@ -103,7 +103,7 @@ describe('templates, expenses, reimbursements, reports', () => {
     const s: Snapshot = (await api('GET', '/api/snapshot', memberTok)).body;
     const tasks = s.tasks.filter((t) => t.projectId === projectId);
     expect(tasks.length).toBe(12);
-    const vps = tasks.find((t) => t.title === 'Setup VPS')!;
+    const vps = tasks.find((t) => t.title === 'Set up VPS')!;
     expect(vps.hasExpense).toBe(true); expect(vps.expenseAmount).toBe(0.12); expect(vps.expenseCurrency).toBe('SOL');
     expect(s.reimbursements.filter((x) => x.projectId === projectId).length).toBe(3);
     expect(s.prices.usd.SOL).toBe(150);
@@ -145,7 +145,7 @@ describe('templates, expenses, reimbursements, reports', () => {
     const csv = await api('GET', '/api/reports/expenses.csv', adminTok);
     expect(csv.headers.get('content-type')).toMatch(/text\/csv/);
     expect(csv.text.split('\n')[0]).toContain('usd_equivalent');
-    expect(csv.text).toContain('Setup VPS');
+    expect(csv.text).toContain('Set up VPS');
     expect(csv.text).toContain('52.50'); // SSL 0.35 SOL * $150
   });
   it('save current project as a team template, shared with teammates only', async () => {

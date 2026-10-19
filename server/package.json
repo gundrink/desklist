@@ -13,7 +13,8 @@
     "migrate:prod": "node dist/migrate.js",
     "seed:prod": "node dist/seed.js",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "bootstrap-admin": "tsx src/bootstrap-admin.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

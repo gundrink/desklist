@@ -1,7 +1,6 @@
 /**
  * Integration tests against the real database (NEON_DATABASE_URL), schema `desklist`.
- * Uses the seeded Demo Team for sign-in checks and a throw-away "TEST team" for CRUD,
- * which is deleted afterwards (demo data is not modified).
+ * Uses throw-away "TEST" teams which are deleted afterwards. There is no demo data (v6).
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AddressInfo } from 'node:net';
@@ -65,15 +64,12 @@ describe('auth', () => {
     expect(r.status).toBe(200);
     expect(r.body.ok).toBe(true);
   });
-  it('signs in with each demo code', async () => {
-    for (const [code, name, role] of [['DEMO-ADMIN', 'Andi Darmawan', 'admin'], ['DEMO-0001', 'Budi Santoso', 'member'], ['demo-0002', 'Citra Kusuma', 'member']]) {
-      const r = await signin(code, '10.1.0.1');
-      expect(r.status, code).toBe(200);
-      expect(r.body.member.name).toBe(name);
-      expect(r.body.member.role).toBe(role);
-      expect(r.body.team.name).toBe('Demo Team');
-      expect(typeof r.body.token).toBe('string');
-    }
+  it('signs in with a real code; DEMO-* codes are rejected', async () => {
+    const r = await signin(adminCode, '10.1.0.1');
+    expect(r.status).toBe(200);
+    expect(r.body.member.role).toBe('admin');
+    expect(typeof r.body.token).toBe('string');
+    for (const code of ['DEMO-ADMIN', 'DEMO-0001', 'DEMO-0002']) expect((await signin(code, '10.1.0.2')).status, code).toBe(401);
   });
   it('rejects a wrong code and unauthenticated requests', async () => {
     expect((await signin('DEMO-9999', '10.2.0.1')).status).toBe(401);
@@ -82,8 +78,8 @@ describe('auth', () => {
   });
   it('rate limits repeated failed attempts per IP', async () => {
     for (let i = 0; i < 5; i++) expect((await signin('WRONG-' + i, '10.3.0.1')).status).toBe(401);
-    expect((await signin('DEMO-ADMIN', '10.3.0.1')).status).toBe(429);
-    expect((await signin('DEMO-ADMIN', '10.3.0.2')).status).toBe(200);
+    expect((await signin(adminCode, '10.3.0.1')).status).toBe(429);
+    expect((await signin(adminCode, '10.3.0.2')).status).toBe(200);
   });
   it('admin generates, resets and revokes member codes', async () => {
     const c = await api('POST', '/api/members', adminTok, { name: 'Dina Putri' });

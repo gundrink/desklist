@@ -1,5 +1,5 @@
 import type {
-  CustomColumn, FieldDefinition, Member, PriceTable, Project, Reimbursement, Snapshot, Task, Team, Template,
+  CustomColumn, FieldDefinition, Member, PriceTable, Project, Reimbursement, Snapshot, Task, TaskField, TaskFile, Team, Template,
 } from '@desklist/shared';
 import type { Queryable } from './db.js';
 import { decryptSecret } from './crypto.js';
@@ -25,7 +25,7 @@ export const mapTask = (r: any): Task => ({
   id: r.id, projectId: r.project_id, title: r.title, done: r.done, doneAt: iso(r.done_at), dueDate: dateOnly(r.due_date),
   bicMemberId: r.bic_member_id, createdByMemberId: r.created_by_member_id, approvedByMemberId: r.approved_by_member_id,
   approvedAt: iso(r.approved_at), notes: r.notes ?? '',
-  hasExpense: !!r.has_expense, expenseAmount: r.expense_amount == null ? null : Number(r.expense_amount), expenseCurrency: r.expense_currency ?? null, sortOrder: r.sort_order, createdAt: iso(r.created_at)!, updatedAt: iso(r.updated_at)!,
+  hasExpense: !!r.has_expense, expenseAmount: r.expense_amount == null ? null : Number(r.expense_amount), expenseCurrency: r.expense_currency ?? null, doneNote: r.done_note ?? '', sortOrder: r.sort_order, createdAt: iso(r.created_at)!, updatedAt: iso(r.updated_at)!,
 });
 export const mapColumn = (r: any): CustomColumn => ({
   id: r.id, projectId: r.project_id, label: r.label, dataType: r.data_type, value: r.value, sortOrder: r.sort_order,
@@ -67,7 +67,7 @@ export async function loadProjects(q: Queryable, teamId: string, onlyId?: string
       fields: pf.rows.filter((f: any) => f.project_id === p.id).map((f: any) => ({ fieldId: f.field_id, required: f.required, sortOrder: f.sort_order })),
       values, secretSet,
       customColumns: cc.rows.filter((c: any) => c.project_id === p.id).map(mapColumn),
-      hasExpenses: !!p.has_expenses, reimburseNote: p.reimburse_note ?? '', templateId: p.template_id ?? null,
+      hasExpenses: !!p.has_expenses, reimburseNote: p.reimburse_note ?? '', templateId: p.template_id ?? null, deadline: dateOnly(p.deadline),
     };
   });
 }
@@ -82,6 +82,27 @@ export const mapTemplate = (r: any): Template => ({
   id: r.id, teamId: r.team_id ?? null, ownerMemberId: r.owner_member_id ?? null, name: r.name, description: r.description ?? '',
   icon: r.icon ?? 'list', shared: r.shared, tasks: r.tasks ?? [], createdAt: iso(r.created_at)!,
 });
+
+export const mapTaskField = (r: any): TaskField => ({
+  id: r.id, taskId: r.task_id, section: r.section, label: r.label, type: r.type, options: r.options ?? {},
+  value: r.type === 'password' ? null : r.value, isSet: r.value != null && r.value !== '', sortOrder: r.sort_order, updatedAt: iso(r.updated_at)!,
+});
+export const mapTaskFile = (r: any): TaskFile => ({
+  id: r.id, taskId: r.task_id, fieldId: r.field_id ?? null, name: r.name, mime: r.mime, size: r.size, uploadedBy: r.uploaded_by ?? null, createdAt: iso(r.created_at)!,
+});
+export async function listTaskFields(q: Queryable, teamId: string, taskId?: string) {
+  const { rows } = await q.query(
+    `SELECT f.* FROM ${S}.task_fields f JOIN ${S}.tasks t ON t.id=f.task_id JOIN ${S}.projects p ON p.id=t.project_id
+     WHERE p.team_id=$1 ${taskId ? 'AND f.task_id=$2' : ''} ORDER BY f.sort_order, f.created_at`, taskId ? [teamId, taskId] : [teamId]);
+  return rows.map(mapTaskField);
+}
+export async function listTaskFiles(q: Queryable, teamId: string, taskId?: string) {
+  const { rows } = await q.query(
+    `SELECT f.id, f.task_id, f.field_id, f.name, f.mime, f.size, f.uploaded_by, f.created_at FROM ${S}.task_files f
+     JOIN ${S}.tasks t ON t.id=f.task_id JOIN ${S}.projects p ON p.id=t.project_id
+     WHERE p.team_id=$1 ${taskId ? 'AND f.task_id=$2' : ''} ORDER BY f.created_at`, taskId ? [teamId, taskId] : [teamId]);
+  return rows.map(mapTaskFile);
+}
 
 export async function listReimbursements(q: Queryable, teamId: string) {
   const { rows } = await q.query(
@@ -105,10 +126,11 @@ export async function snapshot(q: Queryable, me: Member, prices: PriceTable = { 
     listReimbursements(q, me.teamId),
     listTemplates(q, me),
   ]);
+  const [taskFields, taskFiles] = await Promise.all([listTaskFields(q, me.teamId), listTaskFiles(q, me.teamId)]);
   return {
     team: mapTeam(team.rows[0]), me, members: members.rows.map(mapMember), fields, projects,
     tasks: tasks.rows.map(mapTask), serverTime: new Date().toISOString(),
-    reimbursements, templates, currency: team.rows[0].currency ?? 'SOL', prices,
+    reimbursements, templates, currency: team.rows[0].currency ?? 'SOL', prices, taskFields, taskFiles,
   };
 }
 

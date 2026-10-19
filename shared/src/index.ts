@@ -96,6 +96,8 @@ export interface Project {
   /** v5 "Catatan reimbursement" */
   reimburseNote: string;
   templateId: string | null;
+  /** v6 project deadline (YYYY-MM-DD) */
+  deadline: string | null;
 }
 
 export interface Task {
@@ -117,6 +119,8 @@ export interface Task {
   hasExpense: boolean;
   expenseAmount: number | null;
   expenseCurrency: string | null;
+  /** v6: note entered when the task was ticked (approved) */
+  doneNote: string;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -135,6 +139,8 @@ export interface Snapshot {
   /** team default currency (set by an admin) */
   currency: string;
   prices: PriceTable;
+  taskFields: TaskField[];
+  taskFiles: TaskFile[];
 }
 
 export interface SignInResponse { token: string; member: Member; team: Team }
@@ -256,3 +262,23 @@ export function convert(amount: number, from: string, to: string, prices?: Price
   const a = prices?.usd[from as CurrencyCode], b = prices?.usd[to as CurrencyCode];
   return a && b ? (amount * a) / b : null;
 }
+
+// ---------------------------------------------------------------- v6: typed task fields + files
+export const TASK_FIELD_TYPES = ['text', 'email', 'password', 'url', 'number', 'date', 'file', 'dropdown', 'amount'] as const;
+export type TaskFieldType = (typeof TASK_FIELD_TYPES)[number];
+export const TASK_FIELD_TYPE_LABELS: Record<TaskFieldType, string> = {
+  text: 'Text', email: 'Email', password: 'Password', url: 'URL', number: 'Number', date: 'Date', file: 'File', dropdown: 'Dropdown', amount: 'Amount / Reimbursement',
+};
+export const REIMB_CATEGORIES = ['Domain', 'Hosting', 'Software', 'Other'];
+export const MAX_FILE_BYTES = 10 * 1024 * 1024;
+export interface TaskField {
+  id: string; taskId: string; section: 'fields' | 'reimbursement'; label: string; type: TaskFieldType;
+  options: { choices?: string[]; currency?: string };
+  /** null for passwords (see isSet); amount values are "<number> <CODE>" */
+  value: string | null; isSet: boolean; sortOrder: number; updatedAt: string;
+}
+export interface TaskFile { id: string; taskId: string; fieldId: string | null; name: string; mime: string; size: number; uploadedBy: string | null; createdAt: string }
+export interface TaskDetailCard {
+  task: Task; fields: TaskField[]; files: TaskFile[]; reimbursement: Reimbursement | null;
+}
+export interface TaskDetailsResponse { approved: TaskDetailCard[]; pendingCount: number }

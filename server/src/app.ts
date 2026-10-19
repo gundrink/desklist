@@ -4,12 +4,14 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import {
-  CURRENCIES, CURRENCY_CODES, CUSTOM_COLUMN_TYPES, DEFAULT_CURRENCY, FIELD_DATA_TYPES, REIMBURSE_STATUSES, convert, slugKey,
+  CURRENCIES, CURRENCY_CODES, MAX_FILE_BYTES, REIMB_CATEGORIES, TASK_FIELD_TYPES, type TaskDetailsResponse, CUSTOM_COLUMN_TYPES, DEFAULT_CURRENCY, FIELD_DATA_TYPES, REIMBURSE_STATUSES, convert, slugKey,
   type Member, type Report, type ServerEvent,
 } from '@desklist/shared';
 import { PriceService } from './prices.js';
 import type { Db, Queryable } from './db.js';
 import { codeBucket, encryptSecret, generateCode, newToken, normalizeCode, sha256 } from './crypto.js';
+import { listTaskFields, listTaskFiles, mapTaskField, mapTaskFile } from './repo.js';
+import { decryptSecret } from './crypto.js';
 import { listFields, listReimbursements, listTemplates, loadProjects, mapColumn, mapField, mapMember, mapReimbursement, mapTask, mapTeam, mapTemplate, revealSecret, snapshot } from './repo.js';
 
 const S = 'desklist';
@@ -66,7 +68,7 @@ export function createServer(opts: AppOptions) {
   app.use((req, res, next) => {
     // The Electron app calls from file:// or a dev server; allow any origin, auth is bearer-token.
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Filename, X-Mime, X-Field-Id');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     next();
@@ -357,6 +359,7 @@ export function createServer(opts: AppOptions) {
       customColumns: z.array(colBody).optional(),
       hasExpenses: z.boolean().optional(),
       templateId: uuid.nullable().optional(),
+      deadline: isoDate.nullable().optional(),
     }).parse(req.body);
     const teamId = req.member!.teamId;
     if (b.id) {
@@ -391,6 +394,7 @@ export function createServer(opts: AppOptions) {
       for (const [i, c] of (b.customColumns ?? []).entries())
         await q.query(`INSERT INTO ${S}.project_custom_columns(project_id,label,data_type,value,sort_order) VALUES ($1,$2,$3,$4,$5)`,
           [pid, c.label, c.dataType, c.value ?? null, i + 1]);
+      if (b.deadline) await q.query(`UPDATE ${S}.projects SET deadline=$2 WHERE id=$1`, [pid, b.deadline]);
       if (b.templateId) await insertTemplateTasks(q, req, pid, b.templateId);
       return pid;
     });
@@ -406,6 +410,7 @@ export function createServer(opts: AppOptions) {
       values: z.record(z.string(), z.string().nullable()).optional(),
       hasExpenses: z.boolean().optional(),
       reimburseNote: z.string().max(20000).optional(),
+      deadline: isoDate.nullable().optional(),
       updatedAt: z.string().optional(),
     }).parse(req.body);
     const p = await projectOf(db, req, req.params.id as string);
@@ -418,6 +423,7 @@ export function createServer(opts: AppOptions) {
         await q.query(`UPDATE ${S}.projects SET notes=$2, notes_updated_at=$3 WHERE id=$1 AND notes_updated_at <= $3`, [p.id, b.notes, ts]);
       for (const [fid, v] of Object.entries(b.values ?? {})) await setValue(q, req, p.id, fid, v, ts);
       if (b.hasExpenses != null) await q.query(`UPDATE ${S}.projects SET has_expenses=$2 WHERE id=$1`, [p.id, b.hasExpenses]);
+      if (b.deadline !== undefined) await q.query(`UPDATE ${S}.projects SET deadline=$2 WHERE id=$1`, [p.id, b.deadline]);
       if (b.reimburseNote != null) await q.query(`UPDATE ${S}.projects SET reimburse_note=$2 WHERE id=$1`, [p.id, b.reimburseNote]);
     });
     changed(req, 'project', p.id);
@@ -540,6 +546,7 @@ export function createServer(opts: AppOptions) {
       title: z.string().trim().min(1).max(300).optional(), done: z.boolean().optional(), dueDate: isoDate.nullable().optional(),
       bicMemberId: uuid.nullable().optional(), sortOrder: z.number().int().optional(), notes: z.string().max(5000).optional(),
       hasExpense: z.boolean().optional(), expenseAmount: amount.nullable().optional(), expenseCurrency: currency.nullable().optional(),
+      doneNote: z.string().max(20000).optional(),
       updatedAt: z.string().optional(),
     }).parse(req.body);
     const t = await taskOf(db, req, req.params.id as string);
@@ -551,6 +558,7 @@ export function createServer(opts: AppOptions) {
     if (b.dueDate !== undefined) set('due_date', b.dueDate);
     if (b.sortOrder !== undefined) set('sort_order', b.sortOrder);
     if (b.notes !== undefined) set('notes', b.notes);
+    if (b.doneNote !== undefined) set('done_note', b.doneNote);
     if (b.bicMemberId !== undefined) set('bic_member_id', b.bicMemberId);
     if (b.hasExpense !== undefined) set('has_expense', b.hasExpense);
     if (b.expenseAmount !== undefined) set('expense_amount', b.expenseAmount);
@@ -583,6 +591,147 @@ export function createServer(opts: AppOptions) {
     await db.query(`DELETE FROM ${S}.tasks WHERE id=$1`, [t.id]);
     changed(req, 'task', t.id);
     res.json({ ok: true });
+  }));
+
+  // ---------- v6: typed task fields, files, task reimbursement, task details ----------
+  async function taskFieldOf(q: Queryable, req: Req, id: string) {
+    const { rows } = await q.query(
+      `SELECT f.* FROM ${S}.task_fields f JOIN ${S}.tasks t ON t.id=f.task_id JOIN ${S}.projects p ON p.id=t.project_id WHERE f.id=$1 AND p.team_id=$2`,
+      [id, req.member!.teamId]);
+    if (!rows[0]) throw new HttpError(404, 'Field not found');
+    return rows[0];
+  }
+  function fieldValue(type: string, raw: string | null | undefined, options: any): string | null {
+    if (raw == null) return null;
+    const v = String(raw).trim();
+    if (v === '') return null;
+    const bad = (m: string) => { throw new HttpError(400, m); };
+    switch (type) {
+      case 'email': if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) bad('Invalid email'); break;
+      case 'url': if (!/^(https?:\/\/)?[^\s.]+\.[^\s]+$/i.test(v)) bad('Invalid URL'); break;
+      case 'number': if (isNaN(Number(v.replace(/[, ]/g, '')))) bad('Must be a number'); break;
+      case 'date': if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) bad('Date must be YYYY-MM-DD'); break;
+      case 'dropdown': if (options?.choices?.length && !options.choices.includes(v)) bad('Not one of the options'); break;
+      case 'amount': { const m = /^(\d+(?:\.\d+)?)\s+([A-Z]{2,5})$/.exec(v); if (!m || !(CURRENCY_CODES as readonly string[]).includes(m[2])) bad('Amount must be "<number> <CURRENCY>"'); break; }
+      case 'password': return encryptSecret(v);
+    }
+    return v;
+  }
+  const fieldBodyV6 = z.object({
+    id: uuid.optional(), label: z.string().trim().min(1).max(80), type: z.enum(TASK_FIELD_TYPES), section: z.enum(['fields', 'reimbursement']).default('fields'),
+    options: z.object({ choices: z.array(z.string().min(1)).max(50).optional(), currency: z.string().optional() }).default({}),
+    value: z.string().max(20000).nullable().optional(),
+  });
+  app.post('/api/tasks/:id/fields', h(async (req, res) => {
+    const b = fieldBodyV6.parse(req.body);
+    const t = await taskOf(db, req, req.params.id as string);
+    const { rows } = await db.query(
+      `INSERT INTO ${S}.task_fields(id, task_id, section, label, type, options, value, sort_order)
+       VALUES (COALESCE($1, gen_random_uuid()),$2,$3,$4,$5,$6,$7,(SELECT COALESCE(MAX(sort_order),0)+1 FROM ${S}.task_fields WHERE task_id=$2))
+       ON CONFLICT (id) DO UPDATE SET id=EXCLUDED.id RETURNING *`,
+      [b.id ?? null, t.id, b.section, b.label, b.type, JSON.stringify(b.options), fieldValue(b.type, b.value, b.options)]);
+    changed(req, 'task', t.id);
+    res.status(201).json(mapTaskField(rows[0]));
+  }));
+  app.patch('/api/task-fields/:id', h(async (req, res) => {
+    const b = z.object({ label: z.string().trim().min(1).max(80).optional(), value: z.string().max(20000).nullable().optional(),
+      options: z.object({ choices: z.array(z.string().min(1)).max(50).optional(), currency: z.string().optional() }).optional() }).parse(req.body);
+    const f = await taskFieldOf(db, req, req.params.id as string);
+    const opts = b.options ?? f.options;
+    const { rows } = await db.query(
+      `UPDATE ${S}.task_fields SET label=COALESCE($2,label), options=$3, value=CASE WHEN $5 THEN $4 ELSE value END, updated_at=now() WHERE id=$1 RETURNING *`,
+      [f.id, b.label ?? null, JSON.stringify(opts), b.value === undefined ? null : fieldValue(f.type, b.value, opts), b.value !== undefined]);
+    changed(req, 'task', f.task_id);
+    res.json(mapTaskField(rows[0]));
+  }));
+  app.delete('/api/task-fields/:id', h(async (req, res) => {
+    const f = await taskFieldOf(db, req, req.params.id as string);
+    await db.query(`DELETE FROM ${S}.task_fields WHERE id=$1`, [f.id]);
+    changed(req, 'task', f.task_id);
+    res.json({ ok: true });
+  }));
+  /** Reveal a password field (any member of the team; the value is encrypted at rest). */
+  app.get('/api/task-fields/:id/reveal', h(async (req, res) => {
+    const f = await taskFieldOf(db, req, req.params.id as string);
+    if (f.type !== 'password') return res.json({ value: f.value });
+    try { res.json({ value: f.value ? decryptSecret(f.value) : null }); }
+    catch { throw new HttpError(500, 'Cannot decrypt — APP_ENCRYPTION_KEY differs from the one used to store this value'); }
+  }));
+
+  // files: raw body upload, max ~10 MB, stored as bytea
+  app.post('/api/tasks/:id/files', express.raw({ type: () => true, limit: MAX_FILE_BYTES + 1024 }), h(async (req, res) => {
+    const t = await taskOf(db, req, req.params.id as string);
+    const data = req.body as Buffer;
+    if (!Buffer.isBuffer(data) || !data.length) throw new HttpError(400, 'Empty file');
+    if (data.length > MAX_FILE_BYTES) throw new HttpError(413, 'File too large (max 10 MB)');
+    const name = decodeURIComponent(String(req.headers['x-filename'] ?? 'file')).replace(/[\\/\r\n]/g, '_').slice(0, 200) || 'file';
+    const fieldId = req.headers['x-field-id'] ? String(req.headers['x-field-id']) : null;
+    if (fieldId) { const f = await taskFieldOf(db, req, fieldId); if (f.task_id !== t.id) throw new HttpError(400, 'Field belongs to another task'); }
+    const { rows } = await db.query(
+      `INSERT INTO ${S}.task_files(task_id, field_id, name, mime, size, data, uploaded_by) VALUES ($1,$2,$3,$4,$5,$6,$7)
+       RETURNING id, task_id, field_id, name, mime, size, uploaded_by, created_at`,
+      [t.id, fieldId, name, String(req.headers['x-mime'] ?? req.headers['content-type'] ?? 'application/octet-stream').slice(0, 120), data.length, data, req.member!.id]);
+    if (fieldId) await db.query(`UPDATE ${S}.task_fields SET value=$2, updated_at=now() WHERE id=$1`, [fieldId, name]);
+    changed(req, 'task', t.id);
+    res.status(201).json(mapTaskFile(rows[0]));
+  }));
+  async function fileOf(req: Req, id: string) {
+    const { rows } = await db.query(
+      `SELECT f.* FROM ${S}.task_files f JOIN ${S}.tasks t ON t.id=f.task_id JOIN ${S}.projects p ON p.id=t.project_id WHERE f.id=$1 AND p.team_id=$2`,
+      [id, req.member!.teamId]);
+    if (!rows[0]) throw new HttpError(404, 'File not found');
+    return rows[0];
+  }
+  app.get('/api/files/:id', h(async (req, res) => {
+    const f = await fileOf(req, req.params.id as string);
+    res.setHeader('Content-Type', f.mime);
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(f.name)}`);
+    res.send(f.data);
+  }));
+  app.delete('/api/files/:id', h(async (req, res) => {
+    const f = await fileOf(req, req.params.id as string);
+    await db.query(`DELETE FROM ${S}.task_files WHERE id=$1`, [f.id]);
+    changed(req, 'task', f.task_id);
+    res.json({ ok: true });
+  }));
+
+  /** Per-task "Has reimbursement": PUT upserts the task's reimbursement entry, DELETE turns it off. */
+  app.put('/api/tasks/:id/reimbursement', h(async (req, res) => {
+    const b = z.object({ item: z.string().trim().min(1).max(200), category: z.enum(REIMB_CATEGORIES as [string, ...string[]]).default('Other'), amount, currency: currency.optional() }).parse(req.body);
+    const t = await taskOf(db, req, req.params.id as string);
+    const cur = b.currency ?? req.member!.currency ?? await teamCurrency(db, req);
+    await db.query(`UPDATE ${S}.tasks SET has_expense=true, expense_amount=$2, expense_currency=$3, updated_at=now() WHERE id=$1`, [t.id, b.amount, cur]);
+    const { rows } = await db.query(
+      `INSERT INTO ${S}.reimbursements(project_id, task_id, item, category, amount, currency, paid_by_member_id, spent_on)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,CURRENT_DATE)
+       ON CONFLICT (task_id) DO UPDATE SET item=EXCLUDED.item, category=EXCLUDED.category, amount=EXCLUDED.amount, currency=EXCLUDED.currency, updated_at=now()
+       RETURNING *`, [t.project_id, t.id, b.item, b.category, b.amount, cur, req.member!.id]);
+    await db.query(`UPDATE ${S}.projects SET has_expenses=true WHERE id=$1 AND NOT has_expenses`, [t.project_id]);
+    changed(req, 'reimbursement', rows[0].id);
+    res.json(mapReimbursement(rows[0]));
+  }));
+  app.delete('/api/tasks/:id/reimbursement', h(async (req, res) => {
+    const t = await taskOf(db, req, req.params.id as string);
+    await db.query(`UPDATE ${S}.tasks SET has_expense=false, expense_amount=NULL, updated_at=now() WHERE id=$1`, [t.id]);
+    await db.query(`DELETE FROM ${S}.reimbursements WHERE task_id=$1 AND status <> 'paid'`, [t.id]);
+    await db.query(`DELETE FROM ${S}.task_fields WHERE task_id=$1 AND section='reimbursement'`, [t.id]);
+    changed(req, 'reimbursement', t.id);
+    res.json({ ok: true });
+  }));
+
+  /** Task details tab: one card per approved task (fields, files, reimbursement); pending tasks counted. */
+  app.get('/api/projects/:id/task-details', h(async (req, res) => {
+    const p = await projectOf(db, req, req.params.id as string);
+    const { rows } = await db.query(`SELECT * FROM ${S}.tasks WHERE project_id=$1 ORDER BY approved_at DESC NULLS LAST, sort_order`, [p.id]);
+    const [fields, files, reimbs] = await Promise.all([listTaskFields(db, req.member!.teamId), listTaskFiles(db, req.member!.teamId), listReimbursements(db, req.member!.teamId)]);
+    const out: TaskDetailsResponse = {
+      approved: rows.filter((t: any) => t.done).map((t: any) => ({
+        task: mapTask(t), fields: fields.filter((f) => f.taskId === t.id), files: files.filter((f) => f.taskId === t.id),
+        reimbursement: reimbs.find((r) => r.taskId === t.id) ?? null,
+      })),
+      pendingCount: rows.filter((t: any) => !t.done).length,
+    };
+    res.json(out);
   }));
 
   // ---------- v5: reimbursements ----------
@@ -720,6 +869,7 @@ export function createServer(opts: AppOptions) {
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof z.ZodError) return res.status(400).json({ error: err.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ') });
     if (err instanceof HttpError) return res.status(err.status).json({ error: err.message });
+    if (err?.type === 'entity.too.large') return res.status(413).json({ error: 'File too large (max 10 MB)' });
     if (err?.type === 'entity.parse.failed') return res.status(400).json({ error: 'Invalid JSON' });
     log('[error]', err?.message ?? err);
     res.status(500).json({ error: 'Internal error' });

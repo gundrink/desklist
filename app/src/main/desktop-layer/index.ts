@@ -8,7 +8,14 @@
  */
 import type { BrowserWindow, BrowserWindowConstructorOptions } from 'electron';
 import { macWindowOptions, macAfterCreate } from './macos';
-import { attachToWindowsDesktop } from './windows';
+import { attachToWindowsDesktop, prepareFocus, setWidgetPhase } from './windows';
+
+/** Give the widget keyboard focus (Windows: detach from the desktop host first if attached). */
+export function focusWidget(win: BrowserWindow) {
+  if (process.platform === 'win32') prepareFocus(win);
+  if (!win.isFocused()) win.focus();
+}
+export function widgetPhaseChanged(phase: 'signedOut' | 'loading' | 'ready') { if (process.platform === 'win32') setWidgetPhase(phase); }
 
 export function desktopWindowOptions(): Partial<BrowserWindowConstructorOptions> {
   const base: Partial<BrowserWindowConstructorOptions> = {

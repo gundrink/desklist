@@ -8,6 +8,8 @@
  *   WorkerW/SHELLDLL_DefView became children of Progman. We handle both by searching for whichever
  *   top-level window hosts SHELLDLL_DefView.
  *
+ * v0.5.2: DEFAULT IS NOW "bottom" — a child of the desktop host (SetParent) cannot get keyboard focus,
+ * so the sign-in code / task inputs could not be typed into. "setparent" is opt-in and detaches while focused.
  * Strategy (DESKLIST_WIN_ATTACH env var can override: setparent | owner | bottom):
  *   1. "setparent" (default): SetParent(widget, <window hosting SHELLDLL_DefView>) and z-order it
  *      directly above SHELLDLL_DefView so it sits on top of the icons but inside the desktop layer.
@@ -19,6 +21,7 @@
  *      This does NOT survive Win+D, but never breaks.
  */
 import type { BrowserWindow } from 'electron';
+import { BOTTOM_FLAGS, chooseWinAttachMode, shouldAttachToDesktop } from './mode';
 
 type User32 = {
   FindWindowW: (cls: string | null, title: string | null) => unknown;
@@ -90,15 +93,25 @@ function findDesktopHost(u: User32): { host: unknown; defView: unknown } | null 
 function keepAtBottom(win: BrowserWindow, u: User32 | null) {
   const push = () => {
     if (!u) return;
-    try { u.SetWindowPos(hwndOf(win), HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE); } catch { /* ignore */ }
+    try { u.SetWindowPos(hwndOf(win), HWND_BOTTOM, 0, 0, 0, 0, BOTTOM_FLAGS); } catch { /* ignore */ }
   };
+  // Push down when shown and when the user leaves the widget. While it is focused we leave the
+  // z-order alone so it stays active and keeps keyboard input (SWP_NOACTIVATE never steals focus).
   push();
-  win.on('focus', push);
   win.on('show', push);
+  win.on('blur', push);
 }
 
+export type Phase = 'signedOut' | 'loading' | 'ready';
+let currentPhase: Phase = 'signedOut';
+let setParentCtl: { sync: () => void } | null = null;
+/** Called by main whenever the sign-in phase changes (setparent mode only attaches when signed in). */
+export function setWidgetPhase(p: Phase) { currentPhase = p; setParentCtl?.sync(); }
+/** Called before win.focus(): in setparent mode detach first, a desktop child can't be activated. */
+export function prepareFocus(win: BrowserWindow) { if (setParentCtl) { (win as any).__dlWantFocus = true; setParentCtl.sync(); } }
+
 export function attachToWindowsDesktop(win: BrowserWindow): string {
-  const mode = (process.env.DESKLIST_WIN_ATTACH || 'setparent').toLowerCase();
+  const mode = chooseWinAttachMode(process.env.DESKLIST_WIN_ATTACH);
   let u: User32 | null = null;
   try { u = load(); } catch (e) {
     console.error('[desktop-layer] koffi/user32 unavailable, falling back to normal window:', (e as Error).message);
@@ -114,12 +127,26 @@ export function attachToWindowsDesktop(win: BrowserWindow): string {
       keepAtBottom(win, u);
       return 'windows-owned-by-desktop';
     }
-    u.SetParent(me, target.host);
-    // z-order: place directly above the icon view inside the host, without activating
-    u.SetWindowPos(me, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-    // Explorer restarts (crash/update) destroy the host; re-attach when the window is shown again.
-    win.on('show', () => { try { const t = findDesktopHost(u!); if (t) u!.SetParent(me, t.host); } catch { /* ignore */ } });
-    return 'windows-setparent-desktop';
+    // Opt-in: attached only while signed in AND not focused; detached (normal top-level window) while
+    // the user interacts, so inputs can take keyboard focus. Re-attached on blur.
+    let attached = false;
+    const sync = () => {
+      const want = shouldAttachToDesktop('setparent', currentPhase, win.isFocused() || !!(win as any).__dlWantFocus);
+      try {
+        if (want && !attached) {
+          const t = findDesktopHost(u!); if (!t) return;
+          u!.SetParent(me, t.host); u!.SetWindowPos(me, 0, 0, 0, 0, 0, BOTTOM_FLAGS); attached = true;
+        } else if (!want && attached) {
+          u!.SetParent(me, 0); attached = false;
+        }
+      } catch { /* ignore */ }
+    };
+    setParentCtl = { sync };
+    win.on('focus', () => { (win as any).__dlWantFocus = false; sync(); });
+    win.on('blur', () => { (win as any).__dlWantFocus = false; setTimeout(sync, 300); });
+    win.on('show', sync);
+    sync();
+    return 'windows-setparent-desktop (opt-in, detaches while focused)';
   } catch (e) {
     console.error('[desktop-layer] attach failed, using HWND_BOTTOM fallback:', (e as Error).message);
     keepAtBottom(win, u);

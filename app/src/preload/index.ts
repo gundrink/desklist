@@ -25,3 +25,13 @@ const api: DesklistBridge = {
   exportCsv: (q) => call('exportCsv', q),
 };
 contextBridge.exposeInMainWorld('desklist', api);
+
+// Widget: any click asks main to focus the window (Windows: a desktop-layer window is not focused
+// automatically, so inputs would not receive keystrokes).
+if (new URLSearchParams(location.search).get('view') === 'widget') {
+  window.addEventListener('mousedown', () => { void ipcRenderer.invoke('focusWidget').catch(() => {}); }, true);
+  window.addEventListener('focusin', (e) => {
+    const t = e.target as HTMLElement | null;
+    if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) void ipcRenderer.invoke('focusWidget').catch(() => {});
+  }, true);
+}

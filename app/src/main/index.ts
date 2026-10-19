@@ -3,7 +3,7 @@ import path from 'node:path';
 import type { ManageView, Op } from '../common/ipc';
 import { SyncEngine } from './sync';
 import { flushSettings, getSettings, updateSettings, type Bounds } from './settings';
-import { desktopWindowOptions, placeOnDesktop } from './desktop-layer';
+import { desktopWindowOptions, focusWidget, placeOnDesktop, widgetPhaseChanged } from './desktop-layer';
 import { checkForUpdates, initAutoUpdate } from './updater';
 
 const isSmoke = !!process.env.DESKLIST_SMOKE;
@@ -52,8 +52,9 @@ function createWidget() {
   loadView(widget, 'widget');
   widget.once('ready-to-show', () => {
     if (!widget) return;
-    widget.showInactive();
     layerMode = placeOnDesktop(widget);
+    // signed out: show as a normal, focused window so the sign-in code can be typed right away
+    if (sync.state().phase === 'signedOut') { widget.show(); focusWidget(widget); } else widget.showInactive();
     console.log(`[desklist] widget placed: ${layerMode}`);
   });
   const save = () => { if (widget && !widget.isDestroyed()) updateSettings({ widgetBounds: widget.getBounds() }); };
@@ -116,7 +117,8 @@ function rebuildTray() {
   const projects = snap?.projects ?? [];
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: widget?.isVisible() ? 'Widget is showing' : 'Show widget', enabled: !widget?.isVisible(), click: () => showWidget() },
-    { label: 'Open Manage…', click: () => openManage() },
+    { label: 'Open Manage', click: () => openManage() },
+    ...(sync.state().phase === 'signedOut' ? [{ label: 'Sign in…', click: () => openManage() }] : []),
     { type: 'separator' },
     { label: 'Current project', enabled: projects.length > 0, submenu: projects.map((p) => ({
       label: p.name, type: 'radio' as const, checked: p.id === s.currentProjectId, click: () => setCurrentProject(p.id) })) },
@@ -134,6 +136,7 @@ function setCurrentProject(id: string) { updateSettings({ currentProjectId: id }
 
 function broadcast() {
   const st = sync.state();
+  widgetPhaseChanged(st.phase);
   for (const w of [widget, manage]) if (w && !w.isDestroyed()) w.webContents.send('desklist:state', st);
   rebuildTray();
 }
@@ -158,6 +161,7 @@ function registerIpc() {
     broadcast();
   });
   handle('closeWidget', () => widget?.close());
+  handle('focusWidget', () => { if (widget && !widget.isDestroyed()) focusWidget(widget); });
   handle('windowControl', (a: string) => {
     const w = BrowserWindow.getFocusedWindow() ?? manage;
     if (!w) return;

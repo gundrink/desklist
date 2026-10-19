@@ -145,16 +145,16 @@ export function FieldList({ s, taskId, section = 'fields', theme, placeholder }:
 /** Reimbursement section: Item/Domain name, Category, Amount (admin currency) ≈ USD, + extra fields. */
 export function ReimbSection({ s, t, theme }: { s: Snapshot; t: Task; theme: Theme }) {
   const r = reimbOfTask(s, t.id);
-  const cur = r?.currency ?? defaultCurrency(s);
+  const [cur, setCur] = useState<string>(r?.currency ?? defaultCurrency(s));
   const [item, setItem] = useState(r?.item ?? t.title);
   const [cat, setCat] = useState(r?.category && REIMB_CATEGORIES.includes(r.category) ? r.category : 'Other');
   const [amt, setAmt] = useState(r ? String(r.amount) : (t.expenseAmount != null ? String(t.expenseAmount) : ''));
   const [err, setErr] = useState(''); const [saved, setSaved] = useState(false);
-  useEffect(() => { if (r) { setItem(r.item); setAmt(String(r.amount)); setCat(REIMB_CATEGORIES.includes(r.category) ? r.category : 'Other'); } }, [r?.id, r?.amount, r?.item, r?.category]);
+  useEffect(() => { if (r) { setCur(r.currency); setItem(r.item); setAmt(String(r.amount)); setCat(REIMB_CATEGORIES.includes(r.category) ? r.category : 'Other'); } }, [r?.id, r?.amount, r?.item, r?.category]);
   const n = Number(amt.replace(',', '.'));
-  const save = async (c = cat) => {
+  const save = async (c = cat, cu = cur) => {
     if (!item.trim() || !amt || !(n >= 0)) return;
-    try { await actions.request('PUT', `/api/tasks/${t.id}/reimbursement`, { item: item.trim(), category: c, amount: n, currency: cur }); setErr(''); setSaved(true); }
+    try { await actions.request('PUT', `/api/tasks/${t.id}/reimbursement`, { item: item.trim(), category: c, amount: n, currency: cu }); setErr(''); setSaved(true); }
     catch (e) { setErr((e as Error).message); }
   };
   return (
@@ -165,7 +165,8 @@ export function ReimbSection({ s, t, theme }: { s: Snapshot; t: Task; theme: The
         <label><span>Category</span><select value={cat} onChange={(e) => { setCat(e.target.value); void save(e.target.value); }} aria-label="Reimbursement category">
           {REIMB_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></label>
         <label><span>Amount</span><span className="amtin"><input inputMode="decimal" value={amt} onChange={(e) => setAmt(e.target.value)} onBlur={() => save()} placeholder="0.00" aria-label="Reimbursement amount"
-          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} /><b>{cur}</b>
+          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />
+          <select className="cursel" value={cur} aria-label="Reimbursement currency" onChange={(e) => { setCur(e.target.value); void save(cat, e.target.value); }}>{CURRENCY_CODES.map((c) => <option key={c}>{c}</option>)}</select>
           <em>{n > 0 && usdOf(s, n, cur) ? `≈ ${usdOf(s, n, cur)}` : ''}</em></span></label>
       </div>
       <FieldList s={s} taskId={t.id} section="reimbursement" theme={theme} placeholder="Vendor, Invoice no., Purchase date…" />

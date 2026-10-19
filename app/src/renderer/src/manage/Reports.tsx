@@ -17,7 +17,9 @@ export function Reports({ s }: { s: Snapshot }) {
   const [r, setR] = useState<Report | null>(null); const [err, setErr] = useState(''); const [msg, setMsg] = useState('');
   const query = new URLSearchParams({ ...(month ? { month } : {}), ...(projectId ? { projectId } : {}), status }).toString();
   // reload on any synced change (the snapshot object changes)
-  useEffect(() => { actions.request<Report>('GET', `/api/reports?${query}`).then(setR, (e) => setErr(e.message)); }, [query, s]);
+  // refetch only when reimbursement data actually changes (depending on the whole snapshot caused a request→refresh→refetch loop)
+  const reimbKey = s.reimbursements.map((x) => `${x.id}:${x.updatedAt}:${x.status}`).join('|') + `|${s.projects.length}`;
+  useEffect(() => { actions.request<Report>('GET', `/api/reports?${query}`).then(setR, (e) => setErr(e.message)); }, [query, reimbKey]);
   if (s.me.role !== 'admin') return <div className="center-fill muted">Admin only.</div>;
   const months = Array.from({ length: 12 }, (_, i) => { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; });
   const cur = r?.currency ?? s.currency;

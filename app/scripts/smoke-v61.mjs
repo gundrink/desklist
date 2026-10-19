@@ -78,6 +78,25 @@ try {
   await m.getByRole('button', { name: /^Reimbursement/ }).click(); await m.locator('.rtr[data-reimb="Buy Gmail"]').waitFor({ timeout: 15000 });
   const rrow = await m.locator('.rtr[data-reimb="Buy Gmail"]').textContent();
   check('USD reimbursement shows $12.50 with no ≈ line', rrow.includes('$12.50') && !rrow.includes('≈'));
+  // 3b) second member enters an IDR item; totals convert to team default (SOL) with live rates
+  const mem2 = await api(adminTok, 'POST', '/api/members', { name: 'E2E Member 2', role: 'member' });
+  await w.getByLabel('Widget menu').click(); await w.getByRole('button', { name: /Sign out/ }).click();
+  await w.getByLabel('Personal code').waitFor({ timeout: 15000 }); await w.getByLabel('Personal code').fill(mem2.code); await w.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await w.locator('.rail').waitFor({ timeout: 25000 }); check('second member sign-in', true);
+  await m.locator(`.gcard[data-project="${PNAME}"] .gname`).click({ timeout: 20000 });
+  await m.getByRole('button', { name: /^Checklist/ }).click();
+  await m.getByLabel('New task title').fill('Domain renewal'); await m.getByRole('button', { name: 'Add task' }).click();
+  await m.locator('.tr[data-task="Domain renewal"] .expbtn').click({ timeout: 15000 }); await m.locator('.tpanel .rsec').waitFor();
+  await m.getByLabel('Reimbursement currency').selectOption('IDR');
+  await m.getByLabel('Reimbursement amount').fill('300000'); await m.getByLabel('Reimbursement amount').press('Enter'); await m.waitForTimeout(2500);
+  await m.getByRole('button', { name: /^Reimbursement/ }).click(); await m.locator('.rtr[data-reimb="Domain renewal"]').waitFor({ timeout: 15000 });
+  const rows = await m.locator('.rtable').textContent();
+  check('items keep original currency ($12.50 and Rp 300.000)', rows.includes('$12.50') && rows.includes('Rp 300.000'));
+  const pr = (await (await fetch(SERVER + '/api/prices')).json()).prices.usd;
+  const exp = (12.5 + 300000 * pr.IDR) / pr.SOL; const expTxt = `${Number(exp.toFixed(4))} SOL`;
+  const bar = await m.locator('.rbar').textContent();
+  check(`converted total in team currency = ${expTxt} (+ USD)`, bar.includes(expTxt) && bar.includes('≈ $'));
+  await shot(m, 'reimb-mixed-currency');
   await m.getByRole('button', { name: /^Checklist/ }).click();
 
   // 4) View mode
@@ -127,7 +146,7 @@ finally {
     const snap = await api(adminTok, 'GET', '/api/snapshot');
     for (const p of snap.projects.filter((p) => p.name.startsWith('E2E v61'))) { await api(adminTok, 'DELETE', `/api/projects/${p.id}`); log('deleted project', p.name); }
     for (const s of await api(adminTok, 'GET', '/api/task-setups')) if (s.title === 'Buy Gmail') { await api(adminTok, 'DELETE', `/api/task-setups/${s.id}`); log('deleted task setup Buy Gmail'); }
-    for (const mm of snap.members.filter((x) => x.name === 'E2E Member')) { await api(adminTok, 'DELETE', `/api/members/${mm.id}`); log('deleted member E2E Member'); }
+    for (const mm of snap.members.filter((x) => x.name.startsWith('E2E Member'))) { await api(adminTok, 'DELETE', `/api/members/${mm.id}`); log('deleted member E2E Member'); }
     await api(adminTok, 'POST', '/api/auth/signout');
   } catch (e) { log('cleanup error', e.message); }
   await app.close();

@@ -36,7 +36,7 @@ export function createDb(url = databaseUrl()): Db {
       return { ...q, driver: 'neon-http', tx: (fn) => fn(q), close: async () => {} };
     }
     neonConfig.webSocketConstructor = ws as any;
-    return wrapPool(new NeonPool({ connectionString: url, max: 5 }) as any, 'neon-websocket-pool');
+    return wrapPool(new NeonPool({ connectionString: url, max: 10 }) as any, 'neon-websocket-pool');
   }
   return wrapPool(new pg.Pool({ connectionString: url, max: 5 }), 'pg');
 }

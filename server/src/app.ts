@@ -247,7 +247,19 @@ export function createServer(opts: AppOptions) {
     res.json({ ok: true });
   }));
   app.get('/api/me', h(async (req, res) => { res.json(req.member); }));
-  app.get('/api/snapshot', h(async (req, res) => { res.json(await snapshot(db, req.member!, await prices.get())); }));
+  /** Coalesce identical reads per member: in-flight sharing + ~1.5 s micro-cache, invalidated on any change.
+   *  Protects the DB from clients that re-request in a loop (0.6.0 Reports bug). */
+  const readCache = new Map<string, { at: number; p: Promise<unknown> }>();
+  let readGen = 0;
+  const cached = (key: string, fn: () => Promise<unknown>) => {
+    const k = `${readGen}|${key}`; const hit = readCache.get(k);
+    if (hit && Date.now() - hit.at < 1500) return hit.p;
+    const p = fn(); readCache.set(k, { at: Date.now(), p }); p.catch(() => readCache.delete(k));
+    if (readCache.size > 500) for (const [kk, v] of readCache) if (Date.now() - v.at > 1500) readCache.delete(kk);
+    return p;
+  };
+  app.use((req, _res, next) => { if (req.method !== 'GET') { readGen++; readCache.clear(); } next(); });
+  app.get('/api/snapshot', h(async (req, res) => { res.json(await cached(`snap|${req.member!.id}`, async () => snapshot(db, req.member!, await prices.get()))); }));
 
   /** Currency is set per admin; it also becomes the team's default display currency. */
   app.patch('/api/settings', h(async (req, res) => {
@@ -932,7 +944,7 @@ export function createServer(opts: AppOptions) {
       count: rows.length, projectsWithExpenses: new Set(rows.map((r) => r.projectId)).size, perProject, items: rows,
     };
   }
-  app.get('/api/reports', h(async (req, res) => { res.json(await buildReport(req)); }));
+  app.get('/api/reports', h(async (req, res) => { res.json(await cached(`rep|${req.member!.id}|${req.originalUrl}`, () => buildReport(req))); }));
   app.get('/api/reports/expenses.csv', h(async (req, res) => {
     const r = await buildReport(req);
     const pt = await prices.get();

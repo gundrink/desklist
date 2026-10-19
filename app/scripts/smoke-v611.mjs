@@ -61,6 +61,14 @@ try {
   await w.locator(`.wcl[data-wday="${dstr(2)}"]`).click(); check('widget: tapping a day lists its projects inline', (await w.locator('.wdaylist .ovp').count()) === 3); await w.locator(`.wcl[data-wday="${dstr(2)}"]`).click();
   await w.waitForTimeout(600); await w.screenshot({ path: path.join(shots, 'v611-widget-overview.png') }); await audit(w, 'widget overview 85%');
   check('widget overview: no horizontal overflow', (await noHOverflow(w)).length === 0);
+  const inside = () => w.evaluate(() => { const sc = document.querySelector('.wov'); const R = sc.getBoundingClientRect(); const cs = getComputedStyle(sc); const L = R.left + parseFloat(cs.paddingLeft) - 0.5, Rt = R.right - parseFloat(cs.paddingRight) - (sc.offsetWidth - sc.clientWidth) + 0.5; const bad = [];
+    for (const e of sc.querySelectorAll('.wtile, .wn, .wovcard, .wtile > span, .wtv b')) { const r = e.getBoundingClientRect(); if (r.left < L || r.right > Rt) bad.push(`${e.className || e.tagName}:${e.dataset.wtile ?? ''} ${Math.round(r.left)}-${Math.round(r.right)} vs ${Math.round(L)}-${Math.round(Rt)}`);
+      if (e.matches('.wtile > span') && e.scrollWidth > e.clientWidth + 1) bad.push('label clipped: ' + e.textContent); }
+    return bad; });
+  for (const ww of [560, 630, 700, 800]) { await app.evaluate(({ BrowserWindow }, ww) => { const x = BrowserWindow.getAllWindows().find((b) => b.webContents.getURL().includes('widget')); const b = x.getBounds(); x.setBounds({ ...b, width: ww }); }, ww); await w.waitForTimeout(500);
+    const bad = await inside(); check(`widget ${ww}px: tiles, nearest rows, clock card inside the scroll container (${bad.join('; ') || 'ok'})`, bad.length === 0);
+    if (ww === 630) await w.screenshot({ path: path.join(shots, 'v612-widget-overview.png') }); }
+  await app.evaluate(({ BrowserWindow }) => { const x = BrowserWindow.getAllWindows().find((b) => b.webContents.getURL().includes('widget')); x.setBounds({ ...x.getBounds(), width: 630 }); }); await w.waitForTimeout(400);
   for (const v of [30, 40, 100]) { await op(v); await audit(w, `widget overview ${v}%`); if (v === 40) await w.screenshot({ path: path.join(shots, 'v611-widget-overview-40.png') }); }
   await w.locator('.wov .clockseg button', { hasText: 'Analog' }).click(); await w.locator('.wov [data-analog]').waitFor();
   const asz = await w.locator('.wov [data-analog]').evaluate((e) => e.getBoundingClientRect().width); check(`widget analog face ${asz}px (120–140)`, asz >= 120 && asz <= 140);

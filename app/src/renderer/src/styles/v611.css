@@ -188,3 +188,14 @@ html body .ovtime{display:flex!important;align-items:baseline;white-space:nowrap
 html body .ovtime .secs{display:inline-block!important}
 html body .wov .wtile>span{white-space:normal!important;overflow:visible!important;text-overflow:clip!important}
 html body .wov .wmcal .wcgrid,html body .wov .wmcal .wcwd{max-width:300px;margin-left:auto;margin-right:auto}
+/* 0.6.12: target tiles 2x2 in the widget; 4 columns only when each gets >=120px */
+html body .wov.w611{container-type:inline-size;container-name:wov}
+html body .wov .wtiles{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+@container wov (min-width:540px){html body .wov .wtiles{grid-template-columns:repeat(4,minmax(0,1fr))!important}}
+html body .wov .wtile>span{white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;min-height:0!important}
+html body .wov .wtile{box-sizing:border-box}
+html body .wov .wovcard,html body .wov .wtiles,html body .wov .wn{box-sizing:border-box;max-width:100%}
+html body .wov .wn{grid-template-columns:8px minmax(0,1fr) minmax(24px,56px) 30px auto}
+html body .wov.w611 .ovclock.compact .ovclockb{min-width:0}
+html body .wov.w611 .ovclock.compact .ovwhen{overflow:hidden}
+html body .wov.w611 .ovclockh{flex-wrap:wrap;row-gap:6px}

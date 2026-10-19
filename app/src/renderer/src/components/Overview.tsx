@@ -184,7 +184,7 @@ export function WidgetOverview({ s, onOpen }: { s: Snapshot; onOpen: (id: string
         <div className="wtile" data-wtile="week"><span>This week</span><div className="wtv"><b className="mono">{weekDone}<small>/{weekP.length}</small></b><Ring v={weekP.length ? weekDone / weekP.length : 0} size={28} /></div></div>
         <div className="wtile" data-wtile="mine"><span>My open tasks</span><div className="wtv"><b className="mono">{mine}</b></div></div>
         <div className={`wtile ${overdue ? 'late' : ''}`} data-wtile="late"><span>Overdue</span><div className="wtv"><b className="mono">{overdue}</b></div></div>
-        <div className="wtile" data-wtile="rate"><span>Complete</span><div className="wtv"><b className="mono">{Math.round(rate * 100)}<small>%</small></b><Ring v={rate} cls="sage" size={28} /></div></div>
+        <div className="wtile" data-wtile="rate"><span>Completion</span><div className="wtv"><b className="mono">{Math.round(rate * 100)}<small>%</small></b><Ring v={rate} cls="sage" size={28} /></div></div>
       </div>
       <div className="wovcard wnear s4" data-wnear>
         <div className="wdh">Nearest projects<em className="mono">{near.length}</em></div>

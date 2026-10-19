@@ -43,7 +43,7 @@ export function TaskEditPanel({ s, t, onClose, compact }: { s: Snapshot; t: Task
         <label>Assignee<Select value={bic} onChange={(e) => setBic(e.target.value)} aria-label="Assignee"><option value="">— Unassigned</option>{members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</Select></label>
         <label>Type<Select value={type} onChange={(e) => setType(e.target.value as 'standard' | 'social')} aria-label="Edit task type"><option value="standard">Standard</option><option value="social">Social media account</option></Select></label>
         {type === 'social' && <label>Platform<Select value={platform} onChange={(e) => setPlatform(e.target.value)} aria-label="Edit platform">{SOCIAL_PLATFORMS.map((p) => <option key={p} value={p}>{p}</option>)}</Select></label>}
-        <label className="te-chk"><input type="checkbox" checked={reimb} onChange={(e) => setReimb(e.target.checked)} aria-label="Has reimbursement" />Has reimbursement</label>
+        <label className="te-chk"><input type="checkbox" checked={reimb} disabled={s.me.role !== 'admin'} onChange={(e) => setReimb(e.target.checked)} aria-label="Has reimbursement" />Has reimbursement{s.me.role !== 'admin' && <em className="muted small"> · admin only</em>}</label>
       </div>
       {err && <div className="tferr">{err}</div>}
       <div className="te-btns"><span className="muted small">Field values, notes, files and reimbursements are kept.</span><span className="ml" />

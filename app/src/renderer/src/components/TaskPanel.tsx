@@ -7,6 +7,9 @@ import { Avatar } from './Common';
 import { Toggle, defaultCurrency, usdOf } from './Money';
 import { CopyBtn, revealTaskField } from './Copy';
 import { leave } from './Motion';
+import { Checklist, Progress, progressOf } from './Checklist';
+/** Reimbursement shows only on tasks configured for it (Task setup / admin toggle) or that already have data. */
+export const showsReimb = (s: Snapshot, t: Task) => !!t.hasExpense || !!reimbOfTask(s, t.id) || fieldsOf(s, t.id, 'reimbursement').length > 0;
 
 type Theme = 'light' | 'dark';
 const ICON: Record<TaskFieldType, string> = { text: 'T', email: '@', password: '••', url: '↗', number: '#', date: 'D', file: 'F', dropdown: '▾', amount: '$' };
@@ -205,12 +208,14 @@ export function TaskPanel({ s, t, theme, mode, onClose, compact }: { s: Snapshot
   const head = mode === 'ticked'
     ? <span className="tph1">✓ Approved by {appr ? shortName(appr.name) : 'you'} — add notes &amp; values</span>
     : <span className="tph1">TASK DETAIL</span>;
+  const pr = progressOf(s, t.id);
   return (
     <div className={`tpanel ${theme} ${mode} ${compact ? 'compact' : ''}`} data-panel={mode} onClick={(e) => e.stopPropagation()}>
-      <div className="tphead">{head}<span className="ml" />
+      <div className="tphead">{head}{pr.n > 0 && <Progress d={pr.d} n={pr.n} label />}<span className="ml" />
         {mode === 'detail' && <button type="button" className="tpx" title="Collapse" onClick={onClose}>×</button>}</div>
       {mode === 'detail' && t.done && (appr || t.doneNote) && (
         <div className="tpappr">{appr && <Avatar initials={appr.initials} size="sm" />}<span><b>{appr ? shortName(appr.name) : ''}</b> · {shortDate(t.approvedAt)}{t.doneNote && <><br />{t.doneNote}</>}</span></div>)}
+      {mode === 'detail' && <Checklist s={s} t={t} readOnly={compact} />}
       <div className={mode === 'ticked' && !compact ? 'tpcols' : 'tpone'}>
         {mode === 'ticked' && (
           <div className="tpleft">
@@ -223,7 +228,7 @@ export function TaskPanel({ s, t, theme, mode, onClose, compact }: { s: Snapshot
           {mode === 'detail' && filesOf(s, t.id).some((f) => !f.fieldId) && <div className="tpl"><span>Attachments</span><Attachments s={s} t={t} theme={theme} /></div>}
         </div>
       </div>
-      <ReimbSection s={s} t={t} theme={theme} />
+      {showsReimb(s, t) && <ReimbSection s={s} t={t} theme={theme} />}
       {mode === 'ticked' && <div className="tpbtns"><span className="muted small">Saved to Task details tab</span><span className="ml" />
         <button type="button" className="btn sec sm" onClick={onClose}>Skip</button><button type="button" className="btn pri sm" onClick={save}>Save</button></div>}
     </div>

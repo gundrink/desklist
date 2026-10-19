@@ -27,6 +27,7 @@ function FieldLine({ f }: { f: TaskField }) {
   return <VLine label={f.label} kind={kind} value={f.value} />;
 }
 
+import { Checklist, Progress, progressOf } from './Checklist';
 export function TaskViewCard({ s, t, compact }: { s: Snapshot; t: Task; compact?: boolean }) {
   const fs = fieldsOf(s, t.id).filter((f) => f.type !== 'file'); const rf = fieldsOf(s, t.id, 'reimbursement');
   const files = filesOf(s, t.id); const r = reimbOfTask(s, t.id); const m = member(s, t.approvedByMemberId);
@@ -34,9 +35,10 @@ export function TaskViewCard({ s, t, compact }: { s: Snapshot; t: Task; compact?
   return (
     <div className={`vcard ${t.done ? 'done' : ''} ${compact ? 'compact' : ''}`} data-vtask={t.title}>
       <div className="vch"><span className={`vck ${t.done ? 'd' : ''}`}>{t.done ? '✓' : ''}</span><b className="vtitle">{t.title}</b><CopyBtn text={t.title} label="task name" />
-        {plat && <span className="platpill">{plat}</span>}<span className="ml" />
+        {plat && <span className="platpill">{plat}</span>}<Progress {...progressOf(s, t.id)} /><span className="ml" />
         {t.done ? <span className="small vappr">{m && <Avatar initials={m.initials} size="xs" />}Approved by <b>{m ? shortName(m.name) : '—'}</b> · {time(t.approvedAt)}</span>
           : <span className="small muted">Pending{t.dueDate ? ` · due ${shortDate(t.dueDate)}` : ''}</span>}</div>
+      <Checklist s={s} t={t} readOnly />
       <div className="vgrid">
         {fs.map((f) => <FieldLine key={f.id} f={f} />)}
         {t.notes && <VLine label="Notes" value={t.notes} />}

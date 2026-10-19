@@ -146,13 +146,17 @@ export interface Snapshot {
   prices: PriceTable;
   taskFields: TaskField[];
   taskFiles: TaskFile[];
+  /** v0.6.8 checklist sub-items inside a task */
+  checklistItems?: ChecklistItem[];
 }
+
+export interface ChecklistItem { id: string; taskId: string; title: string; done: boolean; doneByMemberId: string | null; doneAt: string | null; sortOrder: number }
 
 export interface SignInResponse { token: string; member: Member; team: Team }
 
 export type ServerEvent =
   | { type: 'hello'; memberId: string; serverTime: string }
-  | { type: 'changed'; entity: 'project' | 'task' | 'field' | 'member' | 'column' | 'reimbursement' | 'template' | 'settings'; id?: string; by?: string; at: string };
+  | { type: 'changed'; entity: 'project' | 'task' | 'field' | 'member' | 'column' | 'reimbursement' | 'template' | 'settings' | 'checklist'; id?: string; by?: string; at: string };
 
 /** Well-known master field keys used by the UI for project cards / widget. */
 export const FIELD_KEYS = {

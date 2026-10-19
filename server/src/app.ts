@@ -607,6 +607,10 @@ export function createServer(opts: AppOptions) {
     const t = await taskOf(db, req, req.params.id as string);
     if (b.bicMemberId) await assertMember(db, req, b.bicMemberId);
     const ts = clientTs(b.updatedAt);
+    // "Has reimbursement" is set by admins (or by the admin Task setup), never by members
+    if (b.hasExpense !== undefined && b.hasExpense !== t.has_expense) admin(req);
+    // a task with checklist items follows its items: it can't be ticked while any item is open
+    if (b.done === true && !t.done && (await db.query(`SELECT 1 FROM ${S}.task_checklist_items WHERE task_id=$1 AND NOT done LIMIT 1`, [t.id])).rows[0]) b.done = undefined;
     const sets: string[] = []; const params: unknown[] = [t.id, ts];
     const set = (col: string, v: unknown) => { params.push(v); sets.push(`${col}=$${params.length}`); };
     if (b.title !== undefined) set('title', b.title);
@@ -650,6 +654,38 @@ export function createServer(opts: AppOptions) {
       await db.query(`UPDATE ${S}.task_fields SET value=$2 WHERE task_id=$1 AND section='fields' AND label='Platform'`, [t.id, b.platform]);
     if (applied || b.platform) changed(req, 'task', t.id);
     res.json({ ...mapTask(row), applied });
+  }));
+  // ---------- v0.6.8: checklist sub-items ----------
+  /** Main task status follows its items: all checked -> auto-complete (approved by the ticker); any open -> reopen. */
+  async function syncTaskFromItems(req: Req, taskId: string) {
+    const { rows: [c] } = await db.query(`SELECT count(*)::int n, count(*) FILTER (WHERE done)::int d FROM ${S}.task_checklist_items WHERE task_id=$1`, [taskId]);
+    if (!c.n) return;
+    if (c.d === c.n) await db.query(`UPDATE ${S}.tasks SET done=true, done_at=now(), approved_by_member_id=$2, approved_at=now(), bic_member_id=COALESCE(bic_member_id,$2), updated_at=now() WHERE id=$1 AND NOT done`, [taskId, req.member!.id]);
+    else await db.query(`UPDATE ${S}.tasks SET done=false, done_at=NULL, approved_by_member_id=NULL, approved_at=NULL, updated_at=now() WHERE id=$1 AND done`, [taskId]);
+  }
+  async function itemOf(req: Req, id: string) {
+    const { rows: [i] } = await db.query(`SELECT i.* FROM ${S}.task_checklist_items i JOIN ${S}.tasks t ON t.id=i.task_id JOIN ${S}.projects p ON p.id=t.project_id WHERE i.id=$1 AND p.team_id=$2`, [id, req.member!.teamId]);
+    if (!i) throw new HttpError(404, 'Checklist item not found');
+    return i;
+  }
+  app.post('/api/tasks/:id/items', h(async (req, res) => {
+    const b = z.object({ title: z.string().trim().min(1).max(300) }).parse(req.body);
+    const t = await taskOf(db, req, req.params.id as string);
+    const { rows: [i] } = await db.query(`INSERT INTO ${S}.task_checklist_items(task_id, title, sort_order) VALUES ($1,$2,(SELECT COALESCE(max(sort_order),0)+1 FROM ${S}.task_checklist_items WHERE task_id=$1)) RETURNING *`, [t.id, b.title]);
+    await syncTaskFromItems(req, t.id); changed(req, 'checklist', i.id); res.status(201).json({ id: i.id });
+  }));
+  app.patch('/api/items/:id', h(async (req, res) => {
+    const b = z.object({ title: z.string().trim().min(1).max(300).optional(), done: z.boolean().optional(), sortOrder: z.number().int().optional() }).parse(req.body);
+    const i = await itemOf(req, req.params.id as string);
+    if (b.title !== undefined) await db.query(`UPDATE ${S}.task_checklist_items SET title=$2 WHERE id=$1`, [i.id, b.title]);
+    if (b.sortOrder !== undefined) await db.query(`UPDATE ${S}.task_checklist_items SET sort_order=$2 WHERE id=$1`, [i.id, b.sortOrder]);
+    if (b.done !== undefined) await db.query(`UPDATE ${S}.task_checklist_items SET done=$2, done_by_member_id=CASE WHEN $2 THEN $3::uuid END, done_at=CASE WHEN $2 THEN now() END WHERE id=$1`, [i.id, b.done, req.member!.id]);
+    await syncTaskFromItems(req, i.task_id); changed(req, 'checklist', i.id); res.json({ ok: true });
+  }));
+  app.delete('/api/items/:id', h(async (req, res) => {
+    const i = await itemOf(req, req.params.id as string);
+    await db.query(`DELETE FROM ${S}.task_checklist_items WHERE id=$1`, [i.id]);
+    await syncTaskFromItems(req, i.task_id); changed(req, 'checklist', i.id); res.json({ ok: true });
   }));
   app.delete('/api/tasks/:id', h(async (req, res) => {
     const t = await taskOf(db, req, req.params.id as string);
@@ -766,6 +802,7 @@ export function createServer(opts: AppOptions) {
 
   /** Per-task "Has reimbursement": PUT upserts the task's reimbursement entry, DELETE turns it off. */
   app.put('/api/tasks/:id/reimbursement', h(async (req, res) => {
+    { const t0 = await taskOf(db, req, req.params.id as string); if (!t0.has_expense) admin(req); }
     const b = z.object({ item: z.string().trim().min(1).max(200), category: z.enum(REIMB_CATEGORIES as [string, ...string[]]).default('Other'), amount, currency: currency.optional() }).parse(req.body);
     const t = await taskOf(db, req, req.params.id as string);
     const cur = b.currency ?? req.member!.currency ?? await teamCurrency(db, req);
@@ -780,6 +817,7 @@ export function createServer(opts: AppOptions) {
     res.json(mapReimbursement(rows[0]));
   }));
   app.delete('/api/tasks/:id/reimbursement', h(async (req, res) => {
+    admin(req);
     const t = await taskOf(db, req, req.params.id as string);
     await db.query(`UPDATE ${S}.tasks SET has_expense=false, expense_amount=NULL, updated_at=now() WHERE id=$1`, [t.id]);
     await db.query(`DELETE FROM ${S}.reimbursements WHERE task_id=$1 AND status <> 'paid'`, [t.id]);

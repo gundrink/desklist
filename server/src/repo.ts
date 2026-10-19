@@ -126,11 +126,13 @@ export async function snapshot(q: Queryable, me: Member, prices: PriceTable = { 
     listReimbursements(q, me.teamId),
     listTemplates(q, me),
   ]);
-  const [taskFields, taskFiles] = await Promise.all([listTaskFields(q, me.teamId), listTaskFiles(q, me.teamId)]);
+  const [taskFields, taskFiles, items] = await Promise.all([listTaskFields(q, me.teamId), listTaskFiles(q, me.teamId),
+    q.query(`SELECT i.* FROM ${S}.task_checklist_items i JOIN ${S}.tasks t ON t.id=i.task_id JOIN ${S}.projects p ON p.id=t.project_id WHERE p.team_id=$1 ORDER BY i.sort_order, i.created_at`, [me.teamId])]);
+  const checklistItems = items.rows.map((r: any) => ({ id: r.id, taskId: r.task_id, title: r.title, done: r.done, doneByMemberId: r.done_by_member_id, doneAt: r.done_at ? new Date(r.done_at).toISOString() : null, sortOrder: r.sort_order }));
   return {
     team: mapTeam(team.rows[0]), me, members: members.rows.map(mapMember), fields, projects,
     tasks: tasks.rows.map(mapTask), serverTime: new Date().toISOString(),
-    reimbursements, templates, currency: team.rows[0].currency ?? 'SOL', prices, taskFields, taskFiles,
+    reimbursements, templates, currency: team.rows[0].currency ?? 'SOL', prices, taskFields, taskFiles, checklistItems,
   };
 }
 

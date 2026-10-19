@@ -1,3 +1,4 @@
+import { Progress, progressOf, blockedByItems } from '../components/Checklist';
 import { TaskEditPanel } from '../components/TaskEdit';
 import { Select } from '../components/Select';
 import { ProjectDescription } from '../components/Description';
@@ -8,6 +9,7 @@ import '../styles/v6.css';
 import '../styles/v61.css';
 import '../styles/v62.css';
 import '../styles/v66.css';
+import '../styles/v68.css';
 import { ProjTabs, RailItem, useProjectTabs } from '../components/ProjectList';
 import { TaskPanel, fieldsOf } from '../components/TaskPanel';
 import { Collapse } from '../components/Motion';
@@ -142,7 +144,8 @@ function WTask({ s, t, panel, setPanel }: { s: Snapshot; t: Task; panel: 'detail
   const cb = checkedBy(s, t.approvedByMemberId, t.approvedAt);
   const r = s.reimbursements.find((x) => x.taskId === t.id);
   const nf = fieldsOf(s, t.id).length;
-  const tick = () => { void actions.toggleTask(t); setPanel(t.done ? null : 'ticked'); };
+  const pr = progressOf(s, t.id);
+  const tick = () => { if (blockedByItems(s, t)) { setPanel('detail'); return; } void actions.toggleTask(t); setPanel(t.done ? null : 'ticked'); };
   const [editing, setEditing] = useState(false);
   return (<>
     <div className={`wt ${t.done ? 'done' : ''} ${panel ? 'open' : ''}`} data-task={t.title} onClick={() => setPanel(panel ? null : 'detail')}
@@ -150,6 +153,7 @@ function WTask({ s, t, panel, setPanel }: { s: Snapshot; t: Task; panel: 'detail
       <CheckBox theme="dark" done={t.done} label={t.title} onClick={tick} />
       <span className="t">{t.title}</span>
       {platformOf(s, t) && <span className="platpill">{platformOf(s, t)}</span>}
+      <Progress d={pr.d} n={pr.n} />
       {t.hasExpense && r && <span className="wtag">{formatAmount(r.amount, r.currency)}{usdOf(s, r.amount, r.currency) ? ` ≈ ${usdOf(s, r.amount, r.currency)}` : ''}</span>}
       {nf > 0 && !t.done && <span className="wn" title={`${nf} fields`}>▤</span>}
       {!t.done && t.notes && <span className="wn"><Note /></span>}

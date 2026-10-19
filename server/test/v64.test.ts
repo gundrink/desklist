@@ -133,4 +133,32 @@ describe('accounts', () => {
     expect((await db.query(`SELECT count(*)::int n FROM desklist.task_fields WHERE task_id=$1`, [t.id])).rows[0].n).toBe(rows.length);
     expect((await api('POST', `/api/tasks/${t.id}/fields`, { label: 'Member field', type: 'text', section: 'fields' }, mt)).status).toBe(403);
   });
+  it('0.6.8: checklist items drive task status; reimbursement only where configured', async () => {
+    const at = (await api('POST', '/api/accounts/login', { username: u('boss'), password: 'admin-pass-1' })).body.token;
+    const mt = (await api('POST', '/api/accounts/login', { username: u('newmem'), password: 'newmem-pass-1' })).body.token;
+    const pid = (await api('POST', '/api/projects', { name: `Items ${run}` }, at)).body.id;
+    const t = (await api('POST', `/api/projects/${pid}/tasks`, { title: 'Plain task' }, at)).body;
+    const ids: string[] = [];
+    for (const x of ['one', 'two', 'three']) { const r = await api('POST', `/api/tasks/${t.id}/items`, { title: x }, mt); expect(r.status).toBe(201); ids.push(r.body.id); }
+    const task = async () => (await db.query(`SELECT * FROM desklist.tasks WHERE id=$1`, [t.id])).rows[0];
+    await api('PATCH', `/api/tasks/${t.id}`, { done: true }, mt); expect((await task()).done).toBe(false); // can't tick with open items
+    await api('PATCH', `/api/items/${ids[0]}`, { done: true }, mt); await api('PATCH', `/api/items/${ids[1]}`, { done: true }, mt);
+    expect((await task()).done).toBe(false);
+    await api('PATCH', `/api/items/${ids[2]}`, { done: true }, mt);
+    const d = await task(); expect(d.done).toBe(true); expect(d.approved_by_member_id).toBe(memberId);
+    await api('PATCH', `/api/items/${ids[1]}`, { done: false }, mt); expect((await task()).done).toBe(false);
+    await api('PATCH', `/api/items/${ids[1]}`, { title: 'two renamed', sortOrder: 9 }, mt);
+    expect((await api('DELETE', `/api/items/${ids[1]}`, undefined, mt)).status).toBe(200); expect((await task()).done).toBe(true);
+    const snap = (await api('GET', '/api/snapshot', undefined, mt)).body;
+    expect(snap.checklistItems.filter((i: any) => i.taskId === t.id).map((i: any) => i.title)).toEqual(['one', 'three']);
+    // reimbursement: plain task has none; members can't turn it on; admin can
+    expect((await task()).has_expense).toBe(false);
+    expect((await api('PATCH', `/api/tasks/${t.id}`, { hasExpense: true }, mt)).status).toBe(403);
+    expect((await api('PUT', `/api/tasks/${t.id}/reimbursement`, { item: 'x', category: 'Other', amount: 1, currency: 'SOL' }, mt)).status).toBe(403);
+    expect((await api('PATCH', `/api/tasks/${t.id}`, { hasExpense: true }, at)).body.hasExpense).toBe(true);
+    expect((await api('PUT', `/api/tasks/${t.id}/reimbursement`, { item: 'x', category: 'Other', amount: 1, currency: 'SOL' }, mt)).status).toBe(200);
+    // a setup with a reimbursement field turns it on
+    const t2 = (await api('POST', `/api/projects/${pid}/tasks`, { title: 'beli domain' }, at)).body;
+    expect((await db.query(`SELECT has_expense FROM desklist.tasks WHERE id=$1`, [t2.id])).rows[0].has_expense).toBe(true);
+  });
 });

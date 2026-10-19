@@ -3,7 +3,7 @@ import { initialsOf, shortDate, shortName, statusOf, statusStyle, member } from 
 import { Check } from './Icons';
 
 const AV: Record<string, string> = {
-  AD: 'linear-gradient(135deg,#6366f1,#8b5cf6)', BS: 'linear-gradient(135deg,#f59e0b,#f97316)',
+  AD: 'linear-gradient(135deg,#e1d5c0,#ccbca3)', BS: 'linear-gradient(135deg,#f59e0b,#f97316)',
   CK: 'linear-gradient(135deg,#ec4899,#f43f5e)', RH: 'linear-gradient(135deg,#14b8a6,#0ea5e9)',
 };
 const PALETTE = ['linear-gradient(135deg,#14b8a6,#0ea5e9)', 'linear-gradient(135deg,#22c55e,#16a34a)', 'linear-gradient(135deg,#0ea5e9,#6366f1)',

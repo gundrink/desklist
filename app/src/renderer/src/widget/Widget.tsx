@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import '../styles/widget.css';
+import '../styles/v5.css';
+import { formatAmount, formatUsd, convert } from '@desklist/shared';
+import { CurrencySelect, defaultCurrency, usdOf } from '../components/Money';
 import type { Snapshot, Task } from '@desklist/shared';
 import { useAppState, actions } from '../lib/store';
 import { ago, domainOf, picOf, shortDate, statusOf, statusStyle, tasksOf } from '../lib/model';
@@ -87,6 +90,12 @@ function Detail({ s, pId, menuOpen, setMenu, notesMenu, setNotesMenu, setSheet, 
         </div>
       </div>
       <div className="meta">{pic && <span className="ell">PIC: <b>{pic}</b></span>}{pic && domain && <span className="sep" />}{domain && <span className="ell">{domain}</span>}</div>
+      {p.hasExpenses && (() => {
+        const rs = s.reimbursements.filter((r) => r.projectId === p.id); const pend = rs.filter((r) => !r.reimbursed);
+        const cur = defaultCurrency(s); const sum = pend.reduce((a, r) => a + (convert(r.amount, r.currency, cur, s.prices) ?? 0), 0);
+        const u = usdOf(s, sum, cur);
+        return <div className="wreimb"><span className="rbadge">▤ Reimburse · <b>{formatAmount(sum, cur)}</b>{u && <em> ≈ {u}</em>}<span className="pend">{pend.length ? 'pending' : 'clear'}</span></span></div>;
+      })()}
       <div className="prog"><div className="lbl"><span><b>{done.length} of {all.length}</b> done</span><span>{pct}%</span></div><div className="bar"><i style={{ width: `${pct}%` }} /></div></div>
       <div className="wtool">
         <span className="sect">Pending · {open.length}</span>
@@ -98,10 +107,18 @@ function Detail({ s, pId, menuOpen, setMenu, notesMenu, setNotesMenu, setSheet, 
       <div className="wl scroll">
         {open.map((t) => <WTask key={t.id} s={s} t={t} />)}
         {open.length === 0 && <div className="w-hint">Nothing pending 🎉</div>}
+        {p.hasExpenses && s.reimbursements.some((r) => r.projectId === p.id) && <>
+          <div className="divider">Reimbursement · {s.reimbursements.filter((r) => r.projectId === p.id).length} items</div>
+          {s.reimbursements.filter((r) => r.projectId === p.id).map((r) => (
+            <div className="wr" key={r.id} data-reimb={r.item}><span className={`rd ${r.status}`} /><span className="t">{r.item}</span>
+              <span className="wamt"><b>{formatAmount(r.amount, r.currency)}</b>{usdOf(s, r.amount, r.currency) && <em> ≈ {usdOf(s, r.amount, r.currency)}</em>}</span>
+              <span className={`wst ${r.status}`}>{r.status === 'paid' ? 'Paid' : r.status === 'approved' ? 'Approved' : 'Pending'}</span></div>))}
+        </>}
         {done.length > 0 && <div className="divider">Done · {done.length}</div>}
         {done.slice().reverse().map((t) => <WTask key={t.id} s={s} t={t} />)}
       </div>
       <WAdd projectId={p.id} />
+      {p.hasExpenses && <WQuickReimb s={s} projectId={p.id} />}
     </>
   );
 }
@@ -113,6 +130,7 @@ function WTask({ s, t }: { s: Snapshot; t: Task }) {
       title={t.done ? `Checked by ${cb.text}${t.notes ? '\n' + t.notes : ''}` : `Click to check · auto-approved by you${t.notes ? '\n' + t.notes : ''}`}>
       <CheckBox theme="dark" done={t.done} label={t.title} onClick={() => actions.toggleTask(t)} />
       <span className="t">{t.title}</span>
+      {t.hasExpense && t.expenseAmount != null && <span className="wtag">{formatAmount(t.expenseAmount, t.expenseCurrency ?? s.currency)}{usdOf(s, t.expenseAmount, t.expenseCurrency ?? s.currency) ? ` ≈ ${usdOf(s, t.expenseAmount, t.expenseCurrency ?? s.currency)}` : ''}</span>}
       {!t.done && t.notes && <span className="wn"><Note /></span>}
       {!t.done && t.dueDate && <span className="wd">{shortDate(t.dueDate)}</span>}
       {t.done && cb.m && <Avatar initials={cb.m.initials} size="sm" title={`Checked by ${cb.text}`} />}
@@ -135,6 +153,31 @@ function WAdd({ projectId }: { projectId: string }) {
     </form>
   );
 }
+
+/** Quick add reimbursement straight from the widget: item + nominal (default currency per admin). */
+function WQuickReimb({ s, projectId }: { s: Snapshot; projectId: string }) {
+  const [item, setItem] = useState(''); const [amt, setAmt] = useState(''); const [cur, setCur] = useState(defaultCurrency(s)); const [err, setErr] = useState('');
+  const n = Number(amt.replace(',', '.'));
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); if (!item.trim() || !amt || !(n >= 0)) return;
+    try { await actions.request('POST', `/api/projects/${projectId}/reimbursements`, { item, amount: n, currency: cur, category: 'Other' }); setItem(''); setAmt(''); setErr(''); }
+    catch (x) { setErr((x as Error).message); }
+  };
+  const u = n > 0 ? usdOf(s, n, cur) : null;
+  return (
+    <form className="wqr nodrag" onSubmit={submit}>
+      <div className="wqh">Quick add reimbursement</div>
+      <div className="wqrow">
+        <input value={item} onChange={(e) => setItem(e.target.value)} placeholder="Item" aria-label="Reimbursement item" />
+        <CurrencySelect value={cur} onChange={setCur} theme="dark" compact />
+        <input className="wqa" inputMode="decimal" value={amt} onChange={(e) => setAmt(e.target.value)} placeholder="0.00" aria-label="Reimbursement nominal" />
+        <button className="wbtn" disabled={!item.trim() || !amt}>Add</button>
+      </div>
+      <div className="wqf"><span>{err || `Nominal in ${cur} · default currency (per admin)`}</span><span>{u ? `≈ ${u}` : ''}</span></div>
+    </form>
+  );
+}
+void formatUsd;
 
 function WidgetMenu({ s, projectId, locked, launch, onClose }: { s: Snapshot; projectId: string; locked: boolean; launch: boolean; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);

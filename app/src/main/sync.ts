@@ -27,6 +27,7 @@ export function applyOp(s: Snapshot, op: Op, me: Member | null, at: string): Sna
       const max = Math.max(0, ...tasks.filter((t) => t.projectId === op.projectId).map((t) => t.sortOrder));
       tasks.push({ id: op.id, projectId: op.projectId, title: op.title, done: false, doneAt: null, dueDate: op.dueDate ?? null,
         bicMemberId: null, createdByMemberId: me?.id ?? null, approvedByMemberId: null, approvedAt: null, notes: op.notes ?? '',
+        hasExpense: !!op.hasExpense, expenseAmount: op.expenseAmount ?? null, expenseCurrency: op.hasExpense ? op.expenseCurrency ?? s.currency ?? 'SOL' : null,
         sortOrder: max + 1, createdAt: at, updatedAt: at });
       break;
     }
@@ -43,6 +44,8 @@ export function applyOp(s: Snapshot, op: Op, me: Member | null, at: string): Sna
       const p = { ...projects[i] };
       if (op.patch.name) p.name = op.patch.name;
       if (op.patch.notes != null) { p.notes = op.patch.notes; p.notesUpdatedAt = at; }
+      if (op.patch.hasExpenses != null) p.hasExpenses = op.patch.hasExpenses;
+      if (op.patch.reimburseNote != null) p.reimburseNote = op.patch.reimburseNote;
       if (op.patch.values) {
         p.values = { ...p.values }; p.secretSet = { ...p.secretSet };
         for (const [fid, v] of Object.entries(op.patch.values)) {
@@ -82,7 +85,7 @@ export function applyOp(s: Snapshot, op: Op, me: Member | null, at: string): Sna
 function toRequest(q: QueuedOp): { method: string; path: string; body?: unknown } {
   const { op, at } = q;
   switch (op.kind) {
-    case 'task.create': return { method: 'POST', path: `/api/projects/${op.projectId}/tasks`, body: { id: op.id, title: op.title, dueDate: op.dueDate ?? null, notes: op.notes ?? '', updatedAt: at } };
+    case 'task.create': return { method: 'POST', path: `/api/projects/${op.projectId}/tasks`, body: { id: op.id, title: op.title, dueDate: op.dueDate ?? null, notes: op.notes ?? '', hasExpense: op.hasExpense, expenseAmount: op.expenseAmount, expenseCurrency: op.expenseCurrency ?? undefined, updatedAt: at } };
     case 'task.update': return { method: 'PATCH', path: `/api/tasks/${op.id}`, body: { ...op.patch, updatedAt: at } };
     case 'task.delete': return { method: 'DELETE', path: `/api/tasks/${op.id}` };
     case 'project.update': return { method: 'PATCH', path: `/api/projects/${op.id}`, body: { ...op.patch, updatedAt: at } };
@@ -145,6 +148,14 @@ export class SyncEngine extends EventEmitter {
     if (r.status === 401 && token && path !== '/api/auth/signin') { this.signOutLocal('Session expired — please sign in again'); }
     if (!r.ok) throw new ApiError(r.status, json.error ?? `HTTP ${r.status}`);
     return json as T;
+  }
+
+  /** GET a non-JSON resource (CSV export). */
+  async text(path: string): Promise<string> {
+    const r = await fetch(this.serverUrl + path, { headers: this.token ? { authorization: `Bearer ${this.token}` } : {}, signal: AbortSignal.timeout(20_000) });
+    const body = await r.text();
+    if (!r.ok) { let m = `HTTP ${r.status}`; try { m = JSON.parse(body).error ?? m; } catch { /* */ } throw new ApiError(r.status, m); }
+    return body;
   }
 
   async signIn(code: string, serverUrl?: string) {

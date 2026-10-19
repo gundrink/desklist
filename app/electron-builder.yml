@@ -43,6 +43,6 @@ nsis:
   allowToChangeInstallationDirectory: true
 publish:
   provider: github
-  owner: YOUR_GITHUB_OWNER           # PLACEHOLDER — GitHub user/org that hosts releases
-  repo: YOUR_GITHUB_REPO             # PLACEHOLDER — repository name
+  owner: ponkssol
+  repo: desklist                     # private repo: auto-update needs a token (GH_TOKEN) or public releases
   releaseType: release

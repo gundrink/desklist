@@ -2,6 +2,8 @@ import type { Project, Snapshot } from '@desklist/shared';
 import { picOf, statusOf, statusStyle, tasksOf } from '../lib/model';
 import { actions } from '../lib/store';
 import { StatusPill, CheckBox } from './Common';
+import { Toggle } from './Money';
+import { formatAmount, convert } from '@desklist/shared';
 
 /** Mini version of the glass widget — used in the Manage project list AND the widget's "All projects" view. */
 export function ProjectGlassCard({ s, p, selected, expanded, onSelect, onMenu }: {
@@ -27,6 +29,15 @@ export function ProjectGlassCard({ s, p, selected, expanded, onSelect, onMenu }:
         <StatusPill status={status} theme="dark" />
         {pic && <><span className="gsep" /><span className="ell">PIC: <b>{pic}</b></span></>}
       </div>
+      {(() => {
+        const pend = s.reimbursements.filter((r) => r.projectId === p.id && !r.reimbursed);
+        const sum = pend.reduce((a, r) => a + (convert(r.amount, r.currency, s.currency, s.prices) ?? 0), 0);
+        return (
+          <div className="g4" onClick={(e) => e.stopPropagation()}>
+            <Toggle theme="dark" on={p.hasExpenses} onChange={(v) => actions.updateProject(p.id, { hasExpenses: v })}
+              label={p.hasExpenses ? `Ada pengeluaran${pend.length ? ` · ${formatAmount(sum, s.currency)} pending` : ''}` : 'Tanpa pengeluaran'} />
+          </div>);
+      })()}
       {expanded && open.length > 0 && (
         <>
           <div className="gsec">Open · {open.length}</div>

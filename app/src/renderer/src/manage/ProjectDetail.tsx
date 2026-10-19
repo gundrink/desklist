@@ -12,6 +12,7 @@ import { Amount, Toggle, defaultCurrency, rateNote } from '../components/Money';
 import { TaskPanel, fieldsOf, reimbOfTask } from '../components/TaskPanel';
 import { ReimbursementTab, pendingLabel } from './Reimbursement';
 import { TaskDetailsTab } from './TaskDetails';
+import { ModeToggle, ProjectView, platformOf } from '../components/ViewMode';
 
 export function ProjectDetail({ s, projectId, tab, setTab, onDeleted }: {
   s: Snapshot; projectId: string; tab: ProjectTab; setTab: (t: ProjectTab) => void; onDeleted: () => void;
@@ -24,6 +25,7 @@ export function ProjectDetail({ s, projectId, tab, setTab, onDeleted }: {
   const [hideDone, setHideDone] = useState(true);
   const [panel, setPanel] = useState<{ id: string; mode: 'detail' | 'ticked' } | null>(null);
   const pend = pendingLabel(s, p.id).count;
+  const [mode, setMode] = useState<'edit' | 'view'>('edit');
   const exp = p.hasExpenses || all.some((t) => t.hasExpense);
   const row = (t: Task) => <Row key={t.id} s={s} t={t} exp={exp} panel={panel?.id === t.id ? panel.mode : null}
     setPanel={(m) => setPanel(m ? { id: t.id, mode: m } : null)} />;
@@ -44,11 +46,12 @@ export function ProjectDetail({ s, projectId, tab, setTab, onDeleted }: {
             {pend > 0 && <span className="pendpill">{pend} pending</span>}</button>
           <button className={`st ${tab === 'taskdetails' ? 'on' : ''}`} onClick={() => setTab('taskdetails')}>Task details <span className="cntpill">{done.length}</span></button>
           <span className="ml" />
+          <ModeToggle mode={mode} setMode={setMode} />
           <span className="exptgl"><Toggle on={p.hasExpenses} onChange={(v) => actions.updateProject(p.id, { hasExpenses: v })} label="Has expenses" /></span>
         </div>
       </div>
       <div className="rbody scroll">
-        {tab === 'checklist' ? (
+        {mode === 'view' ? <ProjectView s={s} projectId={p.id} /> : tab === 'checklist' ? (
           <>
             <div className="colh"><span className="c1">Task</span><span className="cdue">Due</span><span className="who">Checked by</span>
               <span className="ncwrap">
@@ -86,7 +89,7 @@ function Row({ s, t, exp, panel, setPanel }: { s: Snapshot; t: Task; exp?: boole
       <div className={`tr ${t.done ? 'done' : ''} ${editNote ? 'editing' : ''} ${panel ? 'open' : ''}`} data-task={t.title}>
         <CheckBox theme="light" done={t.done} label={t.title} onClick={tick} />
         <button className="tt expbtn" title="Click to expand" onClick={() => setPanel(panel ? null : 'detail')}>
-          <span className="chev">{panel ? '▾' : '▸'}</span>{t.title}{nf > 0 && <em className="nf">{nf} field{nf > 1 ? 's' : ''}</em>}</button>
+          <span className="chev">{panel ? '▾' : '▸'}</span>{t.title}{platformOf(s, t) && <span className="platpill">{platformOf(s, t)}</span>}{nf > 0 && <em className="nf">{nf} field{nf > 1 ? 's' : ''}</em>}</button>
         <span className="cdue">{t.done ? <span className="when">{shortDate(t.dueDate ?? t.doneAt)}</span>
           : t.dueDate ? <span className={`due ${dueSoon(t.dueDate) ? 'soon' : ''}`}>{dueSoon(t.dueDate) ? <b className="bang">!</b> : <Calendar />}Due {shortDate(t.dueDate)}</span> : <span className="none">—</span>}</span>
         <span className="who">{t.done && cb.m ? <><Avatar initials={cb.m.initials} size="sm" /><span className="cbt" title={`Checked by ${cb.m.name}`}>{cb.text}</span></>

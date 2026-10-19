@@ -15,6 +15,7 @@ import { TemplatePicker } from './TemplatePicker';
 import { Reports } from './Reports';
 import '../styles/v5.css';
 import '../styles/v6.css';
+import '../styles/v61.css';
 import { ProjTabs, useProjectTabs } from '../components/ProjectList';
 
 export function Manage() {

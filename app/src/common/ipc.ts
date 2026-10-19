@@ -3,7 +3,7 @@ import type { CustomColumnType, Snapshot } from '@desklist/shared';
 
 /** Mutations that are applied optimistically, queued in the offline outbox and replayed on reconnect. */
 export type Op =
-  | { kind: 'task.create'; projectId: string; id: string; title: string; dueDate?: string | null; notes?: string; hasExpense?: boolean; expenseAmount?: number | null; expenseCurrency?: string | null }
+  | { kind: 'task.create'; projectId: string; id: string; title: string; dueDate?: string | null; notes?: string; hasExpense?: boolean; expenseAmount?: number | null; expenseCurrency?: string | null; taskType?: 'standard' | 'social'; platform?: string }
   | { kind: 'task.update'; id: string; patch: { title?: string; done?: boolean; doneNote?: string; dueDate?: string | null; notes?: string; bicMemberId?: string | null; hasExpense?: boolean; expenseAmount?: number | null; expenseCurrency?: string | null } }
   | { kind: 'task.delete'; id: string }
   | { kind: 'project.update'; id: string; patch: { name?: string; notes?: string; values?: Record<string, string | null>; hasExpenses?: boolean; reimburseNote?: string } }
@@ -50,4 +50,5 @@ export interface DesklistBridge {
   exportCsv(query: string): Promise<string | null>;
   uploadFile(taskId: string, name: string, mime: string, data: Uint8Array, fieldId?: string | null): Promise<unknown>;
   openFile(id: string, name: string): Promise<string>;
+  copyText(text: string): Promise<void>;
 }

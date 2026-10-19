@@ -2,8 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import '../styles/widget.css';
 import '../styles/v5.css';
 import '../styles/v6.css';
+import '../styles/v61.css';
 import { ProjTabs, RailItem, useProjectTabs } from '../components/ProjectList';
 import { TaskPanel, fieldsOf } from '../components/TaskPanel';
+import { ModeToggle, ProjectView, platformOf } from '../components/ViewMode';
+import { SOCIAL_PLATFORMS } from '@desklist/shared';
 import { formatAmount, formatUsd, convert } from '@desklist/shared';
 import { CurrencySelect, defaultCurrency, usdOf } from '../components/Money';
 import type { Snapshot, Task } from '@desklist/shared';
@@ -82,11 +85,13 @@ function Detail({ s, pId, menuOpen, setMenu, notesMenu, setNotesMenu, setSheet, 
   const pic = picOf(s, p); const domain = domainOf(s, p);
   const status = statusOf(s, p);
   const [panel, setPanel] = useState<{ id: string; mode: 'detail' | 'ticked' } | null>(null);
+  const [mode, setMode] = useState<'edit' | 'view'>('edit');
   return (
     <>
       <div className="w-top drag">
         <div className="switch" title={p.name}><span className="dotp" style={{ background: statusStyle(status).color }} /><span className="ell">{p.name}</span></div>
         <StatusPill status={status} theme="dark" />
+        <span className="nodrag"><ModeToggle mode={mode} setMode={setMode} compact /></span>
         <div className="menu-anchor nodrag">
           <button className={`menu ${menuOpen ? 'on' : ''}`} onClick={() => setMenu(!menuOpen)} title="Menu" aria-label="Widget menu">⋯</button>
           {menuOpen && <WidgetMenu s={s} projectId={p.id} locked={locked} launch={launch} onClose={() => setMenu(false)} />}
@@ -107,7 +112,7 @@ function Detail({ s, pId, menuOpen, setMenu, notesMenu, setNotesMenu, setSheet, 
           {notesMenu && <NotesMenu theme="dark" onPick={setSheet} onClose={() => setNotesMenu(false)} />}
         </span>
       </div>
-      <div className="wl scroll">
+      {mode === 'view' ? <div className="wl scroll nodrag"><ProjectView s={s} projectId={p.id} compact /></div> : <div className="wl scroll">
         {open.map((t) => <WTask key={t.id} s={s} t={t} panel={panel?.id === t.id ? panel.mode : null} setPanel={(m) => setPanel(m ? { id: t.id, mode: m } : null)} />)}
         {open.length === 0 && <div className="w-hint">Nothing pending</div>}
         {p.hasExpenses && s.reimbursements.some((r) => r.projectId === p.id) && <>
@@ -119,7 +124,7 @@ function Detail({ s, pId, menuOpen, setMenu, notesMenu, setNotesMenu, setSheet, 
         </>}
         {done.length > 0 && <div className="divider">Done · {done.length}</div>}
         {done.slice().reverse().map((t) => <WTask key={t.id} s={s} t={t} panel={panel?.id === t.id ? panel.mode : null} setPanel={(m) => setPanel(m ? { id: t.id, mode: m } : null)} />)}
-      </div>
+      </div>}
       <WAdd projectId={p.id} />
     </>
   );
@@ -135,6 +140,7 @@ function WTask({ s, t, panel, setPanel }: { s: Snapshot; t: Task; panel: 'detail
       title={t.done ? `Checked by ${cb.text}${t.notes ? '\n' + t.notes : ''}` : `Click to expand · tick to approve${t.notes ? '\n' + t.notes : ''}`}>
       <CheckBox theme="dark" done={t.done} label={t.title} onClick={tick} />
       <span className="t">{t.title}</span>
+      {platformOf(s, t) && <span className="platpill">{platformOf(s, t)}</span>}
       {t.hasExpense && r && <span className="wtag">{formatAmount(r.amount, r.currency)}{usdOf(s, r.amount, r.currency) ? ` ≈ ${usdOf(s, r.amount, r.currency)}` : ''}</span>}
       {nf > 0 && !t.done && <span className="wn" title={`${nf} fields`}>▤</span>}
       {!t.done && t.notes && <span className="wn"><Note /></span>}
@@ -147,14 +153,18 @@ function WTask({ s, t, panel, setPanel }: { s: Snapshot; t: Task; panel: 'detail
 
 function WAdd({ projectId }: { projectId: string }) {
   const [title, setTitle] = useState(''); const [due, setDue] = useState('');
+  const [type, setType] = useState<'standard' | 'social'>('standard'); const [plat, setPlat] = useState('Instagram');
   const submit = (e: React.FormEvent) => {
     e.preventDefault(); if (!title.trim()) return;
-    void actions.addTask(projectId, title, due || null); setTitle(''); setDue('');
+    void actions.addTask(projectId, title, due || null, undefined, type, type === 'social' ? plat : undefined); setTitle(''); setDue('');
   };
   return (
     <form className={`wadd nodrag ${title ? 'active' : ''}`} onSubmit={submit}>
       <span className="plus">+</span>
       <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Add a task…" aria-label="New task title" />
+      <select className="wtype" value={type} onChange={(e) => setType(e.target.value as never)} aria-label="Task type" title="Task type">
+        <option value="standard">Standard</option><option value="social">Social account</option></select>
+      {type === 'social' && <select className="wtype" value={plat} onChange={(e) => setPlat(e.target.value)} aria-label="Platform">{SOCIAL_PLATFORMS.map((x) => <option key={x}>{x}</option>)}</select>}
       <label className="wcal" title="Due date (optional)"><Calendar size={12} w={2} /><input type="date" value={due} onChange={(e) => setDue(e.target.value)} aria-label="Due date" /></label>
       <button className="wbtn" disabled={!title.trim()}>Add</button>
     </form>

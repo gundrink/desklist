@@ -33,8 +33,8 @@ export const actions = {
 
   /** Ticking a task auto-approves it: the server records the signed-in member as checker/approver. */
   toggleTask: (t: Task) => m({ kind: 'task.update', id: t.id, patch: { done: !t.done } }),
-  addTask: (projectId: string, title: string, dueDate?: string | null, notes?: string) =>
-    m({ kind: 'task.create', projectId, id: uuid(), title: title.trim(), dueDate: dueDate || null, notes }),
+  addTask: (projectId: string, title: string, dueDate?: string | null, notes?: string, taskType: 'standard' | 'social' = 'standard', platform?: string) =>
+    m({ kind: 'task.create', projectId, id: uuid(), title: title.trim(), dueDate: dueDate || null, notes, taskType, platform }),
   updateTask: (id: string, patch: Extract<Op, { kind: 'task.update' }>['patch']) => m({ kind: 'task.update', id, patch }),
   deleteTask: (id: string) => m({ kind: 'task.delete', id }),
   updateProject: (id: string, patch: Extract<Op, { kind: 'project.update' }>['patch']) => m({ kind: 'project.update', id, patch }),

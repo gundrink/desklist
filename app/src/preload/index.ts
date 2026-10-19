@@ -25,6 +25,7 @@ const api: DesklistBridge = {
   exportCsv: (q) => call('exportCsv', q),
   uploadFile: (t, n, m, d, f) => call('uploadFile', t, n, m, d, f),
   openFile: (id, n) => call('openFile', id, n),
+  copyText: (t) => call('copyText', t),
 };
 contextBridge.exposeInMainWorld('desklist', api);
 

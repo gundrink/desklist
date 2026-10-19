@@ -26,7 +26,7 @@ export function applyOp(s: Snapshot, op: Op, me: Member | null, at: string): Sna
       if (tasks.some((t) => t.id === op.id)) break;
       const max = Math.max(0, ...tasks.filter((t) => t.projectId === op.projectId).map((t) => t.sortOrder));
       tasks.push({ id: op.id, projectId: op.projectId, title: op.title, done: false, doneAt: null, dueDate: op.dueDate ?? null,
-        bicMemberId: null, createdByMemberId: me?.id ?? null, approvedByMemberId: null, approvedAt: null, notes: op.notes ?? '', doneNote: '',
+        bicMemberId: null, createdByMemberId: me?.id ?? null, approvedByMemberId: null, approvedAt: null, notes: op.notes ?? '', doneNote: '', taskType: op.taskType ?? 'standard',
         hasExpense: !!op.hasExpense, expenseAmount: op.expenseAmount ?? null, expenseCurrency: op.hasExpense ? op.expenseCurrency ?? s.currency ?? 'SOL' : null,
         sortOrder: max + 1, createdAt: at, updatedAt: at });
       break;
@@ -85,7 +85,7 @@ export function applyOp(s: Snapshot, op: Op, me: Member | null, at: string): Sna
 function toRequest(q: QueuedOp): { method: string; path: string; body?: unknown } {
   const { op, at } = q;
   switch (op.kind) {
-    case 'task.create': return { method: 'POST', path: `/api/projects/${op.projectId}/tasks`, body: { id: op.id, title: op.title, dueDate: op.dueDate ?? null, notes: op.notes ?? '', hasExpense: op.hasExpense, expenseAmount: op.expenseAmount, expenseCurrency: op.expenseCurrency ?? undefined, updatedAt: at } };
+    case 'task.create': return { method: 'POST', path: `/api/projects/${op.projectId}/tasks`, body: { id: op.id, title: op.title, dueDate: op.dueDate ?? null, notes: op.notes ?? '', hasExpense: op.hasExpense, expenseAmount: op.expenseAmount, expenseCurrency: op.expenseCurrency ?? undefined, taskType: op.taskType ?? 'standard', platform: op.platform, updatedAt: at } };
     case 'task.update': return { method: 'PATCH', path: `/api/tasks/${op.id}`, body: { ...op.patch, updatedAt: at } };
     case 'task.delete': return { method: 'DELETE', path: `/api/tasks/${op.id}` };
     case 'project.update': return { method: 'PATCH', path: `/api/projects/${op.id}`, body: { ...op.patch, updatedAt: at } };

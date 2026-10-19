@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron';
+import { app, clipboard, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron';
 import path from 'node:path';
 import type { ManageView, Op } from '../common/ipc';
 import { SyncEngine } from './sync';
@@ -171,6 +171,7 @@ function registerIpc() {
   handle('uploadFile', async (taskId: string, name: string, mime: string, data: Uint8Array, fieldId?: string | null) => {
     await sync.drain(); const r = await sync.upload(taskId, name, mime, data, fieldId); void sync.refresh(); return r;
   });
+  handle('copyText', (t: string) => { clipboard.writeText(String(t)); });
   handle('openFile', async (id: string, name: string) => {
     const fs = await import('node:fs'); const os = await import('node:os');
     const buf = await sync.download(`/api/files/${id}`);

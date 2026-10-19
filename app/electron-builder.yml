@@ -1,6 +1,7 @@
-# electron-builder config. Build on the target OS: `npm run dist:mac` on a Mac, `npm run dist:win` on Windows.
+# electron-builder config. `npm run dist:win` works on Windows or Linux (NSIS); `npm run dist:mac` on a Mac gives the .dmg.
 appId: app.desklist.desktop          # PLACEHOLDER: change to your reverse-DNS id
 productName: Desklist
+electronVersion: 41.7.1             # keep in sync with the electron devDependency
 directories:
   output: release
   buildResources: build
@@ -16,6 +17,12 @@ mac:
   target: [dmg, zip]                 # zip is required for electron-updater on macOS
   category: public.app-category.productivity
   icon: build/icon.png
+  extraResources:                    # koffi native module (fetched by scripts/fetch-koffi-prebuilds.mjs)
+    - from: build/koffi-prebuilds/darwin_arm64
+      to: koffi/darwin_arm64
+    - from: build/koffi-prebuilds/darwin_x64
+      to: koffi/darwin_x64
+  identity: null                     # unsigned; remove once a Developer ID cert is configured
   extendInfo:
     LSUIElement: true                # no Dock icon (menu-bar/tray app)
   # Signing/notarization needs an Apple Developer account:
@@ -23,8 +30,13 @@ mac:
   hardenedRuntime: true
   notarize: false                    # set true once Apple credentials are configured
 win:
-  target: [nsis]
+  target:
+    - target: nsis
+      arch: [x64]
   icon: build/icon.png
+  extraResources:                    # koffi native module for the desktop-layer attach (user32)
+    - from: build/koffi-prebuilds/win32_x64
+      to: koffi/win32_x64
 nsis:
   oneClick: false
   perMachine: false

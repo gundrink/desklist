@@ -15,7 +15,16 @@ export interface Settings {
 
 const dir = () => app.getPath('userData');
 const file = (n: string) => path.join(dir(), n);
-const DEFAULT_SERVER = process.env.DESKLIST_SERVER_URL || 'http://localhost:8787';
+/**
+ * Server URL resolution (highest wins):
+ *   1. DESKLIST_SERVER_URL env var at runtime (also overrides a saved setting)
+ *   2. serverUrl saved in settings.json (changeable on the sign-in screen)
+ *   3. packaged builds: the hosted server baked in at build time (DESKLIST_DEFAULT_SERVER_URL), dev: localhost
+ * https:// URLs automatically use wss:// for the live-sync WebSocket.
+ */
+declare const __DESKLIST_DEFAULT_SERVER__: string;
+export const HOSTED_SERVER = __DESKLIST_DEFAULT_SERVER__;
+const DEFAULT_SERVER = process.env.DESKLIST_SERVER_URL || (app.isPackaged ? HOSTED_SERVER : 'http://localhost:8787');
 
 let cached: Settings | null = null;
 export function getSettings(): Settings {

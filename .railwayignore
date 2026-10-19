@@ -1,0 +1,9 @@
+# Upload only what server/Dockerfile needs for `railway up`
+**/node_modules
+app/out
+app/release
+app/build/koffi-prebuilds
+screenshots
+*.zip
+.env
+**/.env

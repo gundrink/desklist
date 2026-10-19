@@ -10,9 +10,12 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc -p tsconfig.json",
-    "dist:mac": "electron-vite build && electron-builder --mac",
-    "dist:win": "electron-vite build && electron-builder --win",
-    "smoke": "node scripts/smoke.mjs"
+    "dist:mac": "npm run prebuilds && electron-vite build && electron-builder --mac --publish never",
+    "dist:win": "npm run prebuilds && electron-vite build && electron-builder --win --publish never",
+    "smoke": "node scripts/smoke.mjs",
+    "prebuilds": "node scripts/fetch-koffi-prebuilds.mjs",
+    "dist:mac-zip": "npm run prebuilds && electron-vite build && electron-builder --mac zip --arm64 --x64 --publish never",
+    "dist:linux": "electron-vite build && electron-builder --linux dir --publish never"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

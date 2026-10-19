@@ -65,7 +65,7 @@ export function Manage() {
           </div>
         </div>
         <div className="rp">
-          {nav.view === 'project' && selectedId && <ProjectDetail key={selectedId} s={s} projectId={selectedId} tab={nav.tab ?? 'checklist'}
+          {nav.view === 'project' && selectedId && s.projects.some((x) => x.id === selectedId) && <ProjectDetail key={selectedId} s={s} projectId={selectedId} tab={nav.tab ?? 'checklist'}
             setTab={(tab) => setNav({ view: 'project', projectId: selectedId, tab })} onDeleted={() => setNav({ view: 'project' })} />}
           {nav.view === 'project' && !selectedId && <div className="center-fill muted">Create a project to get started.</div>}
           {nav.view === 'create' && <CreateProject s={s} onCreated={(id) => { select(id); setPicker(id); }} onCancel={() => setNav({ view: 'project' })} />}

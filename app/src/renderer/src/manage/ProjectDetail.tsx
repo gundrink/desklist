@@ -12,6 +12,7 @@ import { Amount, Toggle, defaultCurrency, rateNote } from '../components/Money';
 import { TaskPanel, fieldsOf, reimbOfTask } from '../components/TaskPanel';
 import { ReimbursementTab, pendingLabel } from './Reimbursement';
 import { TaskDetailsTab } from './TaskDetails';
+import { Collapse, leave } from '../components/Motion';
 import { ModeToggle, ProjectView, platformOf } from '../components/ViewMode';
 
 export function ProjectDetail({ s, projectId, tab, setTab, onDeleted }: {
@@ -51,6 +52,7 @@ export function ProjectDetail({ s, projectId, tab, setTab, onDeleted }: {
         </div>
       </div>
       <div className="rbody scroll">
+        <div className="mswap" key={`${tab}-${mode}`}>
         {mode === 'view' ? <ProjectView s={s} projectId={p.id} /> : tab === 'checklist' ? (
           <>
             <div className="colh"><span className="c1">Task</span><span className="cdue">Due</span><span className="who">Checked by</span>
@@ -69,6 +71,7 @@ export function ProjectDetail({ s, projectId, tab, setTab, onDeleted }: {
         ) : tab === 'reimbursement' ? <ReimbursementTab s={s} projectId={p.id} />
           : tab === 'taskdetails' ? <TaskDetailsTab s={s} projectId={p.id} />
           : <Details s={s} pId={p.id} onDeleted={onDeleted} />}
+        </div>
       </div>
       <div className="footnote small muted">{rateNote(s)}</div>
       {sheet && <NotesSheet s={s} p={p} kind={sheet} setKind={setSheet} onClose={() => setSheet(null)} theme="light" />}
@@ -98,9 +101,9 @@ function Row({ s, t, exp, panel, setPanel }: { s: Snapshot; t: Task; exp?: boole
           {editNote ? <><Note />Editing note…</> : t.notes ? <><Note />{t.notes}</> : '—'}</button>
         {exp && <span className={`cexp val ${t.hasExpense ? '' : 'none'}`}>
           {t.hasExpense && r ? <Amount s={s} amount={r.amount} code={r.currency} /> : t.hasExpense && t.expenseAmount != null ? <Amount s={s} amount={t.expenseAmount} code={t.expenseCurrency ?? defaultCurrency(s)} /> : '—'}</span>}
-        <button className="rowdel" title="Delete task" onClick={() => actions.deleteTask(t.id)}><Trash /></button>
+        <button className="rowdel" title="Delete task" onClick={(e) => leave((e.currentTarget as HTMLElement).closest('.tr'), () => actions.deleteTask(t.id))}><Trash /></button>
       </div>
-      {panel && <TaskPanel s={s} t={t} theme="light" mode={panel} onClose={() => setPanel(null)} />}
+      <Collapse open={!!panel}>{panel && <TaskPanel s={s} t={t} theme="light" mode={panel} onClose={() => setPanel(null)} />}</Collapse>
       {editNote && (
         <div className="neditor">
           <div className="nehd"><Note />Input notes <span>· {t.title}</span></div>

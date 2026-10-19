@@ -3,8 +3,10 @@ import '../styles/widget.css';
 import '../styles/v5.css';
 import '../styles/v6.css';
 import '../styles/v61.css';
+import '../styles/v62.css';
 import { ProjTabs, RailItem, useProjectTabs } from '../components/ProjectList';
 import { TaskPanel, fieldsOf } from '../components/TaskPanel';
+import { Collapse } from '../components/Motion';
 import { ModeToggle, ProjectView, platformOf } from '../components/ViewMode';
 import { SOCIAL_PLATFORMS } from '@desklist/shared';
 import { formatAmount, formatUsd, convert } from '@desklist/shared';
@@ -112,7 +114,7 @@ function Detail({ s, pId, menuOpen, setMenu, notesMenu, setNotesMenu, setSheet, 
           {notesMenu && <NotesMenu theme="dark" onPick={setSheet} onClose={() => setNotesMenu(false)} />}
         </span>
       </div>
-      {mode === 'view' ? <div className="wl scroll nodrag"><ProjectView s={s} projectId={p.id} compact /></div> : <div className="wl scroll">
+      {mode === 'view' ? <div className="wl scroll nodrag mswap"><ProjectView s={s} projectId={p.id} compact /></div> : <div className="wl scroll">
         {open.map((t) => <WTask key={t.id} s={s} t={t} panel={panel?.id === t.id ? panel.mode : null} setPanel={(m) => setPanel(m ? { id: t.id, mode: m } : null)} />)}
         {open.length === 0 && <div className="w-hint">Nothing pending</div>}
         {p.hasExpenses && s.reimbursements.some((r) => r.projectId === p.id) && <>
@@ -147,7 +149,7 @@ function WTask({ s, t, panel, setPanel }: { s: Snapshot; t: Task; panel: 'detail
       {!t.done && t.dueDate && <span className="wd">{shortDate(t.dueDate)}</span>}
       {t.done && cb.m && <Avatar initials={cb.m.initials} size="sm" title={`Checked by ${cb.text}`} />}
     </div>
-    {panel && <div className="nodrag"><TaskPanel s={s} t={t} theme="dark" mode={panel} compact onClose={() => setPanel(null)} /></div>}
+    <Collapse open={!!panel}>{panel && <div className="nodrag"><TaskPanel s={s} t={t} theme="dark" mode={panel} compact onClose={() => setPanel(null)} /></div>}</Collapse>
   </>);
 }
 

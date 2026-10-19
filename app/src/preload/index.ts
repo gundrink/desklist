@@ -28,6 +28,7 @@ const api: DesklistBridge = {
   copyText: (t) => call('copyText', t),
   passkeyRegister: () => call('passkeyRegister'),
   passkeySignIn: () => call('passkeySignIn'),
+  googleSignIn: () => call('googleSignIn'),
 };
 contextBridge.exposeInMainWorld('desklist', api);
 

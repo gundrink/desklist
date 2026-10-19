@@ -11,6 +11,8 @@ Never commit real values. `server/.env` is git-ignored; `server/.env.example` ha
 | `PORT` | no | no | HTTP/WebSocket port. Railway injects it (service uses 8080); local default 8787. |
 | `PUBLIC_SERVER_URL` | no | no | Public base URL of this server (e.g. the Railway URL). Also sets the passkey (WebAuthn) RP ID = its host and origin = its https URL — set it to the Railway URL; the app's default comes from `DESKLIST_SERVER_URL` at build time. |
 | `SESSION_TTL_DAYS` | no | no | Session lifetime in days, fixed from sign-in (not sliding). Default `5`. After expiry the app shows sign-in with the passkey button first. |
+| `GOOGLE_CLIENT_ID` | no | no | Google OAuth client id (type *Desktop app*). Served to the app by `/api/auth/google/config`; also the expected `aud` of ID tokens. Google sign-in is off when unset. |
+| `GOOGLE_CLIENT_SECRET` | no | **yes** | Secret of that client, used only in the server-side code exchange. |
 | `SIGNIN_RATE_LIMIT` | no | no | Max failed sign-ins per IP per 15 min (default 10). |
 | `NODE_ENV` | no | no | `production` on Railway. |
 | `COINGECKO_API_KEY` | no | yes | Optional CoinGecko key for `simple/price`. Without it the public API is used. |

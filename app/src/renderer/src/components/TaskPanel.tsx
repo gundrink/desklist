@@ -5,6 +5,7 @@ import { member, shortDate, shortName } from '../lib/model';
 import { Avatar } from './Common';
 import { Toggle, defaultCurrency, usdOf } from './Money';
 import { CopyBtn, revealTaskField } from './Copy';
+import { leave } from './Motion';
 
 type Theme = 'light' | 'dark';
 const ICON: Record<TaskFieldType, string> = { text: 'T', email: '@', password: '••', url: '↗', number: '#', date: 'D', file: 'F', dropdown: '▾', amount: '$' };
@@ -84,7 +85,7 @@ function FieldRow({ s, f, theme }: { s: Snapshot; f: TaskField; theme: Theme }) 
       <span className="tfic" title={TASK_FIELD_TYPE_LABELS[f.type]}>{ICON[f.type]}</span>
       <span className="tflab"><b>{f.label}</b><em>{TASK_FIELD_TYPE_LABELS[f.type].split(' ')[0].toUpperCase()}</em></span>
       <span className="tfed">{editor}{f.type === 'password' ? (f.isSet && <CopyBtn get={revealTaskField(f.id)} label={f.label} />) : f.type !== 'file' && <CopyBtn text={f.value} label={f.label} />}</span>
-      {canEdit ? <button type="button" className="tfdel" title="Remove field" onClick={() => actions.request('DELETE', `/api/task-fields/${f.id}`)}>×</button> : <span />}
+      {canEdit ? <button type="button" className="tfdel" title="Remove field" onClick={(e) => leave((e.currentTarget as HTMLElement).closest('.tfrow'), () => void actions.request('DELETE', `/api/task-fields/${f.id}`))}>×</button> : <span />}
       {err && <span className="tferr">{err}</span>}
     </div>
   );

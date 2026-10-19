@@ -9,6 +9,7 @@ import {
   TASK_TYPES, SOCIAL_FIELDS, SOCIAL_PLATFORMS,
 } from '@desklist/shared';
 import { PriceService } from './prices.js';
+import { registerGoogle, type GoogleConfig } from './google.js';
 import { registerPasskeyAuthed, registerPasskeyPublic, type PasskeyConfig } from './passkeys.js';
 import type { Db, Queryable } from './db.js';
 import { codeBucket, encryptSecret, generateCode, newToken, normalizeCode, sha256 } from './crypto.js';
@@ -55,7 +56,7 @@ function clientTs(v?: string | null): Date {
 const uuid = z.string().uuid();
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
-export interface AppOptions { passkeys?: PasskeyConfig; db: Db; signinLimit?: number; log?: (...a: unknown[]) => void; prices?: PriceService }
+export interface AppOptions { google?: GoogleConfig; passkeys?: PasskeyConfig; db: Db; signinLimit?: number; log?: (...a: unknown[]) => void; prices?: PriceService }
 
 const currency = z.enum(CURRENCY_CODES);
 const amount = z.coerce.number().finite().nonnegative().max(1e15);
@@ -229,6 +230,7 @@ export function createServer(opts: AppOptions) {
     return { token, member: mapMember(m), team: mapTeam(team.rows[0]), expiresAt: new Date(sess.expires_at).toISOString() };
   }
   registerPasskeyPublic(app, db, opts.passkeys ?? {}, issueSession);
+  registerGoogle(app, db, opts.google ?? {}, issueSession);
 
   /** Public: selectable currencies + live USD prices (CoinGecko, cached ~5 min, last-rate fallback). */
   const currencies = h(async (_req, res) => {
@@ -296,10 +298,13 @@ export function createServer(opts: AppOptions) {
   }));
   app.patch('/api/members/:id', h(async (req, res) => {
     admin(req);
-    const b = z.object({ name: z.string().min(1).max(80).optional(), initials: z.string().min(1).max(3).optional(), role: z.enum(['admin', 'member']).optional() }).parse(req.body);
+    const b = z.object({ name: z.string().min(1).max(80).optional(), initials: z.string().min(1).max(3).optional(), role: z.enum(['admin', 'member']).optional(),
+      googleEmail: z.string().trim().toLowerCase().email().max(200).nullable().optional() }).parse(req.body);
+    if (b.googleEmail) { const { rows: dup } = await db.query(`SELECT id FROM ${S}.members WHERE lower(google_email)=$1 AND id<>$2`, [b.googleEmail, req.params.id]); if (dup[0]) throw new HttpError(409, 'That Google email is already linked to another member'); }
     const { rows } = await db.query(
-      `UPDATE ${S}.members SET name=COALESCE($3,name), initials=COALESCE(upper($4),initials), role=COALESCE($5,role), updated_at=now()
-       WHERE id=$1 AND team_id=$2 RETURNING *`, [req.params.id, req.member!.teamId, b.name, b.initials, b.role]);
+      `UPDATE ${S}.members SET name=COALESCE($3,name), initials=COALESCE(upper($4),initials), role=COALESCE($5,role),
+         google_email=CASE WHEN $7 THEN $6 ELSE google_email END, updated_at=now()
+       WHERE id=$1 AND team_id=$2 RETURNING *`, [req.params.id, req.member!.teamId, b.name, b.initials, b.role, b.googleEmail ?? null, b.googleEmail !== undefined]);
     if (!rows[0]) throw new HttpError(404, 'Member not found');
     changed(req, 'member', rows[0].id);
     res.json(mapMember(rows[0]));

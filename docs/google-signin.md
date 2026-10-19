@@ -1,6 +1,6 @@
 # Design note: Google sign-in (not implemented)
 
-Status: proposal only. Nothing below is built yet.
+Status: implemented in 0.6.2 (server `server/src/google.ts`, app `app/src/main/passkey.ts` → `googleSignIn`).
 
 ## Flow
 1. The app (Electron) never shows Google's page in an embedded webview. It opens the **system browser**.

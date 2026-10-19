@@ -34,6 +34,8 @@ export interface Member {
   isDemo: boolean;
   /** v5: the admin's chosen display currency */
   currency?: string;
+  /** 0.6.2: Google account allowed to sign in as this member (set by an admin) */
+  googleEmail?: string | null;
 }
 
 export interface FieldOptions {

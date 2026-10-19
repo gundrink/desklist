@@ -17,6 +17,7 @@ import { TaskSetup } from './TaskSetup';
 import '../styles/v5.css';
 import '../styles/v6.css';
 import '../styles/v61.css';
+import '../styles/v62.css';
 import { ProjTabs, useProjectTabs } from '../components/ProjectList';
 
 export function Manage() {

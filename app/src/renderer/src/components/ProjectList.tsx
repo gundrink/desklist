@@ -4,12 +4,11 @@ import { picOf, statusOf, statusStyle, tasksOf } from '../lib/model';
 
 /** ~13px circular pie: done/total. */
 export function Pie({ done, total, size = 13 }: { done: number; total: number; size?: number }) {
-  const f = total ? done / total : 0; const r = size / 2; const a = f * 2 * Math.PI;
-  const x = r + r * Math.sin(a), y = r - r * Math.cos(a);
+  const f = total ? done / total : 0; const r = size / 2; const c = 2 * Math.PI * (r / 2);
   return (
     <svg className="pie" width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-label={`${done} of ${total}`}>
       <circle cx={r} cy={r} r={r - 0.75} fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.45" />
-      {f >= 1 ? <circle cx={r} cy={r} r={r} fill="currentColor" /> : f > 0 && <path d={`M${r},${r} L${r},0 A${r},${r} 0 ${f > 0.5 ? 1 : 0} 1 ${x},${y} Z`} fill="currentColor" />}
+      <circle className="pie-fill" cx={r} cy={r} r={r / 2} fill="none" stroke="currentColor" strokeWidth={r} strokeDasharray={`${f * c} ${c}`} transform={`rotate(-90 ${r} ${r})`} />
     </svg>
   );
 }
@@ -22,7 +21,7 @@ export function useProjectTabs(s: Snapshot) {
 }
 export function ProjTabs({ t, theme }: { t: ReturnType<typeof useProjectTabs>; theme: 'dark' | 'light' }) {
   return (
-    <div className={`ptabs ${theme}`} role="tablist">
+    <div className={`ptabs ${theme} idx-${t.tab === 'done' ? 1 : 0}`} role="tablist">
       <button role="tab" className={t.tab === 'progress' ? 'on' : ''} onClick={() => t.setTab('progress')}>In progress <em>{t.prog.length}</em></button>
       <button role="tab" className={t.tab === 'done' ? 'on' : ''} onClick={() => t.setTab('done')}>Done <em>{t.done.length}</em></button>
     </div>

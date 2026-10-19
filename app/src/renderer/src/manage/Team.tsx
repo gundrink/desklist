@@ -1,4 +1,22 @@
 import { PasskeysCard } from '../components/Passkeys';
+import { useState as useStateG } from 'react';
+import { actions as act } from '../lib/store';
+
+/** Admin: Google account allowed to sign in as this member (edit / clear). */
+function GoogleEmail({ id, value, name }: { id: string; value: string | null; name: string }) {
+  const [edit, setEdit] = useStateG(false); const [v, setV] = useStateG(value ?? ''); const [err, setErr] = useStateG('');
+  const save = async (val: string | null) => {
+    try { await act.request('PATCH', `/api/members/${id}`, { googleEmail: val }); setEdit(false); setErr(''); } catch (e) { setErr((e as Error).message); }
+  };
+  if (!edit) return <span className="gmail" data-gmail={name}>
+    {value ? <><span className="gtag">G</span><span className="small">{value}</span></> : <span className="small muted">No Google email</span>}
+    <button className="btn sec xs" onClick={() => { setV(value ?? ''); setEdit(true); }}>{value ? 'Edit' : 'Add Google email'}</button>
+    {value && <button className="btn sec xs" onClick={() => save(null)}>Clear</button>}</span>;
+  return <form className="gmail editing" onSubmit={(e) => { e.preventDefault(); void save(v.trim() || null); }}>
+    <input autoFocus type="email" value={v} onChange={(e) => setV(e.target.value)} placeholder="name@gmail.com" aria-label={`Google email for ${name}`} />
+    <button className="btn pri xs">Save</button><button type="button" className="btn sec xs" onClick={() => setEdit(false)}>Cancel</button>
+    {err && <span className="tferr">{err}</span>}</form>;
+}
 import { useState } from 'react';
 import type { Member, Snapshot } from '@desklist/shared';
 import { actions } from '../lib/store';
@@ -32,6 +50,7 @@ export function Team({ s, isAdmin }: { s: Snapshot; isAdmin: boolean }) {
               <span className="mname">{m.name}{m.id === s.me.id && <em> (you)</em>}{m.isDemo && <span className="demo-tag light">demo</span>}</span>
               <span className={`badge ${m.role === 'admin' ? 'admin' : ''}`}>{m.role}</span>
               <span className="muted small">{m.revoked ? 'Revoked' : 'Active'}</span>
+              {isAdmin ? <GoogleEmail id={m.id} value={m.googleEmail ?? null} name={m.name} /> : m.googleEmail ? <span className="small muted">G · {m.googleEmail}</span> : null}
               {isAdmin && <span className="mem-actions">
                 <button className="btn sec sm" onClick={() => run(() => actions.request('POST', `/api/members/${m.id}/code`))}>{m.revoked ? 'Restore + new code' : 'Reset code'}</button>
                 {!m.revoked && m.id !== s.me.id && <button className="btn danger sm" onClick={() => run(() => actions.request('POST', `/api/members/${m.id}/revoke`))}>Revoke</button>}

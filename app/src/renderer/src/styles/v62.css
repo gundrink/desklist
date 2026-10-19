@@ -1,0 +1,52 @@
+/* 0.6.2 motion — subtle, 150–250 ms, ease-out. Disabled with prefers-reduced-motion. */
+:root{--m-fast:160ms;--m:200ms;--m-slow:240ms;--ease:cubic-bezier(.2,.8,.2,1)}
+@keyframes mFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes mPop{from{opacity:0;transform:translateY(-4px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes mItem{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+@keyframes mCheck{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes mCopied{0%{transform:scale(.9);opacity:.4}100%{transform:scale(1);opacity:1}}
+@keyframes mWidget{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:none}}
+@keyframes mPanelIn{from{opacity:0;grid-template-rows:0fr}to{opacity:1;grid-template-rows:1fr}}
+/* inline expand / collapse: smooth height via grid rows + fade */
+.mcollapse{display:grid;grid-template-rows:1fr;transition:grid-template-rows var(--m) var(--ease),opacity var(--m) var(--ease)}
+.mcollapse>*{min-height:0}
+@keyframes mClip{from{overflow:hidden}to{overflow:hidden}}
+.mcollapse.in>*{animation:mClip var(--m) linear}
+.mcollapse.out>*{overflow:hidden}
+.mcollapse.in{animation:mPanelIn var(--m) var(--ease)}
+.mcollapse.out{grid-template-rows:0fr;opacity:0}
+/* popovers, dropdowns, modals, sheets, type picker */
+.pop,.typepop,.cpop,.wmenu,.notes-menu,.tplmodal,.sheet,.modal{animation:mPop var(--m-fast) var(--ease);transform-origin:top left}
+.tplmodal,.sheet,.modal{animation-duration:var(--m)}
+.sheet-wrap,.modal-back{animation:mFadeIn var(--m) var(--ease)}
+/* list items: add (fade+slide) / remove (.mleaving) */
+.tr,.wt,.tfrow,.rtr,.vcard,.gcard,.ri,.tsfield,.tsrow,.mem-row,.pkrow,.fchip{animation:mItem var(--m) var(--ease) both}
+.mleaving{transition:opacity var(--m-fast) var(--ease),transform var(--m-fast) var(--ease)!important;opacity:0!important;transform:translateX(6px)!important;pointer-events:none}
+/* checkbox tick */
+.cbx svg{animation:mCheck var(--m-fast) var(--ease)}
+.cbx{transition:background var(--m-fast) var(--ease),border-color var(--m-fast) var(--ease)}
+/* Copied feedback */
+.copybtn{transition:background var(--m-fast) var(--ease),color var(--m-fast) var(--ease),border-color var(--m-fast)}
+.copybtn.ok{animation:mCopied var(--m-fast) var(--ease)}
+/* sliding segmented indicators (In progress/Done, Edit/View) */
+.ptabs,.modetgl{position:relative;isolation:isolate}
+.ptabs::before,.modetgl::before{content:"";position:absolute;z-index:-1;top:3px;bottom:3px;left:3px;width:calc(50% - 5px);border-radius:8px;transition:transform var(--m) var(--ease);background:#fff}
+.modetgl::before{top:2px;bottom:2px;left:2px;width:calc(50% - 3px);border-radius:6px;background:#111}
+.modetgl.compact::before{background:#fff}
+.ptabs.idx-1::before{transform:translateX(calc(100% + 4px))}
+.modetgl.idx-1::before{transform:translateX(calc(100% + 2px))}
+.ptabs button.on,.modetgl button.on{background:transparent!important}
+.ptabs button,.modetgl button{transition:color var(--m) var(--ease)}
+/* detail tabs: underline grows in */
+.stabs .st{position:relative;border-bottom-color:transparent!important}
+.stabs .st::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:2px;background:#111;transform:scaleX(0);transition:transform var(--m) var(--ease)}
+.stabs .st.on::after{transform:scaleX(1)}
+/* content crossfade on tab / mode switch */
+.mswap{animation:mFadeIn var(--m) var(--ease)}
+/* pie */
+.pie .pie-fill{transition:stroke-dasharray var(--m-slow) var(--ease)}
+/* windows */
+.widget{animation:mWidget var(--m-slow) var(--ease)}
+.win .body{animation:mFadeIn var(--m-slow) var(--ease)}
+.gcard{transition:border-color var(--m) var(--ease),background var(--m) var(--ease)}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important;transition:none!important}}

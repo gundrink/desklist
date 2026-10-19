@@ -87,7 +87,7 @@ export function ProjectView({ s, projectId, compact }: { s: Snapshot; projectId:
   );
 }
 export function ModeToggle({ mode, setMode, compact }: { mode: 'edit' | 'view'; setMode: (m: 'edit' | 'view') => void; compact?: boolean }) {
-  return <div className={`modetgl ${compact ? 'compact' : ''}`} role="tablist" aria-label="Mode">
+  return <div className={`modetgl ${compact ? 'compact' : ''} idx-${mode === 'view' ? 1 : 0}`} role="tablist" aria-label="Mode">
     <button role="tab" className={mode === 'edit' ? 'on' : ''} onClick={() => setMode('edit')}>Edit</button>
     <button role="tab" className={mode === 'view' ? 'on' : ''} onClick={() => setMode('view')}>View</button></div>;
 }

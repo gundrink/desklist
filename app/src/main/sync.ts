@@ -187,6 +187,12 @@ export class SyncEngine extends EventEmitter {
     const res = await this.http<SignInResponse>('POST', '/api/auth/passkey/exchange', { code, verifier }, null);
     await this.adoptSession(res);
   }
+  async signInWithGoogle(body: { code: string; verifier: string; redirectUri: string; state: string }) {
+    const res = await this.http<SignInResponse>('POST', '/api/auth/google/exchange', body, null);
+    await this.adoptSession(res);
+  }
+  /** Unauthenticated call (sign-in screen). */
+  anon<T>(method: string, path: string, body?: unknown) { return this.http<T>(method, path, body, null); }
   private async adoptSession(res: SignInResponse) {
     if (this.base && this.base.me.id !== res.member.id) { this.base = null; this.outbox = []; this.persist(); }
     this.token = res.token; saveToken(res.token);

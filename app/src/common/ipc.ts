@@ -53,4 +53,5 @@ export interface DesklistBridge {
   copyText(text: string): Promise<void>;
   passkeyRegister(): Promise<void>;
   passkeySignIn(): Promise<void>;
+  googleSignIn(): Promise<void>;
 }

@@ -1,4 +1,4 @@
-import { registerPasskey, passkeySignIn } from './passkey';
+import { registerPasskey, passkeySignIn, googleSignIn } from './passkey';
 import { app, clipboard, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron';
 import path from 'node:path';
 import type { ManageView, Op } from '../common/ipc';
@@ -178,6 +178,7 @@ function registerIpc() {
   });
   handle('passkeyRegister', () => registerPasskey(sync.baseUrl, () => sync.http('POST', '/api/passkeys/ticket'), smokeOpen()));
   handle('passkeySignIn', () => passkeySignIn(sync.baseUrl, (c, v) => sync.signInWithPasskeyCode(c, v), smokeOpen()));
+  handle('googleSignIn', () => googleSignIn((m, p, b) => sync.anon(m, p, b), (body) => sync.signInWithGoogle(body), smokeOpen()));
   handle('copyText', (t: string) => { clipboard.writeText(String(t)); });
   handle('openFile', async (id: string, name: string) => {
     const fs = await import('node:fs'); const os = await import('node:os');

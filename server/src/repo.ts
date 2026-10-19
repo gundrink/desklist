@@ -15,7 +15,7 @@ const dateOnly = (d: any) => {
 
 export const mapTeam = (r: any): Team => ({ id: r.id, name: r.name, isDemo: r.is_demo });
 export const mapMember = (r: any): Member => ({
-  id: r.id, teamId: r.team_id, name: r.name, initials: r.initials, role: r.role, revoked: r.revoked, isDemo: r.is_demo, currency: r.currency ?? 'SOL',
+  id: r.id, teamId: r.team_id, name: r.name, initials: r.initials, role: r.role, revoked: r.revoked, isDemo: r.is_demo, currency: r.currency ?? 'SOL', googleEmail: r.google_email ?? null,
 });
 export const mapField = (r: any): FieldDefinition => ({
   id: r.id, key: r.key, label: r.label, dataType: r.data_type, options: r.options ?? {}, isSecret: r.is_secret,

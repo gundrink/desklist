@@ -23,7 +23,7 @@ Never commit real values. `server/.env` is git-ignored; `server/.env.example` ha
 | Variable | When | Required | Secret | Description |
 |---|---|---|---|---|
 | `DESKLIST_SERVER_URL` | runtime | no | no | Overrides the server URL (also overrides the saved setting). |
-| `DESKLIST_DEFAULT_SERVER_URL` | build | no | no | Default server URL baked into the build (set to the Railway URL for release builds). Fallback `http://localhost:8787`. |
+| `DESKLIST_DEFAULT_SERVER_URL` | build | no | no | Default server URL baked into the build (set to the Railway URL for release builds). Default: the Railway URL; dev runs use `http://localhost:8787`. |
 | `DESKLIST_DISABLE_UPDATES` | runtime | no | no | `1` disables electron-updater checks. |
 | `DESKLIST_USER_DATA` | runtime | no | no | Alternate userData dir (tests / multiple profiles). |
 | `DESKLIST_WIN_ATTACH` | runtime | no | no | Windows desktop-layer mode override (see `app/src/main/desktop-layer/windows.ts`). |

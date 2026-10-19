@@ -152,7 +152,67 @@ export async function seed(db: Db, log = console.log) {
       log(`[seed] demo ${p.name}: ${p.tasks.length} tasks (${p.tasks.filter((t) => t[1]).length} done)`);
     }
   });
+  await seedV5(db, log);
   log('[seed] Demo Team ready — codes: DEMO-ADMIN (admin), DEMO-0001, DEMO-0002');
+}
+
+// ------------------------------------------------------------------ v5 demo data (SOL)
+export const BUILTIN_TEMPLATES = [
+  { n: 1, name: 'Website launch', icon: 'globe', description: 'about 2 weeks · 3 with expenses', tasks: [
+    ['Kickoff meeting'], ['Collect requirements'], ['Beli domain', 0.08], ['Setup VPS', 0.12], ['Order SSL certificate', 0.35],
+    ['Design homepage'], ['Write page copy'], ['Build pages'], ['Connect analytics'], ['QA on mobile & desktop'], ['Client review'], ['Go live']] },
+  { n: 2, name: 'Mobile app', icon: 'phone', description: 'iOS + Android release', tasks: [
+    ['Requirements workshop'], ['Wireframes'], ['UI design'], ['API contract'], ['Build MVP'], ['Push notifications'], ['Beta test group'],
+    ['Apple developer account', 0.65], ['Store listing'], ['Release']] },
+  { n: 3, name: 'Client onboarding', icon: 'user', description: 'new client setup', tasks: [
+    ['Welcome email'], ['Contract signed'], ['Collect access & credentials'], ['Kickoff call'], ['Shared drive folder'], ['Project board'], ['First invoice'], ['30-day check-in']] },
+] as const;
+const TEAM_TEMPLATES = [
+  { n: 11, owner: 'admin', name: 'Agency website kit', tasks: ['Brief', 'Moodboard', 'Sitemap', 'Wireframes', 'Design', 'Build', 'Content', 'SEO', 'QA', 'Launch'] },
+  { n: 12, owner: 'citra', name: 'Event microsite', tasks: ['Event brief', 'Landing page', 'Registration form', 'Email reminder', 'Speaker page', 'Live check', 'Post-event recap'] },
+] as const;
+
+type V5Task = [title: string, done: boolean, due: string, amount: number];
+const V5_TASKS: Record<number, V5Task[]> = {
+  1: [['Beli domain project-a.com', false, '2026-10-21', 0.08], ['Setup VPS', false, '2026-10-24', 0.12], ['Order SSL certificate', true, '2026-10-15', 0.35]],
+};
+// [project n, item, category, amount, paidBy, date, status, note]
+const V5_REIMB: [number, string, string, number, 'admin' | 'budi' | 'citra', string, 'pending' | 'paid', string, number?][] = [
+  [1, 'Domain project-a.com (1 yr)', 'Domain', 0.08, 'admin', '2026-10-12', 'pending', 'Beli domain project-a.com via Niagahoster, 1 tahun, pakai kartu pribadi.', 0],
+  [1, 'VPS hosting Oct', 'Hosting', 0.12, 'budi', '2026-10-14', 'pending', '2 vCPU · Singapore', 1],
+  [1, 'SSL certificate', 'Other', 0.35, 'citra', '2026-10-09', 'paid', 'Receipt attached', 2],
+  [4, 'Cloud storage 2 TB (1 yr)', 'Hosting', 2.40, 'admin', '2026-10-03', 'paid', ''],
+  [6, 'Figma seats · Oktober', 'Software', 1.20, 'admin', '2026-10-06', 'pending', ''],
+  [7, 'Stock photo bundle', 'Other', 0.90, 'budi', '2026-10-11', 'pending', ''],
+  [3, 'Domain project-c.id', 'Domain', 0.10, 'citra', '2026-10-09', 'paid', ''],
+  [6, 'Staging server · Oktober', 'Hosting', 0.60, 'admin', '2026-10-08', 'paid', ''],
+];
+
+export async function seedV5(db: Db, log = console.log) {
+  await db.tx(async (q) => {
+    for (const t of BUILTIN_TEMPLATES)
+      await q.query(`INSERT INTO ${S}.templates(id,team_id,name,description,icon,shared,tasks) VALUES ($1,NULL,$2,$3,$4,true,$5) ON CONFLICT (id) DO NOTHING`,
+        [id(0x7000 + t.n), t.name, t.description, t.icon, JSON.stringify(t.tasks.map(([title, amt]: readonly [string, number?]) => ({ title, expenseAmount: amt ?? null, expenseCurrency: amt ? 'SOL' : null })))]);
+    const who = { admin: DEMO.admin, budi: DEMO.budi, citra: DEMO.citra };
+    for (const t of TEAM_TEMPLATES)
+      await q.query(`INSERT INTO ${S}.templates(id,team_id,owner_member_id,name,shared,tasks) VALUES ($1,$2,$3,$4,true,$5) ON CONFLICT (id) DO NOTHING`,
+        [id(0x7000 + t.n), DEMO.team, who[t.owner], t.name, JSON.stringify(t.tasks.map((title) => ({ title })))]);
+    await q.query(`UPDATE ${S}.projects SET has_expenses=true WHERE id = ANY($1::uuid[]) AND team_id=$2`, [[1, 3, 4, 6, 7].map((n) => id(0x1000 + n)), DEMO.team]);
+    for (const [n, list] of Object.entries(V5_TASKS))
+      for (const [i, [title, done, due, amt]] of list.entries())
+        await q.query(
+          `INSERT INTO ${S}.tasks(id,project_id,title,done,done_at,due_date,has_expense,expense_amount,expense_currency,created_by_member_id,approved_by_member_id,approved_at,sort_order)
+           VALUES ($1,$2,$3,$4,CASE WHEN $4 THEN now() END,$5,true,$6,'SOL',$7,CASE WHEN $4 THEN $8::uuid END,CASE WHEN $4 THEN now() END,$9) ON CONFLICT (id) DO NOTHING`,
+          [id(0x200000 + Number(n) * 100 + i), id(0x1000 + Number(n)), title, done, due, amt, DEMO.admin, DEMO.citra, 50 + i]);
+    for (const [i, [n, item, cat, amt, by, date, status, note, taskIdx]] of V5_REIMB.entries())
+      await q.query(
+        `INSERT INTO ${S}.reimbursements(id,project_id,task_id,item,category,amount,currency,paid_by_member_id,spent_on,status,note,receipt_name,reimbursed_at)
+         VALUES ($1,$2,$3,$4,$5,$6,'SOL',$7,$8,$9,$10,$11,CASE WHEN $9='paid' THEN now() END) ON CONFLICT (id) DO NOTHING`,
+        [id(0x300000 + i), id(0x1000 + n), taskIdx == null ? null : id(0x200000 + n * 100 + taskIdx), item, cat, amt, who[by], date, status, note,
+          n === 1 && i === 0 ? 'invoice-niagahoster.pdf' : null]);
+    await q.query(`UPDATE ${S}.projects SET reimburse_note=$2 WHERE id=$1 AND reimburse_note=''`, [id(0x1001), 'Reimburse via transfer SOL ke wallet masing-masing setiap akhir bulan.']);
+  });
+  log('[seed] v5: templates, SOL expenses & reimbursements ready');
 }
 
 const here = path.dirname(fileURLToPath(import.meta.url));

@@ -258,7 +258,10 @@ export function createServer(opts: AppOptions) {
     if (readCache.size > 500) for (const [kk, v] of readCache) if (Date.now() - v.at > 1500) readCache.delete(kk);
     return p;
   };
-  app.use((req, _res, next) => { if (req.method !== 'GET') { readGen++; readCache.clear(); } next(); });
+  app.use((req, res, next) => {
+    if (req.method !== 'GET') { readGen++; readCache.clear(); res.on('finish', () => { readGen++; readCache.clear(); }); }
+    next();
+  });
   app.get('/api/snapshot', h(async (req, res) => { res.json(await cached(`snap|${req.member!.id}`, async () => snapshot(db, req.member!, await prices.get()))); }));
 
   /** Currency is set per admin; it also becomes the team's default display currency. */
@@ -789,7 +792,7 @@ export function createServer(opts: AppOptions) {
     const m = /^(\d+(?:\.\d+)?)\s+([A-Z]{2,5})$/.exec(value ?? ''); if (!m) return;
     const { rows: [t] } = await db.query(`UPDATE ${S}.tasks SET has_expense=true, expense_amount=$2, expense_currency=$3, updated_at=now() WHERE id=$1 RETURNING *`, [taskId, Number(m[1]), m[2]]);
     await db.query(`INSERT INTO ${S}.reimbursements(project_id, task_id, item, category, amount, currency, paid_by_member_id, spent_on) VALUES ($1,$2,$3,'Other',$4,$5,$6,CURRENT_DATE)
-      ON CONFLICT (task_id) DO UPDATE SET amount=EXCLUDED.amount, currency=EXCLUDED.currency, updated_at=now()`, [t.project_id, t.id, t.title, Number(m[1]), m[2], memberId]);
+      ON CONFLICT (task_id) DO UPDATE SET amount=EXCLUDED.amount, currency=EXCLUDED.currency, paid_by_member_id=EXCLUDED.paid_by_member_id, updated_at=now()`, [t.project_id, t.id, t.title, Number(m[1]), m[2], memberId]);
   }
   const mapSetup = (r: any) => ({ id: r.id, title: r.title, fields: r.fields, updatedAt: new Date(r.updated_at).toISOString() });
   app.get('/api/task-setups', h(async (req, res) => {

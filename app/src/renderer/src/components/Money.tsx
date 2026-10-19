@@ -14,7 +14,11 @@ export function Amount({ s, amount, code, cls = '' }: { s: Snapshot; amount: num
 export const fmtWithUsd = (s: Snapshot, amount: number, code: string) => { const u = usdOf(s, amount, code); return formatAmount(amount, code) + (u ? ` ≈ ${u}` : ''); };
 export const defaultCurrency = (s: Snapshot) => s.currency || 'SOL';
 export function rateNote(s: Snapshot) {
-  const c = defaultCurrency(s); const u = usdOf(s, 1, c);
+  const c = defaultCurrency(s);
+  if (c === 'USD') return 'Amounts in USD';
+  const r = s.prices?.usd?.[c as keyof typeof s.prices.usd];
+  if (r && r < 0.01) return `1 USD = ${formatAmount(1 / r, c)} · live price${s.prices.stale ? ' (cached)' : ''}`;
+  const u = usdOf(s, 1, c);
   if (!u) return 'USD rate unavailable';
   return `1 ${c} = ${u} · live price${s.prices.stale ? ' (cached)' : ''}`;
 }

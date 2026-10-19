@@ -88,12 +88,16 @@ try {
   await m.getByLabel('New task title').fill('Domain renewal'); await m.getByRole('button', { name: 'Add task' }).click();
   await m.locator('.tr[data-task="Domain renewal"] .expbtn').click({ timeout: 15000 }); await m.locator('.tpanel .rsec').waitFor();
   await m.getByLabel('Reimbursement currency').selectOption('IDR');
-  await m.getByLabel('Reimbursement amount').fill('300000'); await m.getByLabel('Reimbursement amount').press('Enter'); await m.waitForTimeout(2500);
+  await m.getByLabel('Reimbursement amount').fill('300000'); await m.getByLabel('Reimbursement amount').press('Enter'); await m.waitForTimeout(3000);
+  if (await m.locator('.tpanel .tferr').count()) log('panel error:', await m.locator('.tpanel .tferr').allTextContents());
+  await shot(m, 'member2-idr-entry');
   await m.getByRole('button', { name: /^Reimbursement/ }).click(); await m.locator('.rtr[data-reimb="Domain renewal"]').waitFor({ timeout: 15000 });
   const rows = await m.locator('.rtable').textContent();
   check('items keep original currency ($12.50 and Rp 300.000)', rows.includes('$12.50') && rows.includes('Rp 300.000'));
   const pr = (await (await fetch(SERVER + '/api/prices')).json()).prices.usd;
-  const exp = (12.5 + 300000 * pr.IDR) / pr.SOL; const expTxt = `${Number(exp.toFixed(4))} SOL`;
+  const tc = (await api(adminTok, 'GET', '/api/snapshot')).currency; const rate = (c) => (c === 'USD' ? 1 : pr[c]);
+  const exp = (12.5 + 300000 * pr.IDR) / rate(tc);
+  const expTxt = tc === 'IDR' ? 'Rp ' + Math.round(exp).toLocaleString('id-ID') : tc === 'USD' ? '$' + exp.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : `${Number(exp.toFixed(4))} ${tc}`;
   const bar = await m.locator('.rbar').textContent();
   check(`converted total in team currency = ${expTxt} (+ USD)`, bar.includes(expTxt) && bar.includes('≈ $'));
   await shot(m, 'reimb-mixed-currency');

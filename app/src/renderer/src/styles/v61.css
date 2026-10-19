@@ -58,3 +58,8 @@
 .btn.passkey{width:100%;margin-top:8px}
 .btn.passkey.prominent{background:#111;color:#fff;font-size:14px;padding:10px}
 .cursel{width:auto!important;flex:none;padding:3px 4px!important}
+.stabs .st{white-space:nowrap;padding:9px 12px 10px}
+.exptgl .tgl span,.tgl span{white-space:nowrap}
+.stabs{flex-wrap:nowrap;overflow:hidden}
+.stabs .st{padding:9px 10px 10px}
+.stabs .exptgl{flex:none}

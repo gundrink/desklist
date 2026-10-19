@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "steps": [
+    "widget window opened: view=widget",
+    "signed in; rail shows 6 projects",
+    "screenshot 01-widget.png",
+    "desktop layer mode on this OS: linux-normal",
+    "widget Notes menu + Input notes editor work",
+    "manage window opened with 6 project cards",
+    "screenshot 02-manage-project-detail.png",
+    "inline note editor + Notes menu rendered",
+    "screenshot 03-create-project-custom-column.png",
+    "screenshot 04-master-fields.png",
+    "sync: checked \"Set up Railway deploy\" in Manage → widget shows done (Checked by Andi D. · 19 Oct)",
+    "sync: unchecked in widget → pending again in Manage; outbox=0, connection=online",
+    "composite 00-desktop-composite.png"
+  ]
+}

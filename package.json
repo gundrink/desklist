@@ -3,8 +3,14 @@
   "private": true,
   "version": "0.1.0",
   "description": "Desklist — desktop-level team project checklists (Electron app + sync server)",
-  "workspaces": ["shared", "server", "app"],
-  "engines": { "node": ">=20" },
+  "workspaces": [
+    "shared",
+    "server",
+    "app"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "typecheck": "npm run typecheck -w shared && npm run typecheck -w server && npm run typecheck -w app",
     "build": "npm run build -w server && npm run build -w app",
@@ -17,5 +23,12 @@
     "test": "npm test -w server",
     "dist:mac": "npm run dist:mac -w app",
     "dist:win": "npm run dist:win -w app"
+  },
+  "allowScripts": {
+    "electron@41.7.1": true,
+    "electron-winstaller@5.4.0": true,
+    "esbuild@0.27.7": true,
+    "esbuild@0.28.2": true,
+    "koffi@3.3.3": true
   }
 }

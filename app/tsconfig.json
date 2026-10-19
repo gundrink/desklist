@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "paths": { "@desklist/shared": ["../shared/src/index.ts"] }
+  },
+  "include": ["src", "electron.vite.config.ts", "../shared/src"]
+}

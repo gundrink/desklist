@@ -9,7 +9,7 @@ import { ago } from '../lib/model';
 import { Avatar, SyncDot, syncLabel } from '../components/Common';
 import { ProjectGlassCard } from '../components/ProjectGlassCard';
 import { SignIn, LoadingState } from '../components/SignIn';
-import { Plus, Sliders, Users, Power } from '../components/Icons';
+import { Plus, Sliders, Users, Power , Grid } from '../components/Icons';
 import { ProjectDetail, DeleteProjectModal } from './ProjectDetail';
 import { Overview } from '../components/Overview';
 import { CreateProject } from './CreateProject';
@@ -26,6 +26,7 @@ import '../styles/v66.css';
 import '../styles/v68.css';
 import '../styles/v69.css';
 import '../styles/v610.css';
+import '../styles/v611.css';
 import { ProjTabs, useProjectTabs } from '../components/ProjectList';
 
 export function Manage() {
@@ -69,14 +70,14 @@ function ManageReady({ st, s, nav, setNav, picker, setPicker, titlebar }: { st: 
         await actions.request('DELETE', `/api/projects/${delProj.id}`); setDelP(null); if (selectedId === delProj.id) setNav({ view: 'project' }); }} />}
       <div className="body">
         <div className="pcol dark">
-          <div className="sidebrand"><Logo size={22} /></div>
+          <button className="sidebrand" title="Go to Overview" aria-label="Desklist home, go to Overview" onClick={() => setNav({ view: 'overview' })}><Logo size={22} /></button>
           <div className="pchead"><span>Projects <em>{s.projects.length}</em></span>
             <button className="newbtn" onClick={() => setNav({ view: 'create' })}><Plus />New project</button></div>
           <div className="gscroll scroll">
             {isAdmin && <button className={`adminrow ${nav.view === 'reports' ? 'on' : ''}`} onClick={() => setNav({ view: 'reports' })}>▦ Admin · Reports<span>{s.me.name}</span></button>}
             {isAdmin && <button className={`adminrow ${nav.view === 'tasksetup' ? 'on' : ''}`} onClick={() => setNav({ view: 'tasksetup' })}>▤ Admin · Task setup<span>fields</span></button>}
+            <button className={`navrow ovnav ${nav.view === 'overview' ? 'on' : ''}`} data-nav="overview" aria-current={nav.view === 'overview' ? 'page' : undefined} onClick={() => setNav({ view: 'overview' })}><span className="ic"><Grid size={15} /></span>Overview<span className="ml" /><em className="mono">{new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</em></button>
             <ProjTabs t={tabs} theme="dark" />
-            <button className={`navrow ${nav.view === 'overview' ? 'on' : ''}`} data-nav="overview" onClick={() => setNav({ view: 'overview' })}><span className="ic">◷</span>Overview</button>
             {tabs.list.map((p) => (
               <ProjectGlassCard key={p.id} s={s} p={p} selected={p.id === selectedId} expanded={p.id === selectedId}
                 onSelect={() => select(p.id)} menuItems={[{ label: 'Open details', onClick: () => setNav({ view: 'project', projectId: p.id, tab: 'details' }) },

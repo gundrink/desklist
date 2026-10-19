@@ -19,7 +19,7 @@ export function OpacityControl({ st, compact }: { st: AppState; compact?: boolea
   return (
     <div className={`opctl ${compact ? 'compact' : ''}`} onClick={(e) => e.stopPropagation()}>
       <label className="oprow"><span>Background opacity</span><b className="mono">{v}%</b></label>
-      <input type="range" min={0} max={100} step={1} value={v} aria-label="Widget background opacity"
+      <input type="range" min={0} max={100} step={1} value={v} style={{ ['--fill' as never]: `${v}%` } as React.CSSProperties} aria-label="Widget background opacity"
         onChange={(e) => push(Number(e.target.value))} onPointerUp={() => void actions.setSetting({ widgetOpacity: v })} onKeyUp={() => void actions.setSetting({ widgetOpacity: v })} />
       <label className="opblur"><input type="checkbox" checked={blurOf(st)} aria-label="Blur background" onChange={(e) => void actions.setSetting({ widgetBlur: e.target.checked })} />Blur background</label>
     </div>

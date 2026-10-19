@@ -24,9 +24,9 @@ export function rateNote(s: Snapshot) {
   return `1 ${c} = ${u} · live price${s.prices.stale ? ' (cached)' : ''}`;
 }
 
-export function Toggle({ on, onChange, label, theme = 'light' }: { on: boolean; onChange: (v: boolean) => void; label?: string; theme?: 'light' | 'dark' }) {
+export function Toggle({ on, onChange, label, theme = 'light', aria }: { on: boolean; onChange: (v: boolean) => void; label?: string; theme?: 'light' | 'dark'; aria?: string }) {
   return (
-    <button type="button" role="switch" aria-checked={on} className={`tgl ${theme} ${on ? 'on' : ''}`} onClick={(e) => { e.stopPropagation(); onChange(!on); }}>
+    <button type="button" role="switch" aria-checked={on} aria-label={aria} className={`tgl ${theme} ${on ? 'on' : ''}`} onClick={(e) => { e.stopPropagation(); onChange(!on); }}>
       <i /><span>{label}</span>
     </button>
   );

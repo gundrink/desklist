@@ -15,6 +15,7 @@ import '../styles/v66.css';
 import '../styles/v68.css';
 import '../styles/v69.css';
 import '../styles/v610.css';
+import '../styles/v611.css';
 import { ProjTabs, RailItem, useProjectTabs } from '../components/ProjectList';
 import { TaskPanel, fieldsOf } from '../components/TaskPanel';
 import { Collapse } from '../components/Motion';
@@ -30,7 +31,7 @@ import { Popover } from '../components/Popover';
 import { DeleteProjectModal } from '../manage/ProjectDetail';
 import { NotesMenu, NotesSheet, type NotesKind } from '../components/Notes';
 import { SignIn, LoadingState , PasskeyNudge } from '../components/SignIn';
-import { Calendar, Check, ChevronDown, ChevronUp, Note, Power, Refresh, Window, X } from '../components/Icons';
+import { Calendar, Check, ChevronDown, ChevronUp, Grid, Lock, Note, Power, Refresh, Rocket, Trash, Window, X, Folder } from '../components/Icons';
 
 /**
  * Desktop-level glass widget (v4 design): project rail on the left, project detail on the right.
@@ -75,7 +76,7 @@ export function Widget() {
       <div className="wdet">
         <PasskeyNudge />
         {wview === 'overview' ? <>
-          <div className="w-top drag"><div className="switch"><span className="dotp" />Overview</div><span className="ml" />
+          <div className="w-top drag"><div className="switch"><span className="dotp" />Overview</div><span className="ml" /><ViewToggle v="overview" />
             <div className="menu-anchor nodrag"><button ref={menuBtn} className={`menu ${menu ? 'on' : ''}`} onClick={() => setMenu(!menu)} title="Menu" aria-label="Widget menu">⋯</button>
               {menu && <WidgetMenu anchor={menuBtn} s={s} projectId="" locked={locked} launch={st.settings.launchAtLogin} onClose={() => setMenu(false)} />}</div></div>
           <WidgetOverview s={s} onOpen={(id) => { void actions.setCurrentProject(id); window.dispatchEvent(new CustomEvent('dl-wview', { detail: 'project' })); }} /></>
@@ -123,6 +124,7 @@ function Detail({ s, pId, menuOpen, setMenu, notesMenu, setNotesMenu, setSheet, 
       <div className="w-top drag">
         <div className="switch" title={p.name}><span className="dotp" style={{ background: statusStyle(status).color }} /><span className="ell">{p.name}</span></div>
         <StatusPill status={status} theme="dark" />
+        <ViewToggle v="project" />
         <span className="nodrag"><ModeToggle mode={mode} setMode={setMode} compact /></span>
         <div className="menu-anchor nodrag">
           <button ref={menuBtn} className={`menu ${menuOpen ? 'on' : ''}`} onClick={() => setMenu(!menuOpen)} title="Menu" aria-label="Widget menu">⋯</button>
@@ -214,22 +216,24 @@ void formatUsd; void CurrencySelect; void defaultCurrency;
 function WidgetMenu({ s, projectId, locked, launch, onClose, anchor }: { s: Snapshot; projectId: string; locked: boolean; launch: boolean; onClose: () => void; anchor: React.RefObject<HTMLElement | null> }) {
   const st = useAppState();
   const proj = s.projects.find((x) => x.id === projectId);
-  const ck = (on: boolean) => (on ? <span className="ck"><Check size={11} w={3} /></span> : null);
-  const item = (label: React.ReactNode, fn: () => void, extra?: React.ReactNode, cls = '') =>
-    <button role="menuitem" className={`pi ${cls}`} onClick={() => { fn(); onClose(); }}>{label}{extra}</button>;
+  const ck = (on: boolean) => <span className={`ck ${on ? 'on' : ''}`} aria-hidden>{on && <Check size={11} w={3} />}</span>;
+  const item = (icon: React.ReactNode, label: React.ReactNode, fn: () => void, extra?: React.ReactNode, cls = '', checked?: boolean) =>
+    <button role={checked === undefined ? 'menuitem' : 'menuitemcheckbox'} aria-checked={checked} className={`pi ${cls}`} onClick={() => { fn(); onClose(); }}><span className="pic">{icon}</span><span className="plb">{label}</span>{extra}</button>;
+  const ov = localStorage.getItem('dl-wview') === 'overview';
   return (
     <Popover anchor={anchor} className="dark wmenu" onClose={onClose}>
-      {item(<><Window />Open Manage window</>, () => actions.openManage({ view: 'project', projectId }))}
-      {item(<>Lock position</>, () => actions.setSetting({ lockPosition: !locked }), ck(locked))}
-      {item(<>Launch at login</>, () => actions.setSetting({ launchAtLogin: !launch }), ck(launch))}
-      {item(<>{localStorage.getItem('dl-wview') === 'overview' ? 'Show current project' : 'Show overview'}</>, () => window.dispatchEvent(new CustomEvent('dl-wview', { detail: localStorage.getItem('dl-wview') === 'overview' ? 'project' : 'overview' })))}
-      {item(<><Refresh />Sync now</>, () => actions.refresh())}
+      {item(<Window />, 'Open Manage window', () => actions.openManage({ view: 'project', projectId }))}
+      {item(ov ? <Folder /> : <Grid />, ov ? 'Show current project' : 'Show overview', () => window.dispatchEvent(new CustomEvent('dl-wview', { detail: ov ? 'project' : 'overview' })))}
+      {item(<Refresh />, 'Sync now', () => actions.refresh())}
+      <div className="popsep" />
+      {item(<Lock size={15} />, 'Lock position', () => actions.setSetting({ lockPosition: !locked }), ck(locked), '', locked)}
+      {item(<Rocket />, 'Open Desklist at startup', () => actions.setSetting({ launchAtLogin: !launch }), ck(launch), '', launch)}
       <div className="popsep" />
       {st && <OpacityControl st={st} compact />}
       <div className="popsep" />
-      {item(<><Power />Sign out ({s.me.initials})</>, () => actions.signOut())}
-      {item(<><X />Close widget</>, () => actions.closeWidget())}
-      {proj && s.me.role === 'admin' && <><div className="popsep" />{item(<>Delete project…</>, () => window.dispatchEvent(new CustomEvent('dl-wdel', { detail: proj.id })), undefined, 'danger-item')}</>}
+      {item(<Power />, `Sign out (${s.me.initials})`, () => actions.signOut())}
+      {item(<X size={14} />, 'Close widget', () => actions.closeWidget())}
+      {proj && s.me.role === 'admin' && <><div className="popsep" />{item(<Trash size={15} />, 'Delete project…', () => window.dispatchEvent(new CustomEvent('dl-wdel', { detail: proj.id })), undefined, 'danger-item')}</>}
     </Popover>
   );
 }
@@ -241,4 +245,12 @@ function RailMenu({ name, id }: { name: string; id: string }) {
       <button role="menuitem" className="pi" onClick={() => { setOpen(false); void actions.setCurrentProject(id); }}>Show project</button>
       <button role="menuitem" className="pi danger-item" onClick={() => { setOpen(false); window.dispatchEvent(new CustomEvent('dl-wdel', { detail: id })); }}>Delete project…</button>
     </Popover>}</>;
+}
+
+function ViewToggle({ v }: { v: 'overview' | 'project' }) {
+  const set = (x: string) => window.dispatchEvent(new CustomEvent('dl-wview', { detail: x }));
+  return <div className="seg wviewseg nodrag" role="group" aria-label="Widget view">
+    <button className={v === 'overview' ? 'on' : ''} aria-pressed={v === 'overview'} title="Overview" onClick={() => set('overview')}><Grid size={12} />Overview</button>
+    <button className={v === 'project' ? 'on' : ''} aria-pressed={v === 'project'} title="Project" onClick={() => set('project')}><Folder size={12} />Project</button>
+  </div>;
 }

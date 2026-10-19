@@ -129,7 +129,7 @@ export class SyncEngine extends EventEmitter {
       phase: !this.token ? 'signedOut' : snap ? 'ready' : 'loading',
       connection: this.connection, snapshot: snap, lastSyncedAt: this.lastSyncedAt, pending: this.outbox.length,
       lastError: this.lastError, serverUrl: this.serverUrl, platform: process.platform,
-      settings: { lockPosition: s.lockPosition, launchAtLogin: s.launchAtLogin, currentProjectId: s.currentProjectId ?? null, sessionExpiresAt: s.sessionExpiresAt ?? null, widgetOpacity: s.widgetOpacity ?? 85, widgetBlur: s.widgetBlur ?? true },
+      settings: { lockPosition: s.lockPosition, launchAtLogin: s.launchAtLogin, currentProjectId: s.currentProjectId ?? null, sessionExpiresAt: s.sessionExpiresAt ?? null, widgetOpacity: s.widgetOpacity ?? 85, widgetBlur: s.widgetBlur ?? true, autoShowWidget: s.autoShowWidget ?? true, openManageAtStartup: s.openManageAtStartup ?? false, startMinimized: s.startMinimized ?? false },
     };
   }
   private emitState() { this.emit('state', this.state()); }

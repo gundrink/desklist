@@ -70,7 +70,7 @@ try {
   await w.locator('.pknudge button', { hasText: 'Not now' }).click({ timeout: 3000 }).catch(() => {});
   step = 'settings';
   const [m] = await Promise.all([app.waitForEvent('window'), app.evaluate(() => globalThis.__desklist.openManage({ view: 'settings' }))]);
-  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((x) => !x.webContents.getURL().includes('widget'))?.setBounds({ x: 0, y: 0, width: 980, height: 900 }));
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((x) => !x.webContents.getURL().includes('widget'))?.setBounds({ x: -320, y: 0, width: 980, height: 900 }));
   const sl = m.locator('[data-card="widget"]').getByLabel('Widget background opacity'); await sl.waitFor({ timeout: 15000 });
   check('default opacity 85%', (await sl.inputValue()) === '85');
   await sl.fill('30'); await w.waitForFunction(() => getComputedStyle(document.querySelector('.widget')).getPropertyValue('--wa').trim() === '0.3', null, { timeout: 5000 }).catch(() => {});

@@ -31,7 +31,7 @@ export function ProjTabs({ t, theme }: { t: ReturnType<typeof useProjectTabs>; t
 export function RailItem({ s, p, selected, onClick }: { s: Snapshot; p: Project; selected: boolean; onClick: () => void }) {
   const t = tasksOf(s, p.id); const st = statusStyle(statusOf(s, p));
   return (
-    <button className={`ri v6 ${selected ? 'sel' : ''}`} onClick={onClick} data-project={p.name}>
+    <button className={`ri v6 ${selected ? 'sel' : ''}`} onClick={onClick} data-project={p.name} title={p.name}>
       <span className={`smark ${st.cls}`} /><span className="rn">{p.name}</span><Pie done={t.done.length} total={t.all.length} /><span className="rc">{t.done.length}/{t.all.length}</span>
     </button>
   );

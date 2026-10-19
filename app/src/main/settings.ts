@@ -15,6 +15,11 @@ export interface Settings {
   /** 0.6.10 widget panel background opacity 0–100 (per device) */
   widgetOpacity?: number;
   widgetBlur?: boolean;
+  /** 0.6.11 startup (per device) */
+  autoShowWidget?: boolean;
+  openManageAtStartup?: boolean;
+  startMinimized?: boolean;
+  loginItemInitialized?: boolean;
 }
 
 const dir = () => app.getPath('userData');
@@ -70,6 +75,8 @@ export function saveToken(token: string | null) {
 }
 export function loadToken(): string | null {
   if (memToken) return memToken;
+  // e2e only: smoke runs can start already signed in (restart tests on hosts without a keyring)
+  if (process.env.DESKLIST_SMOKE && process.env.DESKLIST_SMOKE_TOKEN) return (memToken = process.env.DESKLIST_SMOKE_TOKEN);
   try {
     if (!safeStorage.isEncryptionAvailable()) return null;
     memToken = safeStorage.decryptString(fs.readFileSync(file('session.bin')));

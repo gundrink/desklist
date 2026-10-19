@@ -24,7 +24,7 @@ export interface AppState {
   lastError: string | null;
   serverUrl: string;
   platform: NodeJS.Platform;
-  settings: { lockPosition: boolean; launchAtLogin: boolean; currentProjectId: string | null; sessionExpiresAt?: string | null; widgetOpacity?: number; widgetBlur?: boolean };
+  settings: { lockPosition: boolean; launchAtLogin: boolean; currentProjectId: string | null; sessionExpiresAt?: string | null; widgetOpacity?: number; widgetBlur?: boolean; autoShowWidget?: boolean; openManageAtStartup?: boolean; startMinimized?: boolean };
 }
 
 export type ProjectTab = 'checklist' | 'details' | 'reimbursement' | 'taskdetails';
@@ -43,7 +43,7 @@ export interface DesklistBridge {
   refresh(): Promise<void>;
   openManage(v?: ManageView): Promise<void>;
   setCurrentProject(id: string): Promise<void>;
-  setSetting(patch: { lockPosition?: boolean; launchAtLogin?: boolean; widgetOpacity?: number; widgetBlur?: boolean }): Promise<void>;
+  setSetting(patch: { lockPosition?: boolean; launchAtLogin?: boolean; widgetOpacity?: number; widgetBlur?: boolean; autoShowWidget?: boolean; openManageAtStartup?: boolean; startMinimized?: boolean }): Promise<void>;
   closeWidget(): Promise<void>;
   windowControl(action: 'close' | 'minimize' | 'maximize'): Promise<void>;
   checkForUpdates(): Promise<string>;

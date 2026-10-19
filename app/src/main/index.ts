@@ -3,7 +3,7 @@ import { app, clipboard, BrowserWindow, dialog, ipcMain, Menu, nativeImage, scre
 import path from 'node:path';
 import type { ManageView, Op } from '../common/ipc';
 import { SyncEngine } from './sync';
-import { flushSettings, getSettings, updateSettings, type Bounds } from './settings';
+import { flushSettings, getSettings, updateSettings, type Bounds, type Settings } from './settings';
 import { desktopWindowOptions, focusWidget, placeOnDesktop, widgetPhaseChanged } from './desktop-layer';
 import { checkForUpdates, initAutoUpdate } from './updater';
 import { safeHref } from '../common/linkify';
@@ -43,10 +43,12 @@ function onScreen(b?: Bounds): Bounds | undefined {
 function createWidget() {
   const s = getSettings();
   const wa = screen.getPrimaryDisplay().workArea;
-  const def = { width: 566, height: 700, x: wa.x + wa.width - 566 - 40, y: wa.y + 60 };
-  const b = onScreen(s.widgetBounds) ?? def;
+  const def = { width: 630, height: 700, x: wa.x + wa.width - 630 - 40, y: wa.y + 60 };
+  let b = onScreen(s.widgetBounds) ?? def;
+  // 0.6.11: wider project rail (+62px); grow older saved widgets so the content area keeps its width (right edge stays put)
+  if (b.width < 628) { const grow = 630 - b.width; b = { ...b, width: 630, x: Math.max(wa.x, b.x - grow) }; }
   widget = new BrowserWindow({
-    ...b, minWidth: 460, minHeight: 480, show: false, title: 'Desklist',
+    ...b, minWidth: 540, minHeight: 480, show: false, title: 'Desklist',
     ...desktopWindowOptions(),
     movable: !s.lockPosition, resizable: !s.lockPosition,
     webPreferences: { preload, contextIsolation: true, sandbox: false },
@@ -108,9 +110,15 @@ function applyLock(lock: boolean) {
   updateSettings({ lockPosition: lock });
   widget?.setMovable(!lock); widget?.setResizable(!lock);
 }
+function loginItemArgs(on: boolean) {
+  return { openAtLogin: on, openAsHidden: !!getSettings().startMinimized, path: process.execPath, args: ['--desklist-startup'] };
+}
 function applyLoginItem(on: boolean) {
-  updateSettings({ launchAtLogin: on });
-  if (process.platform !== 'linux') app.setLoginItemSettings({ openAtLogin: on, openAsHidden: true });
+  updateSettings({ launchAtLogin: on, loginItemInitialized: true });
+  const a = loginItemArgs(on);
+  // smoke runs record the call instead of touching the OS (the e2e mock)
+  if (isSmoke) { ((globalThis as any).__desklistLoginItem ??= []).push(a); return; }
+  if (process.platform !== 'linux') app.setLoginItemSettings(a);
 }
 
 function rebuildTray() {
@@ -163,10 +171,15 @@ function registerIpc() {
   handle('refresh', () => { sync.reconnect(); return sync.refresh(); });
   handle('openManage', (v?: ManageView) => openManage(v));
   handle('setCurrentProject', (id: string) => setCurrentProject(id));
-  handle('setSetting', (p: { lockPosition?: boolean; launchAtLogin?: boolean; widgetOpacity?: number; widgetBlur?: boolean }) => {
+  handle('setSetting', (p: { lockPosition?: boolean; launchAtLogin?: boolean; widgetOpacity?: number; widgetBlur?: boolean; autoShowWidget?: boolean; openManageAtStartup?: boolean; startMinimized?: boolean }) => {
     if (typeof p.widgetOpacity === 'number') updateSettings({ widgetOpacity: Math.max(0, Math.min(100, Math.round(p.widgetOpacity))) });
     if (typeof p.widgetBlur === 'boolean') updateSettings({ widgetBlur: p.widgetBlur });
     if (p.lockPosition !== undefined) applyLock(p.lockPosition);
+    const st: Partial<Settings> = {};
+    if (typeof p.autoShowWidget === 'boolean') st.autoShowWidget = p.autoShowWidget;
+    if (typeof p.openManageAtStartup === 'boolean') st.openManageAtStartup = p.openManageAtStartup;
+    if (typeof p.startMinimized === 'boolean') st.startMinimized = p.startMinimized;
+    if (Object.keys(st).length) { updateSettings(st); if ('startMinimized' in st && getSettings().launchAtLogin) applyLoginItem(true); }
     if (p.launchAtLogin !== undefined) applyLoginItem(p.launchAtLogin);
     broadcast();
   });
@@ -216,6 +229,7 @@ function registerIpc() {
 app.whenReady().then(() => {
   registerIpc();
   sync.on('state', broadcast);
+  sync.on('state', () => { if (sync.state().phase === 'signedOut' && !widget && app.isReady()) showWidget(); });
   sync.start();
   const trayIcon = process.platform === 'darwin'
     ? nativeImage.createFromPath(path.join(resources(), 'trayTemplate.png'))
@@ -225,12 +239,18 @@ app.whenReady().then(() => {
   tray.setToolTip('Desklist');
   tray.on('click', () => (process.platform === 'win32' ? showWidget() : undefined));
   if (process.platform === 'darwin') app.dock?.hide();
-  createWidget();
-  if (!getSettings().widgetVisible) { /* still show on launch: a (re)launch always re-shows the widget */ }
-  updateSettings({ widgetVisible: true });
+  const s0 = getSettings();
+  // first run (incl. right after install): open at login by default
+  if (!s0.loginItemInitialized) applyLoginItem(true);
+  const minimized = !!s0.startMinimized && !!tray;
+  const signedOut = sync.state().phase === 'signedOut';
+  // the widget appears on launch (pinned to the desktop, saved position) unless turned off or starting in the tray; signed out always shows sign-in
+  if (signedOut || (s0.autoShowWidget !== false && !minimized)) { if (!widget) createWidget(); updateSettings({ widgetVisible: true }); }
+  else updateSettings({ widgetVisible: false });
+  if (s0.openManageAtStartup && !minimized && !signedOut) setTimeout(() => openManage(), 300);
   rebuildTray();
   initAutoUpdate();
-  if (isSmoke) (globalThis as any).__desklist = { openManage, showWidget, layerMode: () => layerMode, state: () => sync.state(), opened };
+  if (isSmoke) (globalThis as any).__desklist = { hasWidget: () => !!widget && !widget.isDestroyed(), windows: () => BrowserWindow.getAllWindows().map((w) => w.webContents.getURL()), openManage, showWidget, layerMode: () => layerMode, state: () => sync.state(), opened };
 });
 
 app.on('before-quit', () => { quitting = true; flushSettings(); sync.stop(); });

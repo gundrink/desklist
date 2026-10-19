@@ -15,6 +15,7 @@ export const CONTRAST_AUDIT = (base = [13, 14, 14]) => {
   const disabled = (el) => !!el.closest(':disabled,[aria-disabled="true"],.disabled');
   const fails = []; let n = 0;
   const test = (el, colorStr, kind) => {
+    if (el.matches?.('input[type=checkbox],input[type=radio],input[type=range]')) return; /* no text: indicator drawn by ::after / thumb */
     const fg = parse(colorStr); if (!fg) return; const { col, opac } = bgOf(el); if (opac < 0.1) return; /* hidden until hover */ const f = over([fg[0], fg[1], fg[2], fg[3] * opac], col);
     const cs = getComputedStyle(el); const size = parseFloat(cs.fontSize); const large = size >= 18 || (size >= 14 && +cs.fontWeight >= 700);
     const need = kind === 'icon' || large || disabled(el) ? 3 : 4.5; const r = ratio(f, col); n++;

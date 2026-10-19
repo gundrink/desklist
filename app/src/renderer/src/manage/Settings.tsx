@@ -4,6 +4,7 @@ import type { Snapshot } from '@desklist/shared';
 import { actions } from '../lib/store';
 import { PasskeysCard } from '../components/Passkeys';
 import { OpacityControl } from '../components/WidgetLook';
+import { Toggle } from '../components/Money';
 
 const clean = (x: unknown) => (x as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
 
@@ -17,6 +18,16 @@ export function Settings({ s, st }: { s: Snapshot; st: AppState }) {
     <>
       <div className="rhead"><h1>Settings</h1><div className="sub">Your account, sign-in methods and session.</div></div>
       <div className="rbody scroll settings mswap">
+        <div className="card setcard" data-card="startup">
+          <div className="fhead"><h3>Startup</h3></div>
+          <p className="muted small">What happens when this computer starts. Saved on this device only.</p>
+          {([['launchAtLogin', 'Open Desklist at startup', 'Starts Desklist when you sign in to Windows or macOS.', st.settings.launchAtLogin],
+            ['autoShowWidget', 'Show widget automatically at startup', 'The widget appears pinned to the desktop at its saved position.', st.settings.autoShowWidget ?? true],
+            ['openManageAtStartup', 'Open Manage window at startup', 'Also opens this window when Desklist starts.', st.settings.openManageAtStartup ?? false],
+            ['startMinimized', 'Start minimized to tray', 'Starts quietly in the system tray; open the widget from the tray icon.', st.settings.startMinimized ?? false]] as const).map(([k, label, hint, on]) =>
+            <div className="strow" key={k} data-startup={k}><div><b>{label}</b><span>{hint}</span></div>
+              <Toggle on={!!on} theme="dark" label="" onChange={(v) => void actions.setSetting({ [k]: v })} aria={label} /></div>)}
+        </div>
         <div className="card setcard" data-card="widget">
           <div className="fhead"><h3>Widget</h3></div>
           <p className="muted small">How the desktop widget looks on this device. Only the panel background fades; text stays readable.</p>

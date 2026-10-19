@@ -25,3 +25,6 @@ export const Users = ({ size = 15 }: I) => <svg width={size} height={size} viewB
 export const Sliders = ({ size = 15 }: I) => <svg width={size} height={size} viewBox="0 0 24 24" {...P} strokeWidth={2}><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></svg>;
 export const Refresh = ({ size = 15 }: I) => <svg width={size} height={size} viewBox="0 0 24 24" {...P} strokeWidth={2}><path d="M20 11a8 8 0 10-2.3 5.7M20 4v7h-7" /></svg>;
 export const Power = ({ size = 15 }: I) => <svg width={size} height={size} viewBox="0 0 24 24" {...P} strokeWidth={2}><path d="M12 3v9M6.3 7a8 8 0 1011.4 0" /></svg>;
+export const Pin = ({ size = 15 }: I) => <svg width={size} height={size} viewBox="0 0 24 24" {...P} strokeWidth={2}><path d="M12 17v5M8 3h8l-1 6 3 4H6l3-4z" /></svg>;
+export const Rocket = ({ size = 15 }: I) => <svg width={size} height={size} viewBox="0 0 24 24" {...P} strokeWidth={2}><path d="M5 19l3-3M14 4c3 0 6 3 6 6l-7 7-6-6zM9 11l-4 1-2 3 4 1M13 15l-1 4-3 2-1-4" /></svg>;
+export const Folder = ({ size = 15 }: I) => <svg width={size} height={size} viewBox="0 0 24 24" {...P} strokeWidth={2}><path d="M3 6a2 2 0 012-2h4l2 2h8a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>;

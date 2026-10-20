@@ -86,6 +86,7 @@ function packExtension(): Plugin {
 export default defineConfig({
   base: './',
   publicDir: false,
+  server: { fs: { allow: [path.resolve(root, '..')] } },
   plugins: [react(), packExtension()],
   resolve: { alias: { '@desklist/shared': path.join(root, '../shared/src/index.ts') } },
   build: {

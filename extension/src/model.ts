@@ -53,3 +53,21 @@ export function dueSoon(d: string | null) {
   const days = (new Date(d + 'T00:00:00').getTime() - Date.now()) / 86_400_000;
   return days < 3;
 }
+
+export function statusOf(s: Snapshot, p: Project) {
+  const field = s.fields.find((f) => f.key === FIELD_KEYS.status);
+  return (field && p.values[field.id]?.trim()) || 'Not started';
+}
+
+const STATUS_STYLE: Record<string, { cls: string; color: string }> = {
+  'In progress': { cls: 'ip', color: '#e0c478' },
+  'Not started': { cls: 'ns', color: '#8c8a84' },
+  'On hold': { cls: 'oh', color: '#ccbca3' },
+  Done: { cls: 'dn', color: '#96ae9f' },
+};
+export const statusStyle = (status: string) => STATUS_STYLE[status] ?? { cls: 'ns', color: '#8c8a84' };
+
+export function isDoneProject(s: Snapshot, p: Project) {
+  const tasks = tasksOf(s, p.id);
+  return statusOf(s, p) === 'Done' || (tasks.all.length > 0 && tasks.open.length === 0);
+}

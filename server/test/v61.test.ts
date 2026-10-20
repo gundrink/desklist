@@ -7,7 +7,7 @@ import { createDb, type Db } from '../src/db.js';
 import { createServer, sessionDays } from '../src/app.js';
 import { migrate } from '../src/migrate.js';
 import { codeBucket, sha256 } from '../src/crypto.js';
-import { pkceChallenge, type WebAuthnImpl } from '../src/passkeys.js';
+import { allowPasskeyCb, pkceChallenge, type WebAuthnImpl } from '../src/passkeys.js';
 import { PriceService } from '../src/prices.js';
 import type { Snapshot } from '@desklist/shared';
 
@@ -98,6 +98,10 @@ describe('passkeys (mocked authenticator)', () => {
 
     const verifier = crypto.randomBytes(32).toString('base64url'); const cc = pkceChallenge(verifier);
     expect((await api('POST', '/passkey/api/login/options', undefined, { cb: 'https://evil.example/cb', state: 'state-123456', cc })).status).toBe(400);
+    expect(allowPasskeyCb('https://server.example/passkey/done', 'https://server.example')).toBe(true);
+    expect(allowPasskeyCb('https://server.example/steal', 'https://server.example')).toBe(false);
+    expect(allowPasskeyCb('https://evil.example/passkey/done', 'https://server.example')).toBe(false);
+    expect((await api('GET', '/passkey/done?status=ok')).text).toContain('desklist-auth');
     const o = (await api('POST', '/passkey/api/login/options', undefined, { cb: 'http://127.0.0.1:53111/passkey', state: 'state-123456', cc })).body;
     expect((await api('POST', '/passkey/api/login/verify', undefined, { flowId: o.flowId, response: { id: 'cred-1', sig: 'bad' } })).status).toBe(400);
     const o2 = (await api('POST', '/passkey/api/login/options', undefined, { cb: 'http://127.0.0.1:53111/passkey', state: 'state-123456', cc })).body;

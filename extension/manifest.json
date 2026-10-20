@@ -19,7 +19,11 @@
   },
   "side_panel": { "default_path": "panel.html" },
   "background": { "service_worker": "background.js", "type": "module" },
-  "permissions": ["storage", "sidePanel"],
-  "host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
+  "permissions": ["storage", "sidePanel", "tabs", "clipboardWrite"],
+  "host_permissions": [
+    "https://server-production-46b2.up.railway.app/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
   "optional_host_permissions": ["http://*/*", "https://*/*"]
 }

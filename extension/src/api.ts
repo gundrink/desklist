@@ -1,6 +1,7 @@
 import type { ServerEvent, SignInResponse, Snapshot } from '@desklist/shared';
 
-export const DEFAULT_SERVER = 'http://localhost:8787';
+/** Same hosted server as the packaged desktop app (app/electron.vite.config.ts). */
+export const DEFAULT_SERVER = 'https://server-production-46b2.up.railway.app';
 const SERVER_KEY = 'desklist.serverUrl';
 const SESSION_KEY = 'desklist.session';
 const PROJECT_KEY = 'desklist.projectId';
@@ -102,6 +103,13 @@ export function loginAccount(serverUrl: string, username: string, password: stri
   });
 }
 
+export function signupAccount(serverUrl: string, username: string, password: string) {
+  return request<Extract<LoginResult, { pending: true }>>(serverUrl, '/api/accounts/signup', {
+    method: 'POST',
+    body: JSON.stringify({ username: username.trim(), password }),
+  });
+}
+
 export function redeemCode(serverUrl: string, accountToken: string, code: string) {
   return request<SignInResponse>(serverUrl, '/api/accounts/redeem', {
     method: 'POST',
@@ -121,11 +129,11 @@ export function patchTask(serverUrl: string, token: string, id: string, patch: {
   });
 }
 
-export function addTask(serverUrl: string, token: string, projectId: string, title: string, dueDate?: string | null) {
+export function addTask(serverUrl: string, token: string, projectId: string, title: string, dueDate?: string | null, taskType: 'standard' | 'social' = 'standard', platform?: string) {
   return request(serverUrl, `/api/projects/${projectId}/tasks`, {
     method: 'POST',
     token,
-    body: JSON.stringify({ title: title.trim(), dueDate: dueDate || null, updatedAt: new Date().toISOString() }),
+    body: JSON.stringify({ title: title.trim(), dueDate: dueDate || null, taskType, platform, updatedAt: new Date().toISOString() }),
   });
 }
 

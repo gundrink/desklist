@@ -7,13 +7,14 @@
     "shared",
     "server",
     "app",
-    "extension"
+    "extension",
+    "web"
   ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "typecheck": "npm run typecheck -w shared && npm run typecheck -w server && npm run typecheck -w app && npm run typecheck -w extension",
+    "typecheck": "npm run typecheck -w shared && npm run typecheck -w server && npm run typecheck -w app && npm run typecheck -w extension && npm run typecheck -w web",
     "build": "npm run build -w server && npm run build -w app",
     "db:migrate": "npm run migrate -w server",
     "db:seed": "npm run seed -w server",
@@ -25,7 +26,9 @@
     "dist:mac": "npm run dist:mac -w app",
     "dist:win": "npm run dist:win -w app",
     "extension:dev": "npm run dev -w extension",
-    "extension:build": "npm run build -w extension"
+    "extension:build": "npm run build -w extension",
+    "web:dev": "npm run dev -w web",
+    "web:build": "npm run build -w web"
   },
   "allowScripts": {
     "electron@41.7.1": true,

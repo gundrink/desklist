@@ -30,6 +30,16 @@ export interface PasskeyConfig { rpID?: string; origin?: string; impl?: WebAuthn
 
 const rand = () => crypto.randomBytes(32).toString('base64url');
 const LOOPBACK = /^http:\/\/127\.0\.0\.1:\d{2,5}\/[\w\-/]*$/;
+/** Desktop hands the one-time code to 127.0.0.1. The website uses a page on this server, which posts the code back to the opener. */
+export function allowPasskeyCb(cb: string, origin: string): boolean {
+  if (LOOPBACK.test(cb)) return true;
+  try { const u = new URL(cb); return u.origin === origin && u.pathname === '/passkey/done'; } catch { return false; }
+}
+function requestOrigin(req: Request): string {
+  const pub = process.env.PUBLIC_SERVER_URL;
+  if (pub) { try { return new URL(pub).origin; } catch { /* use the request host */ } }
+  return `${req.protocol}://${req.get('host')}`;
+}
 export const pkceChallenge = (verifier: string) => crypto.createHash('sha256').update(verifier).digest('base64url');
 
 function rp(req: Request, cfg: PasskeyConfig) {
@@ -68,6 +78,10 @@ export function registerPasskeyPublic(app: Express, db: Db, cfg: PasskeyConfig, 
   };
   app.use('/passkey', security);
   app.get('/passkey/browser.js', (_req, res) => { res.type('application/javascript').send(bundle ??= browserBundle()); });
+  app.get('/passkey/done', (_req, res) => { res.type('html').send(`<!doctype html><meta charset="utf-8"><title>Desklist</title><body style="font-family:system-ui;display:grid;place-items:center;min-height:90vh;background:#fafafa"><p>Return to Desklist. You can close this tab.</p><script>
+const q=new URLSearchParams(location.search);const data={type:'desklist-auth',status:q.get('status'),code:q.get('code'),state:q.get('state')};
+try{if(window.opener)window.opener.postMessage(data,'*')}catch(e){}
+setTimeout(()=>window.close(),400);</script>`); });
   app.get('/passkey/register', (_req, res) => { res.type('html').send(page('Add a passkey for quick sign-in', `
 async function run(){msg('Waiting for your passkey…');const o=await post('/passkey/api/register/options',{ticket:q.get('ticket')});
 const resp=await SimpleWebAuthnBrowser.startRegistration({optionsJSON:o});await post('/passkey/api/register/verify',{ticket:q.get('ticket'),response:resp,label:navigator.platform||'Passkey'});
@@ -105,7 +119,8 @@ msg('Signed in. Returning to Desklist…');location.href=r.redirect}`)); });
     res.json({ ok: true });
   }));
   app.post('/passkey/api/login/options', h(async (req, res) => {
-    const b = z.object({ cb: z.string().regex(LOOPBACK, 'cb must be a 127.0.0.1 loopback URL'), state: z.string().min(8).max(200), cc: z.string().min(43).max(128) }).parse(req.body);
+    const b = z.object({ cb: z.string().min(8).max(500), state: z.string().min(8).max(200), cc: z.string().min(43).max(128) }).parse(req.body);
+    if (!allowPasskeyCb(b.cb, requestOrigin(req))) throw bad(400, 'cb must be a 127.0.0.1 loopback URL');
     const { rpID } = rp(req, cfg);
     const options = await W.generateAuthenticationOptions({ rpID, userVerification: 'preferred', allowCredentials: [] });
     const flowId = rand();

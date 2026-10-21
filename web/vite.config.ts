@@ -17,11 +17,7 @@ function fontsource() {
 export default defineConfig({
   server: { port: 5174, strictPort: true, fs: { allow: [path.resolve(root, '..')] } },
   preview: { port: 5174, strictPort: true },
-  resolve: {
-    alias: {
-      '@desklist/shared': path.join(root, '../shared/src/index.ts'),
-      '@fontsource-variable/inter': fontsource(),
-    },
-  },
+  resolve: { alias: { '@desklist/shared': path.join(root, '../shared/src/index.ts') } },
+  define: { __APP_VERSION__: JSON.stringify(JSON.parse(fs.readFileSync(path.join(root, '../app/package.json'), 'utf8')).version) },
   plugins: [react()],
 });

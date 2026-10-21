@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { formatAmount, type Report, type Snapshot } from '@desklist/shared';
 import { actions } from '../lib/store';
 import { member, shortDate, shortName } from '../lib/model';
-import { Avatar } from '../components/Common';
+import { Avatar, avatarOf, avatarByName } from '../components/Common';
 import { Amount, CurrencyList, usdOf } from '../components/Money';
 
 const MONTHS_ID = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -34,7 +34,7 @@ export function Reports({ s }: { s: Snapshot }) {
     <>
       <div className="rhead">
         <div className="row"><h1>Admin · Reports</h1><span className="lpill admin">Admin</span>
-          <span className="rmeta"><Avatar initials={s.me.initials} size="sm" />Signed in as <b>{shortName(s.me.name)}</b><span className="dotsep" />{s.projects.length} projects</span></div>
+          <span className="rmeta"><Avatar initials={s.me.initials} url={avatarOf(s, s.me.id)} size="sm" />Signed in as <b>{shortName(s.me.name)}</b><span className="dotsep" />{s.projects.length} projects</span></div>
         <div className="filters">
           <label className="flt">Project<Select value={projectId} onChange={(e) => setProjectId(e.target.value)}><option value="">All projects</option>{s.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></label>
           <label className="flt">Status<Select value={status} onChange={(e) => setStatus(e.target.value as never)}><option value="all">All</option><option value="reimbursed">Reimbursed</option><option value="not">Not reimbursed</option></Select></label>
@@ -81,7 +81,7 @@ export function Reports({ s }: { s: Snapshot }) {
                   <span className="ell"><i className="pdot" style={{ background: 'var(--bronze)' }} />{i.projectName}</span>
                   <span className="ell"><Linkify text={i.item} /></span>
                   <span><Amount s={s} amount={i.amount} code={i.currency} /></span>
-                  <span>{m && <><Avatar initials={m.initials} size="xs" /> {shortName(m.name)}</>}</span>
+                  <span>{m && <><Avatar initials={m.initials} url={m.avatarUrl} size="xs" /> {shortName(m.name)}</>}</span>
                   <span className="muted">{shortDate(i.spentOn ?? i.createdAt)}</span>
                   <label className={`tick ${i.reimbursed ? 'on' : ''}`}><input type="checkbox" checked={i.reimbursed} aria-label={`Reimbursed: ${i.item}`}
                     onChange={(e) => actions.request('PATCH', `/api/reimbursements/${i.id}`, { reimbursed: e.target.checked })} />{i.reimbursed ? 'Reimbursed' : 'Not yet'}</label>

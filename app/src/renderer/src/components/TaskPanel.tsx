@@ -10,6 +10,12 @@ import { CopyBtn, revealTaskField } from './Copy';
 import { leave } from './Motion';
 import { Checklist, Progress, progressOf } from './Checklist';
 /** Reimbursement shows only on tasks configured for it (Task setup / admin toggle) or that already have data. */
+/** 0.6.14 per-task field-fill progress ("1/3", tooltip "Fields filled"): pending tasks with at least one filled field. */
+export function FillProgress({ s, t }: { s: Snapshot; t: Task }) {
+  if (t.done) return null; const fs = fieldsOf(s, t.id); const n = fs.length; const d = fs.filter((f) => f.isSet || (f.value != null && f.value !== '')).length;
+  if (!n || !d) return null;
+  return <span className="fillp" data-fill={`${d}/${n}`} title="Fields filled" aria-label={`Fields filled: ${d} of ${n}`}><i><b style={{ width: `${(d / n) * 100}%` }} /></i><em className="mono">{d}/{n}</em></span>;
+}
 export const showsReimb = (s: Snapshot, t: Task) => !!t.hasExpense || !!reimbOfTask(s, t.id) || fieldsOf(s, t.id, 'reimbursement').length > 0;
 
 type Theme = 'light' | 'dark';
@@ -132,10 +138,16 @@ export function AddField({ s, taskId, section = 'fields', theme, placeholder }: 
         <Popover anchor={addBtn} align="start" className={`typepop ${theme}`} onClose={() => setOpen(false)}>
           <div className="tph">Field type</div>
           {TASK_FIELD_TYPES.map((t) => (
-            <button type="button" key={t} className="tpi" onClick={() => { setType(t); setLabel(t === 'amount' ? 'Amount' : TASK_FIELD_TYPE_LABELS[t]); setOpen(false); }}>
+            <button type="button" key={t} className="tpi" onClick={async () => { setOpen(false);
+              if (t === 'amount' && section === 'fields') { // becomes the reimbursement form (Has reimbursement on)
+                try { await actions.request('POST', `/api/tasks/${taskId}/fields`, { label: 'Amount', type: 'amount', section, asReimbursement: true, options: { currency: defaultCurrency(s) } }); await actions.refresh(); setErr('');
+                  setTimeout(() => (document.querySelector(`[data-reimb="${taskId}"] input[aria-label="Reimbursement amount"]`) as HTMLInputElement | null)?.focus(), 250); }
+                catch (e) { setErr((e as Error).message); } return; }
+              setType(t); setLabel(t === 'amount' ? 'Amount' : TASK_FIELD_TYPE_LABELS[t]); }}>
               <span className="tfic">{ICON[t]}</span>{TASK_FIELD_TYPE_LABELS[t]}{HINT[t] && <em>{HINT[t]}</em>}</button>))}
           <div className="tpf">Amount turns on <b>Has reimbursement</b> for this task</div>
         </Popover>)}
+      {err && <span className="tferr">{err}</span>}
     </div>
   );
 }
@@ -164,7 +176,7 @@ export function ReimbSection({ s, t, theme }: { s: Snapshot; t: Task; theme: The
     catch (e) { setErr((e as Error).message); }
   };
   return (
-    <div className={`rsec ${theme}`}>
+    <div className={`rsec ${theme}`} data-reimb={t.id}>
       <div className="rsh"><span>▤ Reimbursement</span><em>{r || saved ? 'Saved to Reimbursement tab' : 'Fill in to add to Reimbursement'}</em></div>
       <div className="rsgrid">
         <label><span>Item / Domain name</span><input value={item} onChange={(e) => setItem(e.target.value)} onBlur={() => save()} aria-label="Reimbursement item" /></label>
@@ -215,7 +227,7 @@ export function TaskPanel({ s, t, theme, mode, onClose, compact }: { s: Snapshot
       <div className="tphead">{head}{pr.n > 0 && <Progress d={pr.d} n={pr.n} label />}<span className="ml" />
         {mode === 'detail' && <button type="button" className="tpx" title="Collapse" onClick={onClose}>×</button>}</div>
       {mode === 'detail' && t.done && (appr || t.doneNote) && (
-        <div className="tpappr">{appr && <Avatar initials={appr.initials} size="sm" />}<span><b>{appr ? shortName(appr.name) : ''}</b> · {shortDate(t.approvedAt)}{t.doneNote && <><br />{t.doneNote}</>}</span></div>)}
+        <div className="tpappr">{appr && <Avatar initials={appr.initials} url={appr.avatarUrl} size="sm" />}<span><b>{appr ? shortName(appr.name) : ''}</b> · {shortDate(t.approvedAt)}{t.doneNote && <><br />{t.doneNote}</>}</span></div>)}
       {mode === 'detail' && <Checklist s={s} t={t} readOnly={compact} />}
       <div className={mode === 'ticked' && !compact ? 'tpcols' : 'tpone'}>
         {mode === 'ticked' && (

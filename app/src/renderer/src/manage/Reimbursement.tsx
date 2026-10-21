@@ -38,7 +38,7 @@ export function ReimbursementTab({ s, projectId }: { s: Snapshot; projectId: str
               <span className="ell" title={extra.map((f) => `${f.label}: ${f.value ?? ''}`).join('\n') || r.item}>{r.item}{extra.length > 0 && <em className="fromtask"> · {extra.length} more</em>}</span>
               <span><span className="cat">{r.category}</span></span>
               <span><Amount s={s} amount={r.amount} code={r.currency} cls="stack" /></span>
-              <span>{m && <Avatar initials={m.initials} size="sm" title={m.name} />}</span>
+              <span>{m && <Avatar initials={m.initials} url={m.avatarUrl} size="sm" title={m.name} />}</span>
               <span>{isAdmin
                 ? <Select className={`stsel ${r.status}`} value={r.status} onChange={(e) => actions.request('PATCH', `/api/reimbursements/${r.id}`, { status: e.target.value })}>
                     {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Select>

@@ -29,6 +29,7 @@ export function Team({ s, isAdmin }: { s: Snapshot; isAdmin: boolean }) {
   const [shown, setShown] = useState<{ name: string; code: string } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [temp, setTemp] = useState<{ name: string; pw: string } | null>(null);
+  const [del, setDel] = useState<Member | null>(null);
   const [name, setName] = useState(''); const [role, setRole] = useState<'member' | 'admin'>('member');
   const run = async (fn: () => Promise<{ member: Member; code: string } | unknown>) => {
     setErr(null);
@@ -41,6 +42,12 @@ export function Team({ s, isAdmin }: { s: Snapshot; isAdmin: boolean }) {
       <div className="rbody scroll">
         {!isAdmin && <div className="callout">Only admins can manage codes.</div>}
         {err && <div className="callout err">{err}</div>}
+        {del && <div className="modal-back" onClick={() => setDel(null)}><div className="modal delmodal" role="dialog" aria-label="Delete member" onClick={(e) => e.stopPropagation()}>
+          <h3>Delete {del.name}?</h3>
+          <p className="small">This permanently removes the member and their sign-in. Tasks they own are unassigned; tasks they approved keep their name in history.</p>
+          <div className="mbtns"><span className="ml" /><button className="btn sec sm" onClick={() => setDel(null)}>Cancel</button>
+            <button className="btn danger sm" data-confirmdelmember onClick={() => { const m = del; setDel(null); void run(() => actions.request('DELETE', `/api/members/${m.id}`).then(() => actions.refresh())); }}>Delete member</button></div>
+        </div></div>}
         {temp && <div className="callout code-callout" data-temp>Temporary password for <b>{temp.name}</b>: <span className="mono big">{temp.pw}</span>
           <button className="btn sec sm" onClick={() => navigator.clipboard.writeText(temp.pw)}>Copy</button>
           <span className="muted small">Shown once. They should change it in Settings.</span></div>}
@@ -50,9 +57,12 @@ export function Team({ s, isAdmin }: { s: Snapshot; isAdmin: boolean }) {
         <div className="card">
           {s.members.map((m) => (
             <div className={`mem-row ${m.revoked ? 'revoked' : ''}`} key={m.id}>
-              <Avatar initials={m.initials} size="md" />
+              <Avatar initials={m.initials} url={m.avatarUrl} size="md" />
               <span className="mname">{m.name}{m.id === s.me.id && <em> (you)</em>}{m.isDemo && <span className="demo-tag light">demo</span>}</span>
-              <span className={`badge ${m.role === 'admin' ? 'admin' : ''}`}>{m.role}</span>
+              {isAdmin && m.id !== s.me.id
+                ? <span className="rolesel" data-role={m.name}><Select value={m.role} aria-label={`Role for ${m.name}`} onChange={(e) => { const r = e.target.value; if (r !== m.role) void run(() => actions.request('PATCH', `/api/members/${m.id}`, { role: r }).then(() => actions.refresh())); }}>
+                  <option value="member">Member</option><option value="admin">Admin</option></Select></span>
+                : <span className={`badge ${m.role === 'admin' ? 'admin' : ''}`} title={m.id === s.me.id ? 'You cannot change your own role' : undefined}>{m.role}</span>}
               <span className="muted small">{m.revoked ? 'Revoked' : 'Active'}</span>
               <span className="accname small" data-account={m.name}>{m.username ? <>@{m.username}</> : <span className="muted">Not joined yet{isAdmin ? ' · share their code (Reset code shows a new one)' : ''}</span>}</span>
               {isAdmin && <span className="mem-actions">
@@ -60,6 +70,7 @@ export function Team({ s, isAdmin }: { s: Snapshot; isAdmin: boolean }) {
                 {m.username && <button className="btn sec sm" onClick={() => run(async () => { const r = await actions.request<{ tempPassword: string }>('POST', `/api/members/${m.id}/reset-password`); setTemp({ name: m.name, pw: r.tempPassword }); })}>Reset password</button>}
                 {m.username && m.id !== s.me.id && <button className="btn sec sm" onClick={() => { if (confirm(`Unlink @${m.username} from ${m.name}? Their code can then be used again.`)) void run(() => actions.request('POST', `/api/members/${m.id}/unlink`)); }}>Unlink</button>}
                 {!m.revoked && m.id !== s.me.id && <button className="btn danger sm" onClick={() => run(() => actions.request('POST', `/api/members/${m.id}/revoke`))}>Revoke</button>}
+                {m.id !== s.me.id && <button className="btn danger sm" data-delmember={m.name} onClick={() => setDel(m)}>Delete</button>}
               </span>}
             </div>
           ))}

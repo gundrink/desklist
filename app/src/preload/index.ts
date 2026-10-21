@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { AppState, DesklistBridge, ManageView } from '../common/ipc';
+import type { AppState, DesklistBridge, ManageView, UpdateStatus } from '../common/ipc';
 
 async function call<T>(ch: string, ...args: unknown[]): Promise<T> {
   const r = await ipcRenderer.invoke(ch, ...args);
@@ -23,6 +23,10 @@ const api: DesklistBridge = {
   closeWidget: () => call('closeWidget'),
   windowControl: (a) => call('windowControl', a),
   checkForUpdates: () => call('checkForUpdates'),
+  updateStatus: () => call('updateStatus'),
+  onUpdate: (cb) => { const f = (_: unknown, u: UpdateStatus) => cb(u); ipcRenderer.on('desklist:update', f); return () => ipcRenderer.off('desklist:update', f); },
+  downloadUpdate: () => call('downloadUpdate'),
+  installUpdate: () => call('installUpdate'),
   exportCsv: (q) => call('exportCsv', q),
   uploadFile: (t, n, m, d, f) => call('uploadFile', t, n, m, d, f),
   openFile: (id, n) => call('openFile', id, n),

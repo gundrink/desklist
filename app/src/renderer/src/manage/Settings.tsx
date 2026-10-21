@@ -6,6 +6,8 @@ import { PasskeysCard } from '../components/Passkeys';
 import { OpacityControl } from '../components/WidgetLook';
 import { Toggle } from '../components/Money';
 import { TzSelect, useClockMode } from '../components/Overview';
+import { ProfileCard } from '../components/Profile';
+import { UpdatesCard } from '../components/Update';
 function ClockStyle() { const [m, setM] = useClockMode(); return <div className="seg clockseg" role="group" aria-label="Clock style">{(['digital', 'analog'] as const).map((x) => <button key={x} className={m === x ? 'on' : ''} aria-pressed={m === x} onClick={() => setM(x)}>{x === 'digital' ? 'Digital' : 'Analog'}</button>)}</div>; }
 
 const clean = (x: unknown) => (x as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
@@ -20,6 +22,7 @@ export function Settings({ s, st }: { s: Snapshot; st: AppState }) {
     <>
       <div className="rhead"><h1>Settings</h1><div className="sub">Your account, sign-in methods and session.</div></div>
       <div className="rbody scroll settings mswap">
+        <ProfileCard s={s} />
         <div className="card setcard" data-card="startup">
           <div className="fhead"><h3>Startup</h3></div>
           <p className="muted small">What happens when this computer starts. Saved on this device only.</p>
@@ -59,6 +62,7 @@ export function Settings({ s, st }: { s: Snapshot; st: AppState }) {
           </form>
         </div>
         <PasskeysCard />
+        <UpdatesCard />
         <div className="card setcard" data-card="session">
           <div className="fhead"><h3>Session</h3><button className="btn sec sm" onClick={() => actions.signOut()}>Sign out</button></div>
           <div className="small">Signed in as <b>{me?.username ?? s.me.name}</b> · {s.me.role} · {s.team.name}</div>

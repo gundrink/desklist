@@ -37,6 +37,8 @@ export interface Member {
   /** 0.6.2: Google account allowed to sign in as this member (set by an admin) */
   googleEmail?: string | null;
   username?: string | null;
+  /** 0.6.14 profile photo (data URL, ~256px square) or null */
+  avatarUrl?: string | null;
 }
 
 export interface FieldOptions {
@@ -116,6 +118,8 @@ export interface Task {
   /** set server-side from the signed-in member's token when the task is checked; cleared on uncheck */
   approvedByMemberId: string | null;
   approvedAt: string | null;
+  /** 0.6.14: name kept after the approver was deleted */
+  approvedByName?: string | null;
   /** per-task note shown in the Notes column */
   notes: string;
   /** v5 per-task "Ada pengeluaran" */
@@ -148,6 +152,8 @@ export interface Snapshot {
   taskFiles: TaskFile[];
   /** v0.6.8 checklist sub-items inside a task */
   checklistItems?: ChecklistItem[];
+  /** 0.6.14 Notebook: the signed-in member's private notes (secret values never included; reveal on demand) */
+  notes?: Note[];
 }
 
 export interface ChecklistItem { id: string; taskId: string; title: string; done: boolean; doneByMemberId: string | null; doneAt: string | null; sortOrder: number }
@@ -156,7 +162,7 @@ export interface SignInResponse { token: string; member: Member; team: Team }
 
 export type ServerEvent =
   | { type: 'hello'; memberId: string; serverTime: string }
-  | { type: 'changed'; entity: 'project' | 'task' | 'field' | 'member' | 'column' | 'reimbursement' | 'template' | 'settings' | 'checklist'; id?: string; by?: string; at: string };
+  | { type: 'changed'; entity: 'project' | 'task' | 'field' | 'member' | 'column' | 'reimbursement' | 'template' | 'settings' | 'checklist' | 'note'; id?: string; by?: string; at: string };
 
 /** Well-known master field keys used by the UI for project cards / widget. */
 export const FIELD_KEYS = {
@@ -302,3 +308,11 @@ export interface TaskDetailCard {
   task: Task; fields: TaskField[]; files: TaskFile[]; reimbursement: Reimbursement | null;
 }
 export interface TaskDetailsResponse { approved: TaskDetailCard[]; pendingCount: number }
+
+/** 0.6.14 Notebook */
+export const NOTE_FIELD_TYPES = ['text', 'url', 'secret', 'number', 'longtext'] as const;
+export type NoteFieldType = (typeof NOTE_FIELD_TYPES)[number];
+export const NOTE_FIELD_TYPE_LABELS: Record<NoteFieldType, string> = { text: 'Text', url: 'URL', secret: 'Password / secret', number: 'Number', longtext: 'Long text' };
+export interface NoteField { id: string; label: string; type: NoteFieldType; value: string | null; hasValue?: boolean }
+export type NoteStatus = 'available' | 'unavailable';
+export interface Note { id: string; title: string; status: NoteStatus; fields: NoteField[]; createdAt: string; updatedAt: string }

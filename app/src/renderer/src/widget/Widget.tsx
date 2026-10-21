@@ -5,6 +5,9 @@ import { Progress, progressOf, blockedByItems } from '../components/Checklist';
 import { TaskEditPanel } from '../components/TaskEdit';
 import { Select } from '../components/Select';
 import { ProjectDescription } from '../components/Description';
+import { UpdateChip } from '../components/Update';
+import { Notebook, NotebookNavBtn, SearchResults, SidebarSearch, searchActive, type SearchHit } from '../components/Notebook';
+import '../styles/v614.css';
 import { useEffect, useRef, useState } from 'react';
 import '../styles/widget.css';
 import '../styles/v5.css';
@@ -17,7 +20,7 @@ import '../styles/v69.css';
 import '../styles/v610.css';
 import '../styles/v611.css';
 import { ProjTabs, RailItem, useProjectTabs } from '../components/ProjectList';
-import { TaskPanel, fieldsOf } from '../components/TaskPanel';
+import { TaskPanel, FillProgress, fieldsOf } from '../components/TaskPanel';
 import { Collapse } from '../components/Motion';
 import { ModeToggle, ProjectView, platformOf } from '../components/ViewMode';
 import { SOCIAL_PLATFORMS } from '@desklist/shared';
@@ -41,6 +44,9 @@ export function Widget() {
   const st = useAppState();
   const [menu, setMenu] = useState(false); const menuBtn = useRef<HTMLButtonElement>(null);
   const [wview, setWview] = useState<string>(() => localStorage.getItem('dl-wview') ?? 'project');
+  const [wnote, setWnote] = useState<string | null>(null);
+  const [sq, setSq] = useState('');
+  const openHit = (h: SearchHit) => { setSq(''); if (h.kind === 'note') { setWnote(h.id); window.dispatchEvent(new CustomEvent('dl-wview', { detail: 'notebook' })); } else if (h.projectId) { void actions.setCurrentProject(h.projectId); window.dispatchEvent(new CustomEvent('dl-wview', { detail: 'project' })); } };
   useEffect(() => { const f = (e: Event) => { const v = (e as CustomEvent<string>).detail; localStorage.setItem('dl-wview', v); setWview(v); }; window.addEventListener('dl-wview', f); return () => window.removeEventListener('dl-wview', f); }, []);
   const [notesMenu, setNotesMenu] = useState(false);
   const [wdel, setWdel] = useState<string | null>(null);
@@ -70,13 +76,17 @@ export function Widget() {
       <div className="rail drag">
         <div className="rhd">Projects <em>{s.projects.length}</em></div>
         <button className={`rov nodrag ${wview === 'overview' ? 'on' : ''}`} data-rail="overview" aria-current={wview === 'overview' ? 'page' : undefined} onClick={() => window.dispatchEvent(new CustomEvent('dl-wview', { detail: 'overview' }))}><Grid size={14} />Overview</button>
-        <RailList s={s} sel={wview === 'overview' ? undefined : p?.id} />
-        <button className="rnew nodrag" onClick={() => actions.openManage({ view: 'create' })}>+ New</button>
+        <SidebarSearch q={sq} setQ={setSq} />
+        <NotebookNavBtn className="rnb nodrag" on={wview === 'notebook'} count={s.notes?.length ?? 0} onClick={() => { setWnote(null); window.dispatchEvent(new CustomEvent('dl-wview', { detail: 'notebook' })); }} />
+        <RailList s={s} sel={wview === 'project' ? p?.id : undefined} />
+        <div className="rfoot"><button className="rnew nodrag" onClick={() => actions.openManage({ view: 'create' })}>+ New</button><span className="ml" /><UpdateChip /></div>
       </div>
 
       <div className="wdet">
         <PasskeyNudge />
-        {wview === 'overview' ? <>
+        {searchActive(sq) ? <div className="wnb nodrag"><SearchResults s={s} q={sq} compact onOpen={openHit} onClose={() => setSq('')} /></div>
+        : wview === 'notebook' ? <div className="wnb nodrag"><Notebook s={s} compact noteId={wnote} setNoteId={setWnote} /></div>
+        : wview === 'overview' ? <>
           <div className="w-top drag"><div className="switch"><span className="dotp" />Overview</div><span className="ml" /><ViewToggle v="overview" />
             <div className="menu-anchor nodrag"><button ref={menuBtn} className={`menu ${menu ? 'on' : ''}`} onClick={() => setMenu(!menu)} title="Menu" aria-label="Widget menu">⋯</button>
               {menu && <WidgetMenu anchor={menuBtn} s={s} projectId="" locked={locked} launch={st.settings.launchAtLogin} onClose={() => setMenu(false)} />}</div></div>
@@ -167,7 +177,7 @@ function Detail({ s, pId, menuOpen, setMenu, notesMenu, setNotesMenu, setSheet, 
 }
 
 function WTask({ s, t, panel, setPanel }: { s: Snapshot; t: Task; panel: 'detail' | 'ticked' | null; setPanel: (m: 'detail' | 'ticked' | null) => void }) {
-  const cb = checkedBy(s, t.approvedByMemberId, t.approvedAt);
+  const cb = checkedBy(s, t.approvedByMemberId, t.approvedAt, t.approvedByName);
   const r = s.reimbursements.find((x) => x.taskId === t.id);
   const nf = fieldsOf(s, t.id).length;
   const pr = progressOf(s, t.id);
@@ -181,11 +191,14 @@ function WTask({ s, t, panel, setPanel }: { s: Snapshot; t: Task; panel: 'detail
       {platformOf(s, t) && <span className="platpill">{platformOf(s, t)}</span>}
       <Progress d={pr.d} n={pr.n} />
       {t.hasExpense && r && <span className="wtag">{formatAmount(r.amount, r.currency)}{usdOf(s, r.amount, r.currency) ? ` ≈ ${usdOf(s, r.amount, r.currency)}` : ''}</span>}
-      {nf > 0 && !t.done && <span className="wn" title={`${nf} fields`}>▤</span>}
+      <FillProgress s={s} t={t} />
       {!t.done && t.notes && <span className="wn"><Note /></span>}
       {!t.done && t.dueDate && <span className="wd">{shortDate(t.dueDate)}</span>}
-      {t.done && cb.m && <Avatar initials={cb.m.initials} size="sm" title={`Checked by ${cb.text}`} />}
-      <button className="rowedit nodrag" title="Edit task" aria-label={`Edit ${t.title}`} onClick={(e) => { e.stopPropagation(); setEditing(!editing); }}>✎</button>
+      {t.done && cb.m && <Avatar initials={cb.m.initials} url={cb.m.avatarUrl} size="sm" title={`Checked by ${cb.text}`} />}
+      <span className="racts" data-ractions>
+        <button className={`rdet nodrag ${nf ? '' : 'nofields'} ${panel ? 'on' : ''}`} title={nf ? `Task detail · ${nf} field${nf > 1 ? 's' : ''}` : 'Task detail'} aria-label={`Task detail for ${t.title}`} onClick={(e) => { e.stopPropagation(); setPanel(panel ? null : 'detail'); }}>▤</button>
+        {s.me.role === 'admin' && <button className="rowedit nodrag" title="Edit task" aria-label={`Edit ${t.title}`} onClick={(e) => { e.stopPropagation(); setEditing(!editing); }}>✎</button>}
+      </span>
     </div>
     <Collapse open={editing}>{editing && <div className="nodrag"><TaskEditPanel s={s} t={t} compact onClose={() => setEditing(false)} /></div>}</Collapse>
     <Collapse open={!!panel}>{panel && <div className="nodrag"><TaskPanel s={s} t={t} theme="dark" mode={panel} compact onClose={() => setPanel(null)} /></div>}</Collapse>

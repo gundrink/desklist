@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import http from 'node:http';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { WebSocketServer, type WebSocket } from 'ws';
@@ -9,11 +10,12 @@ import {
   TASK_TYPES, SOCIAL_FIELDS, SOCIAL_PLATFORMS,
 } from '@desklist/shared';
 import { PriceService } from './prices.js';
+import { registerUpdates } from './updates.js';
 import { registerGoogle, type GoogleConfig } from './google.js';
 import { registerPasskeyAuthed, registerPasskeyPublic, type PasskeyConfig } from './passkeys.js';
 import type { Db, Queryable } from './db.js';
 import { codeBucket, encryptSecret, generateCode, newToken, normalizeCode, sha256 } from './crypto.js';
-import { listTaskFields, listTaskFiles, mapTaskField, mapTaskFile } from './repo.js';
+import { listTaskFields, listTaskFiles, mapNote, mapTaskField, mapTaskFile } from './repo.js';
 import { decryptSecret } from './crypto.js';
 import { registerAccountsPublic, registerAccountsAuthed } from './accounts.js';
 import { listFields, listReimbursements, listTemplates, loadProjects, mapColumn, mapField, mapMember, mapReimbursement, mapTask, mapTeam, mapTemplate, revealSecret, snapshot } from './repo.js';
@@ -74,7 +76,7 @@ export function createServer(opts: AppOptions) {
     // The Electron app calls from file:// or a dev server; allow any origin, auth is bearer-token.
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Filename, X-Mime, X-Field-Id');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     next();
   });
@@ -243,6 +245,7 @@ export function createServer(opts: AppOptions) {
   app.get('/api/prices', currencies);
 
   // ---------- authenticated ----------
+  registerUpdates(app as any);
   app.use('/api', requireAuth);
   registerAccountsAuthed(app, db, h as any, changed as any);
   registerPasskeyAuthed(app, db);
@@ -281,6 +284,22 @@ export function createServer(opts: AppOptions) {
   }));
 
   // members & codes (admin)
+  // ---- 0.6.14 profile: own display name + photo ----
+  app.patch('/api/me', h(async (req, res) => {
+    const b = z.object({ name: z.string().trim().min(1).max(80) }).parse(req.body);
+    const initials = b.name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+    const { rows: [m] } = await db.query(`UPDATE ${S}.members SET name=$2, initials=$3, updated_at=now() WHERE id=$1 RETURNING *`, [req.member!.id, b.name, initials]);
+    changed(req, 'member', m.id); res.json(mapMember(m));
+  }));
+  app.put('/api/me/avatar', h(async (req, res) => {
+    const b = z.object({ dataUrl: z.string().max(400_000).regex(/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/, 'Use a PNG, JPG or WebP image') }).parse(req.body);
+    if (Buffer.byteLength(b.dataUrl.split(',')[1], 'base64') > 256 * 1024) throw new HttpError(413, 'Photo too large (max 256 KB after resize)');
+    await db.query(`INSERT INTO ${S}.member_avatars(member_id, data_url) VALUES ($1,$2) ON CONFLICT (member_id) DO UPDATE SET data_url=EXCLUDED.data_url, updated_at=now()`, [req.member!.id, b.dataUrl]);
+    changed(req, 'member', req.member!.id); res.json({ ok: true });
+  }));
+  app.delete('/api/me/avatar', h(async (req, res) => {
+    await db.query(`DELETE FROM ${S}.member_avatars WHERE member_id=$1`, [req.member!.id]); changed(req, 'member', req.member!.id); res.json({ ok: true });
+  }));
   app.post('/api/members', h(async (req, res) => {
     admin(req);
     const b = z.object({ name: z.string().min(1).max(80), initials: z.string().max(3).optional(), role: z.enum(['admin', 'member']).default('member') }).parse(req.body);
@@ -295,16 +314,29 @@ export function createServer(opts: AppOptions) {
   app.delete('/api/members/:id', h(async (req, res) => {
     admin(req);
     if (req.params.id === req.member!.id) throw new HttpError(400, 'You cannot delete yourself');
-    await db.query(`DELETE FROM ${S}.accounts a USING ${S}.members m WHERE a.member_id=m.id AND m.id=$1 AND m.team_id=$2`, [req.params.id, req.member!.teamId]);
-    const { rows } = await db.query(`DELETE FROM ${S}.members WHERE id=$1 AND team_id=$2 RETURNING id`, [req.params.id, req.member!.teamId]);
-    if (!rows[0]) throw new HttpError(404, 'Member not found');
-    changed(req, 'member', req.params.id as string);
+    const { rows: [m] } = await db.query(`SELECT * FROM ${S}.members WHERE id=$1 AND team_id=$2`, [req.params.id, req.member!.teamId]);
+    if (!m) throw new HttpError(404, 'Member not found');
+    if (m.role === 'admin') { const { rows: [c] } = await db.query(`SELECT count(*)::int AS n FROM ${S}.members WHERE team_id=$1 AND role='admin' AND NOT revoked AND id<>$2`, [req.member!.teamId, m.id]);
+      if (!c.n) throw new HttpError(400, 'You cannot delete the last admin'); }
+    await db.tx(async (q) => {
+      // keep history readable: approved tasks remember the approver's name; BIC assignments are cleared (FK SET NULL)
+      await q.query(`UPDATE ${S}.tasks SET approved_by_name=$2 WHERE approved_by_member_id=$1`, [m.id, m.name]);
+      await q.query(`UPDATE ${S}.tasks SET bic_member_id=NULL, updated_at=now() WHERE bic_member_id=$1`, [m.id]);
+      await q.query(`DELETE FROM ${S}.accounts WHERE member_id=$1`, [m.id]);
+      await q.query(`DELETE FROM ${S}.members WHERE id=$1`, [m.id]);
+    });
+    changed(req, 'member', m.id);
     res.json({ ok: true });
   }));
   app.patch('/api/members/:id', h(async (req, res) => {
     admin(req);
     const b = z.object({ name: z.string().min(1).max(80).optional(), initials: z.string().min(1).max(3).optional(), role: z.enum(['admin', 'member']).optional(),
       googleEmail: z.string().trim().toLowerCase().email().max(200).nullable().optional() }).parse(req.body);
+    if (b.role === 'member') {
+      if (req.params.id === req.member!.id) throw new HttpError(400, 'You cannot demote yourself');
+      const { rows: [c] } = await db.query(`SELECT count(*)::int AS n FROM ${S}.members WHERE team_id=$1 AND role='admin' AND NOT revoked AND id<>$2`, [req.member!.teamId, req.params.id]);
+      if (!c.n) throw new HttpError(400, 'A team needs at least one admin');
+    }
     if (b.googleEmail) { const { rows: dup } = await db.query(`SELECT id FROM ${S}.members WHERE lower(google_email)=$1 AND id<>$2`, [b.googleEmail, req.params.id]); if (dup[0]) throw new HttpError(409, 'That Google email is already linked to another member'); }
     const { rows } = await db.query(
       `UPDATE ${S}.members SET name=COALESCE($3,name), initials=COALESCE(upper($4),initials), role=COALESCE($5,role),
@@ -497,6 +529,7 @@ export function createServer(opts: AppOptions) {
     res.json((await loadProjects(db, req.member!.teamId, p.id))[0]);
   }));
   app.delete('/api/projects/:id/fields/:fieldId', h(async (req, res) => {
+    admin(req); // removing a field from a project is admin setup
     const p = await projectOf(db, req, req.params.id as string);
     const f = (await db.query(`SELECT is_core FROM ${S}.field_definitions WHERE id=$1`, [req.params.fieldId])).rows[0];
     if (f?.is_core) throw new HttpError(400, 'Project name is always on');
@@ -668,6 +701,44 @@ export function createServer(opts: AppOptions) {
     if (!i) throw new HttpError(404, 'Checklist item not found');
     return i;
   }
+  // ---- 0.6.14 Notebook: private notes, owner only (never visible to other members, admins included) ----
+  const noteField = z.object({ id: z.string().min(1).max(64).optional(), label: z.string().trim().max(80).default(''), type: z.enum(['text', 'url', 'secret', 'number', 'longtext']),
+    value: z.string().max(20000).nullable().optional(), keep: z.boolean().optional() });
+  const noteBody = z.object({ title: z.string().trim().min(1).max(200), fields: z.array(noteField).max(50).default([]), status: z.enum(['available', 'unavailable']).optional() });
+  const noteChanged = (req: Req, id: string) => { const ev = JSON.stringify({ type: 'changed', entity: 'note', id, by: req.member!.id, at: new Date().toISOString() });
+    for (const [ws, c] of clients) if (c.memberId === req.member!.id) ws.send(ev); };
+  async function noteOf(req: Req, id: string) {
+    if (!/^[0-9a-f-]{36}$/i.test(id)) throw new HttpError(404, 'Note not found');
+    const { rows: [n] } = await db.query(`SELECT * FROM ${S}.notes WHERE id=$1 AND owner_member_id=$2`, [id, req.member!.id]);
+    if (!n) throw new HttpError(404, 'Note not found'); return n;
+  }
+  const storeFields = (incoming: z.infer<typeof noteField>[], prev: any[] = []) => incoming.map((f) => {
+    const id = f.id ?? crypto.randomUUID(); const old = prev.find((p) => p.id === id);
+    if (f.type === 'secret') { const value = f.keep && old?.type === 'secret' ? old.value ?? null : f.value ? encryptSecret(f.value) : null; return { id, label: f.label, type: f.type, value }; }
+    return { id, label: f.label, type: f.type, value: f.value ?? null };
+  });
+  app.get('/api/notes', h(async (req, res) => {
+    const { rows } = await db.query(`SELECT * FROM ${S}.notes WHERE owner_member_id=$1 ORDER BY updated_at DESC`, [req.member!.id]); res.json(rows.map(mapNote));
+  }));
+  app.post('/api/notes', h(async (req, res) => {
+    const b = noteBody.parse(req.body);
+    const { rows: [n] } = await db.query(`INSERT INTO ${S}.notes(owner_member_id, title, fields, status) VALUES ($1,$2,$3::jsonb,$4) RETURNING *`, [req.member!.id, b.title, JSON.stringify(storeFields(b.fields)), b.status ?? 'available']);
+    noteChanged(req, n.id); res.status(201).json(mapNote(n));
+  }));
+  app.patch('/api/notes/:id', h(async (req, res) => {
+    const n = await noteOf(req, req.params.id as string);
+    const b = z.object({ title: z.string().trim().min(1).max(200).optional(), fields: z.array(noteField).max(50).optional(), status: z.enum(['available', 'unavailable']).optional() }).parse(req.body);
+    const fields = b.fields ? storeFields(b.fields, n.fields) : n.fields;
+    const { rows: [u] } = await db.query(`UPDATE ${S}.notes SET title=COALESCE($2,title), fields=$3::jsonb, status=COALESCE($4,status), updated_at=now() WHERE id=$1 RETURNING *`, [n.id, b.title ?? null, JSON.stringify(fields), b.status ?? null]);
+    noteChanged(req, n.id); res.json(mapNote(u));
+  }));
+  app.delete('/api/notes/:id', h(async (req, res) => {
+    const n = await noteOf(req, req.params.id as string); await db.query(`DELETE FROM ${S}.notes WHERE id=$1`, [n.id]); noteChanged(req, n.id); res.json({ ok: true });
+  }));
+  app.get('/api/notes/:id/fields/:fieldId/secret', h(async (req, res) => {
+    const n = await noteOf(req, req.params.id as string); const f = (n.fields as any[]).find((x) => x.id === req.params.fieldId && x.type === 'secret');
+    if (!f) throw new HttpError(404, 'Field not found'); res.setHeader('Cache-Control', 'no-store'); res.json({ value: f.value ? decryptSecret(f.value) : null });
+  }));
   app.post('/api/tasks/:id/items', h(async (req, res) => {
     const b = z.object({ title: z.string().trim().min(1).max(300) }).parse(req.body);
     const t = await taskOf(db, req, req.params.id as string);
@@ -721,12 +792,22 @@ export function createServer(opts: AppOptions) {
   const fieldBodyV6 = z.object({
     id: uuid.optional(), label: z.string().trim().min(1).max(80), type: z.enum(TASK_FIELD_TYPES), section: z.enum(['fields', 'reimbursement']).default('fields'),
     options: z.object({ choices: z.array(z.string().min(1)).max(50).optional(), currency: z.string().optional() }).default({}),
-    value: z.string().max(20000).nullable().optional(),
+    value: z.string().max(20000).nullable().optional(), asReimbursement: z.boolean().optional(),
   });
   app.post('/api/tasks/:id/fields', h(async (req, res) => {
     const b = fieldBodyV6.parse(req.body);
     if (b.section !== 'reimbursement') admin(req); // detail field structure is admin setup; reimbursement rows are open to members
     const t = await taskOf(db, req, req.params.id as string);
+    if (b.type === 'amount' && b.section === 'fields' && b.asReimbursement) {
+      // 0.6.14: "Amount / Reimbursement" in Task detail turns on Has reimbursement and becomes the task's reimbursement form
+      const cur = b.options.currency ?? req.member!.currency ?? await teamCurrency(db, req); const amt = Number(String(b.value ?? '').split(' ')[0]) || 0;
+      await db.query(`UPDATE ${S}.tasks SET has_expense=true, expense_amount=COALESCE(expense_amount,$2), expense_currency=COALESCE(expense_currency,$3), updated_at=now() WHERE id=$1`, [t.id, amt, cur]);
+      const { rows: [r] } = await db.query(`INSERT INTO ${S}.reimbursements(project_id, task_id, item, category, amount, currency, paid_by_member_id, spent_on)
+        VALUES ($1,$2,$3,'Other',$4,$5,$6,CURRENT_DATE) ON CONFLICT (task_id) DO UPDATE SET updated_at=now() RETURNING *`, [t.project_id, t.id, t.title, amt, cur, req.member!.id]);
+      await db.query(`UPDATE ${S}.projects SET has_expenses=true WHERE id=$1 AND NOT has_expenses`, [t.project_id]);
+      changed(req, 'reimbursement', r.id);
+      return res.status(201).json({ reimbursement: mapReimbursement(r) });
+    }
     const { rows } = await db.query(
       `INSERT INTO ${S}.task_fields(id, task_id, section, label, type, options, value, sort_order)
        VALUES (COALESCE($1, gen_random_uuid()),$2,$3,$4,$5,$6,$7,(SELECT COALESCE(MAX(sort_order),0)+1 FROM ${S}.task_fields WHERE task_id=$2))

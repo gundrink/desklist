@@ -1,0 +1,62 @@
+/** 0.6.15 web e2e (temp team): browser build renders the shared UI with the new features against a temp server. */
+import { chromium } from 'playwright-core';
+import path from 'node:path'; import { spawn } from 'node:child_process'; import readline from 'node:readline';
+import { CONTRAST_AUDIT } from './contrast.mjs';
+const shots = path.resolve(import.meta.dirname, '../../screenshots');
+const log = (...a) => console.log('[web615]', ...a); const results = []; const check = (n, ok) => { results.push([n, !!ok]); log(ok ? 'PASS' : 'FAIL', n); };
+const R = Date.now().toString(36).slice(-5); const PW = 'Pw-' + Math.random().toString(36).slice(2, 12);
+const api = async (base, token, method, p, body) => (await fetch(base + p, { method, headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: body ? JSON.stringify(body) : undefined })).json();
+const srv = spawn(path.resolve(import.meta.dirname, '../../node_modules/.bin/tsx'), ['scripts/fake-google-server.ts'], { cwd: path.resolve(import.meta.dirname, '../../server'), stdio: ['ignore', 'pipe', 'inherit'], env: { ...process.env, DESKLIST_E2E_TEAM_NAME: 'Demo Team', DESKLIST_E2E_ADMIN_NAME: 'Alex Morgan', DESKLIST_E2E_ADMIN_INITIALS: 'AM' } });
+const L = await new Promise((r) => readline.createInterface({ input: srv.stdout }).once('line', (l) => r(JSON.parse(l))));
+const web = spawn(path.resolve(import.meta.dirname, '../../node_modules/.bin/vite'), ['preview', '--port', '5174', '--strictPort'], { cwd: path.resolve(import.meta.dirname, '../../web'), stdio: 'ignore' });
+await new Promise((r) => setTimeout(r, 2500));
+const browser = await chromium.launch({ executablePath: '/opt/google/chrome/chrome', args: ['--no-sandbox'] });
+let fails = 0, step = '';
+const open = async (token) => { const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  await ctx.addInitScript(([t, u]) => { if (!localStorage.getItem('desklist.web.v1')) localStorage.setItem('desklist.web.v1', JSON.stringify({ token: t, serverUrl: u, settings: {}, cache: null, outbox: [], lastError: null })); }, [token, L.base]);
+  const p = await ctx.newPage(); p.on('pageerror', (e) => log('pageerror', e.message)); await p.goto('http://localhost:5174/?view=manage'); await p.locator('.pcol').waitFor({ timeout: 20000 }); return p; };
+const audit = async (p, l) => { const a = await p.evaluate(CONTRAST_AUDIT); fails += a.fails.length; log(`contrast ${l}: ${a.n} checked, ${a.fails.length} fails ${a.fails.slice(0, 2).join(' | ')}`); };
+try {
+  step = 'seed';
+  const as = await api(L.base, null, 'POST', '/api/accounts/signup', { username: `e2e_w615_${R}a`, password: PW }); const A = (await api(L.base, null, 'POST', '/api/accounts/redeem', { accountToken: as.accountToken, code: L.code })).token;
+  const mem = await api(L.base, A, 'POST', '/api/members', { name: 'Sam Carter', role: 'member' });
+  const ms = await api(L.base, null, 'POST', '/api/accounts/signup', { username: `e2e_w615_${R}m`, password: PW }); const M = (await api(L.base, null, 'POST', '/api/accounts/redeem', { accountToken: ms.accountToken, code: mem.code })).token;
+  const pid = (await api(L.base, A, 'POST', '/api/projects', { name: 'Website launch' })).id;
+  await api(L.base, A, 'PATCH', `/api/projects/${pid}`, { notes: Array.from({ length: 11 }, (_, i) => `Line ${i + 1}${i === 2 ? ' https://example.com/brief' : ''}`).join('\n') });
+  const t1 = (await api(L.base, A, 'POST', `/api/projects/${pid}/tasks`, { title: 'Buy domain' })).id; await api(L.base, A, 'POST', `/api/projects/${pid}/tasks`, { title: 'Deploy Program ID' });
+  for (const [lb, v] of [['Registrar', 'Namecheap'], ['Domain', null], ['Login URL', null]]) await api(L.base, A, 'POST', `/api/tasks/${t1}/fields`, { label: lb, type: 'text', ...(v ? { value: v } : {}) });
+  await api(L.base, A, 'POST', '/api/notes', { title: 'RPC Helius', fields: [{ label: 'Endpoint', type: 'url', value: 'https://mainnet.helius-rpc.com' }, { label: 'API key', type: 'secret', value: 'e2e-dummy' }] });
+  step = 'admin';
+  const p = await open(A);
+  check('web: Overview loads', await p.locator('.ovpage, [data-overview], .ovnav.on').count() > 0);
+  check('web: sidebar search + Notebook', await p.locator('.pcol .sbsearch').count() === 1 && await p.locator('.pcol .nbnav').count() === 1);
+  check('web: no update chip / Updates card (desktop-only)', await p.locator('.updchip').count() === 0);
+  await p.locator('.pcol .sbsearch input').fill('domain'); await p.locator('.rpsearch .sgrp').first().waitFor();
+  check('web: search results grouped in main panel', await p.locator('.rpsearch .sgrp').count() >= 1); await p.screenshot({ path: path.join(shots, 'web615-search.png') });
+  await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+  await p.locator('.pcol .nbnav').click(); await p.locator('.nbrow').first().waitFor();
+  await p.locator('.nbrow .nbstatus').click(); await p.locator('.nbstatus[data-status=unavailable]').waitFor();
+  check('web: note status toggle saved, fields kept', (await api(L.base, A, 'GET', '/api/notes'))[0].fields.length === 2); await audit(p, 'web notebook'); await p.screenshot({ path: path.join(shots, 'web615-notebook.png') });
+  await p.locator('.nbrow').click(); await p.locator('[data-noteview]').waitFor();
+  check('web: secret masked, URL linked', /^•+$/.test(await p.locator('[data-secret]').textContent()) && await p.locator('[data-ftype=url] a.alink').count() === 1);
+  await p.locator('.gcard, .pcol [data-project]').first().click(); await p.locator('.tr[data-task="Buy domain"]').waitFor({ timeout: 10000 });
+  check('web: fill progress 1/3 + row actions on every row', await p.locator('.tr[data-task="Buy domain"] .fillp[data-fill="1/3"]').count() === 1 && await p.locator('.tr .racts .rowedit').count() === 2);
+  check('web: description clamped with Show more', await p.locator('.pdesc.dcard .more').count() === 1);
+  await p.waitForTimeout(1200); await audit(p, 'web project'); await p.screenshot({ path: path.join(shots, 'web615-project.png') });
+  await p.locator('.navbtn', { hasText: 'Settings' }).click(); check('web: Profile card present', await p.locator('[data-card=profile]').count() === 1);
+  await p.locator('[data-nav=team]').click(); check('web: Team role select + Delete', await p.locator('.rolesel').count() >= 1 && await p.locator('[data-delmember]').count() >= 1);
+  await p.screenshot({ path: path.join(shots, 'web615-team.png') });
+  step = 'web widget view';
+  const wv = await p.context().newPage(); await wv.goto('http://localhost:5174/'); await wv.locator('.rail').waitFor({ timeout: 15000 });
+  check('web default view: sidebar search + Notebook + no update chip', await wv.locator('.rail .sbsearch').count() === 1 && await wv.locator('.rail .nbnav').count() === 1 && await wv.locator('.updchip').count() === 0);
+  await wv.screenshot({ path: path.join(shots, 'web615-default-view.png') });
+  step = 'member';
+  const q = await open(M);
+  check('web member: no admin nav', await q.locator('[data-nav=team], [data-nav=fields], .adminrow').count() === 0);
+  check('web member: does not see admin note', (await api(L.base, M, 'GET', '/api/notes')).length === 0);
+} catch (e) { console.error('[web615] FAIL at', step, '-', e.message.split('\n').slice(0, 3).join(' / ')); results.push(['exception at ' + step, false]); }
+finally {
+  check(`web contrast: ${fails} failures`, fails === 0);
+  await browser.close(); web.kill(); srv.kill('SIGTERM'); await Promise.race([new Promise((r) => srv.on('close', r)), new Promise((r) => setTimeout(r, 15000))]);
+  const failed = results.filter(([, ok]) => !ok); log(`${results.length - failed.length}/${results.length} checks passed`); if (failed.length) process.exitCode = 1; process.exit();
+}

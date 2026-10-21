@@ -37,7 +37,7 @@ export function TaskViewCard({ s, t, compact }: { s: Snapshot; t: Task; compact?
     <div className={`vcard ${t.done ? 'done' : ''} ${compact ? 'compact' : ''}`} data-vtask={t.title}>
       <div className="vch"><span className={`vck ${t.done ? 'd' : ''}`}>{t.done ? '✓' : ''}</span><b className="vtitle">{t.title}</b><CopyBtn text={t.title} label="task name" />
         {plat && <span className="platpill">{plat}</span>}<Progress {...progressOf(s, t.id)} /><span className="ml" />
-        {t.done ? <span className="small vappr">{m && <Avatar initials={m.initials} size="xs" />}Approved by <b>{m ? shortName(m.name) : '—'}</b> · {time(t.approvedAt)}</span>
+        {t.done ? <span className="small vappr">{m && <Avatar initials={m.initials} url={m.avatarUrl} size="xs" />}Approved by <b>{m ? shortName(m.name) : '—'}</b> · {time(t.approvedAt)}</span>
           : <span className="small muted">Pending{t.dueDate ? ` · due ${shortDate(t.dueDate)}` : ''}</span>}</div>
       <Checklist s={s} t={t} readOnly />
       <div className="vgrid">

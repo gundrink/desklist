@@ -41,8 +41,7 @@ nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
-publish:
-  provider: github
-  owner: ponkssol
-  repo: desklist                     # private repo: auto-update needs a token (GH_TOKEN) or public releases
-  releaseType: release
+  artifactName: Desklist-Setup-${version}.${ext}
+publish:                             # 0.6.14: generic feed proxied by the Desklist server (private repo; no token in the app)
+  provider: generic
+  url: https://server-production-46b2.up.railway.app/updates

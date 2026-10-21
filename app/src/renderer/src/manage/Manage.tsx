@@ -6,7 +6,7 @@ import '../styles/manage.css';
 import type { ManageView } from '../../../common/ipc';
 import { useAppState, actions } from '../lib/store';
 import { ago } from '../lib/model';
-import { Avatar, SyncDot, syncLabel } from '../components/Common';
+import { Avatar, avatarOf, avatarByName, SyncDot, syncLabel } from '../components/Common';
 import { ProjectGlassCard } from '../components/ProjectGlassCard';
 import { SignIn, LoadingState } from '../components/SignIn';
 import { Plus, Sliders, Users, Power , Grid } from '../components/Icons';
@@ -27,6 +27,9 @@ import '../styles/v68.css';
 import '../styles/v69.css';
 import '../styles/v610.css';
 import '../styles/v611.css';
+import '../styles/v614.css';
+import { UpdateChip } from '../components/Update';
+import { Notebook, NotebookNavBtn, SearchResults, SidebarSearch, searchActive, type SearchHit } from '../components/Notebook';
 import { ProjTabs, useProjectTabs } from '../components/ProjectList';
 
 export function Manage() {
@@ -61,6 +64,11 @@ function ManageReady({ st, s, nav, setNav, picker, setPicker, titlebar }: { st: 
   const select = (id: string) => { setNav({ view: 'project', projectId: id, tab: nav.view === 'project' ? nav.tab : undefined }); void actions.setCurrentProject(id); };
   const isAdmin = s.me.role === 'admin';
   const [delP, setDelP] = useState<string | null>(null);
+  const [sq, setSq] = useState('');
+  const openHit = (h: SearchHit) => { setSq(''); if (h.kind === 'note') setNav({ view: 'notebook', noteId: h.id }); else if (h.projectId) { setNav({ view: 'project', projectId: h.projectId, tab: h.kind === 'field' && !h.taskId ? 'details' : 'checklist' }); void actions.setCurrentProject(h.projectId); } };
+  // 0.6.14 route guard: admin-only pages redirect members to Overview (applies live when the role changes)
+  const adminOnly = ['reports', 'tasksetup', 'fields', 'team'].includes(nav.view);
+  useEffect(() => { if (adminOnly && !isAdmin) setNav({ view: 'overview' }); }, [adminOnly, isAdmin]);
   const delProj = s.projects.find((x) => x.id === delP);
 
   return (
@@ -77,6 +85,8 @@ function ManageReady({ st, s, nav, setNav, picker, setPicker, titlebar }: { st: 
             {isAdmin && <button className={`adminrow ${nav.view === 'reports' ? 'on' : ''}`} onClick={() => setNav({ view: 'reports' })}>▦ Admin · Reports<span>{s.me.name}</span></button>}
             {isAdmin && <button className={`adminrow ${nav.view === 'tasksetup' ? 'on' : ''}`} onClick={() => setNav({ view: 'tasksetup' })}>▤ Admin · Task setup<span>fields</span></button>}
             <button className={`navrow ovnav ${nav.view === 'overview' ? 'on' : ''}`} data-nav="overview" aria-current={nav.view === 'overview' ? 'page' : undefined} onClick={() => setNav({ view: 'overview' })}><span className="ic"><Grid size={15} /></span>Overview<span className="ml" /><em className="mono">{new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</em></button>
+            <SidebarSearch q={sq} setQ={setSq} />
+            <NotebookNavBtn className="navrow" on={nav.view === 'notebook'} count={s.notes?.length ?? 0} onClick={() => setNav({ view: 'notebook' })} />
             <ProjTabs t={tabs} theme="dark" />
             {tabs.list.map((p) => (
               <ProjectGlassCard key={p.id} s={s} p={p} selected={p.id === selectedId} expanded={p.id === selectedId}
@@ -87,23 +97,26 @@ function ManageReady({ st, s, nav, setNav, picker, setPicker, titlebar }: { st: 
             {s.projects.length === 0 && <div className="empty-dark">No projects yet — create the first one.</div>}
           </div>
           <div className="pcfoot">
-            <button className={`navbtn ${nav.view === 'fields' ? 'on' : ''}`} onClick={() => setNav({ view: 'fields' })}><Sliders />Master fields</button>
-            <button className={`navbtn ${nav.view === 'team' ? 'on' : ''}`} onClick={() => setNav({ view: 'team' })}><Users />Team & codes</button>
+            {isAdmin && <button className={`navbtn ${nav.view === 'fields' ? 'on' : ''}`} data-nav="fields" onClick={() => setNav({ view: 'fields' })}><Sliders />Master fields</button>}
+            {isAdmin && <button className={`navbtn ${nav.view === 'team' ? 'on' : ''}`} data-nav="team" onClick={() => setNav({ view: 'team' })}><Users />Team & codes</button>}
             <button className={`navbtn ${nav.view === 'settings' ? 'on' : ''}`} onClick={() => setNav({ view: 'settings' })} title="Settings" aria-label="Settings"><Gear />Settings</button>
-            <span className="me" title={`${s.me.name} (${s.me.role}) · ${s.team.name}`}><Avatar initials={s.me.initials} size="xs" />
+            <span className="me" title={`${s.me.name} (${s.me.role}) · ${s.team.name}`}><Avatar initials={s.me.initials} url={avatarOf(s, s.me.id)} size="xs" />
               <button className="iconbtn" title="Sign out" onClick={() => actions.signOut()}><Power size={13} /></button></span>
+            <div className="pcupd"><span className="ml" /><UpdateChip /></div>
           </div>
         </div>
-        <div className="rp">
+        <div className={`rp ${searchActive(sq) ? 'searching' : ''}`}>
+          {searchActive(sq) && <div className="rpsearch scroll"><SearchResults s={s} q={sq} onOpen={openHit} onClose={() => setSq('')} /></div>}
           {nav.view === 'project' && selectedId && s.projects.some((x) => x.id === selectedId) && <ProjectDetail key={selectedId} s={s} projectId={selectedId} tab={nav.tab ?? 'checklist'}
             setTab={(tab) => setNav({ view: 'project', projectId: selectedId, tab })} onDeleted={() => setNav({ view: 'project' })} />}
           {nav.view === 'project' && !selectedId && <div className="center-fill muted">Create a project to get started.</div>}
           {nav.view === 'create' && <CreateProject s={s} onCreated={(id) => { select(id); setPicker(id); }} onCancel={() => setNav({ view: 'project' })} />}
-          {nav.view === 'reports' && <Reports s={s} />}
-          {nav.view === 'overview' && <Overview s={s} onOpen={(id) => select(id)} />}
+          {nav.view === 'reports' && isAdmin && <Reports s={s} />}
+          {nav.view === 'notebook' && <Notebook s={s} noteId={nav.noteId ?? null} setNoteId={(id) => setNav({ view: 'notebook', noteId: id })} />}
+          {(nav.view === 'overview' || (adminOnly && !isAdmin)) && <Overview s={s} onOpen={(id) => select(id)} />}
           {nav.view === 'tasksetup' && isAdmin && <TaskSetup s={s} />}
-          {nav.view === 'fields' && <MasterFields s={s} isAdmin={isAdmin} />}
-          {nav.view === 'team' && <Team s={s} isAdmin={isAdmin} />}
+          {nav.view === 'fields' && isAdmin && <MasterFields s={s} isAdmin={isAdmin} />}
+          {nav.view === 'team' && isAdmin && <Team s={s} isAdmin={isAdmin} />}
           {nav.view === 'settings' && st && <Settings s={s} st={st} />}
           {picker && <TemplatePicker s={s} projectId={picker} onClose={() => setPicker(null)} />}
           <div className="footer"><span className="note" title={st.lastError ?? undefined}>

@@ -704,7 +704,7 @@ export function createServer(opts: AppOptions) {
   // ---- 0.6.14 Notebook: private notes, owner only (never visible to other members, admins included) ----
   const noteField = z.object({ id: z.string().min(1).max(64).optional(), label: z.string().trim().max(80).default(''), type: z.enum(['text', 'url', 'secret', 'number', 'longtext']),
     value: z.string().max(20000).nullable().optional(), keep: z.boolean().optional() });
-  const noteBody = z.object({ title: z.string().trim().min(1).max(200), fields: z.array(noteField).max(50).default([]) });
+  const noteBody = z.object({ title: z.string().trim().min(1).max(200), fields: z.array(noteField).max(50).default([]), status: z.enum(['available', 'unavailable']).optional() });
   const noteChanged = (req: Req, id: string) => { const ev = JSON.stringify({ type: 'changed', entity: 'note', id, by: req.member!.id, at: new Date().toISOString() });
     for (const [ws, c] of clients) if (c.memberId === req.member!.id) ws.send(ev); };
   async function noteOf(req: Req, id: string) {
@@ -722,13 +722,14 @@ export function createServer(opts: AppOptions) {
   }));
   app.post('/api/notes', h(async (req, res) => {
     const b = noteBody.parse(req.body);
-    const { rows: [n] } = await db.query(`INSERT INTO ${S}.notes(owner_member_id, title, fields) VALUES ($1,$2,$3::jsonb) RETURNING *`, [req.member!.id, b.title, JSON.stringify(storeFields(b.fields))]);
+    const { rows: [n] } = await db.query(`INSERT INTO ${S}.notes(owner_member_id, title, fields, status) VALUES ($1,$2,$3::jsonb,$4) RETURNING *`, [req.member!.id, b.title, JSON.stringify(storeFields(b.fields)), b.status ?? 'available']);
     noteChanged(req, n.id); res.status(201).json(mapNote(n));
   }));
   app.patch('/api/notes/:id', h(async (req, res) => {
-    const n = await noteOf(req, req.params.id as string); const b = noteBody.partial().parse(req.body);
+    const n = await noteOf(req, req.params.id as string);
+    const b = z.object({ title: z.string().trim().min(1).max(200).optional(), fields: z.array(noteField).max(50).optional(), status: z.enum(['available', 'unavailable']).optional() }).parse(req.body);
     const fields = b.fields ? storeFields(b.fields, n.fields) : n.fields;
-    const { rows: [u] } = await db.query(`UPDATE ${S}.notes SET title=COALESCE($2,title), fields=$3::jsonb, updated_at=now() WHERE id=$1 RETURNING *`, [n.id, b.title ?? null, JSON.stringify(fields)]);
+    const { rows: [u] } = await db.query(`UPDATE ${S}.notes SET title=COALESCE($2,title), fields=$3::jsonb, status=COALESCE($4,status), updated_at=now() WHERE id=$1 RETURNING *`, [n.id, b.title ?? null, JSON.stringify(fields), b.status ?? null]);
     noteChanged(req, n.id); res.json(mapNote(u));
   }));
   app.delete('/api/notes/:id', h(async (req, res) => {

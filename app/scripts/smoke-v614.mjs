@@ -74,11 +74,16 @@ try {
   await w.locator('.wt[data-task="Deploy website"] .rdet').click();
   // search
   step = 'search';
-  const sb = w.locator('.rail .sbsearch input'); await sb.fill('vercel'); await w.locator('.rail .sbres .sbhit').first().waitFor();
-  check('search finds checklist item', await w.locator('.rail .sbhit[data-kind=item]').count() >= 1);
-  await sb.fill('namecheap'); await w.waitForTimeout(150); check('search finds task field value', await w.locator('.rail .sbhit[data-kind=field]').count() >= 1);
-  check(`search results no horizontal overflow`, await noOverflow(w, '.rail .sbres'));
-  await sb.fill('website'); await w.waitForTimeout(150); await w.locator('.rail .sbhit[data-kind=project]').first().click();
+  const sb = w.locator('.rail .sbsearch input'); await sb.fill('vercel'); await w.locator('[data-results] .sbhit').first().waitFor();
+  check('search finds checklist item', await w.locator('[data-results] .sbhit[data-kind=item]').count() >= 1);
+  await sb.fill('namecheap'); await w.waitForTimeout(150); check('search finds task field value', await w.locator('[data-results] .sbhit[data-kind=field]').count() >= 1);
+  check(`search results no horizontal overflow`, await noOverflow(w, '[data-results], .wnb'));
+  check('search results render in main panel, not under the box', await w.locator('.wdet [data-results]').count() === 1 && await w.locator('.rail [data-results]').count() === 0);
+  await sb.fill('website'); await w.waitForTimeout(200);
+  check(`grouped results with highlight ${await w.locator('[data-results] .sgrp').count()} groups`, await w.locator('[data-results] .sgrp').count() >= 2 && await w.locator('[data-results] mark.shl').count() >= 2);
+  await w.screenshot({ path: path.join(shots, 'v615-search-widget.png') });
+  await sb.press('Escape'); await w.waitForTimeout(150); check('Esc clears search and returns to previous view', await w.locator('[data-results]').count() === 0 && await w.locator('.wt[data-task="Buy domain"]').count() === 1);
+  await sb.fill('website'); await w.waitForTimeout(150); await w.locator('[data-results] .sbhit[data-kind=project]').first().click();
   check('clicking a project result opens it', await w.locator('.wt[data-task="Buy domain"]').count() === 1);
   // notebook
   step = 'notebook widget';
@@ -91,18 +96,25 @@ try {
   await w.locator('[data-addfield]').click(); await w.locator('input[aria-label="Field 4 label"]').fill('Notes'); await pick(w, w.locator('.nbtype').nth(3), 'Long text'); await w.locator('textarea[aria-label="Field 4 value"]').fill('Free tier\nDocs: https://docs.helius.dev');
   check('new note form: no horizontal overflow', await noOverflow(w, '.wnb, [data-noteform]'));
   check('secret input masked in form', await w.locator('input[aria-label="Field 2 value"]').getAttribute('type') === 'password');
-  await w.screenshot({ path: path.join(shots, 'v614-notebook-new-note.png') });
+  await w.screenshot({ path: path.join(shots, 'v615-notebook-form.png') });
   await w.locator('[data-savenote]').click(); await w.locator('[data-noteview]').waitFor({ timeout: 8000 });
   const nv = await w.evaluate(() => ({ link: !!document.querySelector('[data-ftype=url] a.alink'), mask: document.querySelector('[data-secret]')?.textContent, secLink: !!document.querySelector('[data-ftype=secret] a'), copies: document.querySelectorAll('[data-noteview] .copybtn').length }));
   check(`note view: URL is a link, secret masked + never linkified, copy buttons ${JSON.stringify(nv)}`, nv.link && /^•+$/.test(nv.mask) && !nv.secLink && nv.copies >= 4);
-  await w.screenshot({ path: path.join(shots, 'v614-notebook-note-view.png') });
+  await w.screenshot({ path: path.join(shots, 'v615-notebook-view.png') });
   await w.locator('[data-ftype=secret] button[aria-label="Reveal value"]').click(); await w.waitForTimeout(400);
   check('reveal shows secret as plain text (not a link)', (await w.locator('[data-secret]').textContent()) === 'e2e-dummy-not-a-secret' && await w.locator('[data-ftype=secret] a').count() === 0);
   await w.locator('[data-ftype=secret] button[aria-label="Hide value"]').click();
   await audit(w, 'widget note view');
-  await w.locator('button[aria-label="Back to notebook"]').click(); await w.locator('.nbrow').first().waitFor(); await w.screenshot({ path: path.join(shots, 'v614-notebook-list.png') });
+  await w.locator('button[aria-label="Back to notebook"]').click(); await w.locator('.nbrow').first().waitFor();
+  await w.locator('.nbrow .nbstatus').click(); await w.locator('.nbrow .nbstatus[data-status=unavailable]').waitFor({ timeout: 8000 });
+  { const ns = await api(L.base, A, 'GET', '/api/notes'); check(`status chip toggles to Unavailable (saved, fields kept: ${ns[0]?.fields.length})`, ns[0]?.status === 'unavailable' && ns[0]?.fields.length === 4); }
+  await w.locator('[data-filter=available]').click(); check('filter Available hides it', await w.locator('.nbrow').count() === 0);
+  await w.locator('[data-filter=unavailable]').click(); check('filter Unavailable shows it', await w.locator('.nbrow').count() === 1);
+  await w.locator('.nbrow').hover(); await w.waitForTimeout(250); check('row delete button visible on hover', await w.locator('.nbrow .nbdel').evaluate((e) => getComputedStyle(e).opacity === '1'));
+  await audit(w, 'notebook list (unavailable + hover)');
+  await w.screenshot({ path: path.join(shots, 'v615-notebook-list.png') }); await w.locator('[data-filter=all]').click();
   const MS = await api(L.base, M, 'GET', '/api/notes'); check(`notes private: other member sees ${MS.length} notes`, Array.isArray(MS) && MS.length === 0);
-  await sb.fill('helius'); await w.locator('.rail .sbhit[data-kind=note]').click(); check('search opens note', await w.locator('[data-noteview]').count() === 1);
+  await sb.fill('helius'); await w.locator('[data-results] .sbhit[data-kind=note]').click(); check('search opens note', await w.locator('[data-noteview]').count() === 1);
   await w.locator('.rail .rov').click(); await w.waitForTimeout(300);
   await w.locator('.rail').screenshot({ path: path.join(shots, 'v614-widget-sidebar.png') });
   // update chip
@@ -119,6 +131,9 @@ try {
   check('Manage sidebar has search + Notebook', await m.locator('.pcol .sbsearch').count() === 1 && await m.locator('.pcol .nbnav').count() === 1);
   const mr = await m.evaluate(() => [...document.querySelectorAll('.tr:not(.done)')].map((r) => { const e = r.querySelector('.racts .rowedit'); return { n: r.dataset.task, x: e?.getBoundingClientRect().left ?? -1, op: e ? getComputedStyle(e).opacity : 0, d: !!r.querySelector('.racts .rdet') }; }));
   check(`Manage: every row (incl. "Deploy Program ID") has aligned detail + visible edit ${JSON.stringify(mr.map((x) => [x.n, Math.round(x.x)]))}`, mr.length === 5 && mr.every((x) => x.d && x.op === '1' && Math.abs(x.x - mr[0].x) < 1.5));
+  await m.locator('.pcol .sbsearch input').fill('website'); await m.locator('.rpsearch [data-results]').waitFor();
+  check('Manage: results in main panel', await m.locator('.rpsearch .sgrp').count() >= 2); await m.screenshot({ path: path.join(shots, 'v615-search-manage.png') });
+  await m.locator('.pcol .sbsearch input').fill(''); await m.locator('.tr').first().waitFor();
   await m.locator('.pdesc.dcard').screenshot({ path: path.join(shots, 'v614-desc-manage-collapsed.png') });
   await m.locator('.pdesc.dcard .more').click(); await m.waitForTimeout(200); await m.locator('.pdesc.dcard').screenshot({ path: path.join(shots, 'v614-desc-manage-expanded.png') }); await m.locator('.pdesc.dcard .more').click();
   await m.screenshot({ path: path.join(shots, 'v614-manage-rows-edit.png') });
@@ -130,7 +145,11 @@ try {
   await m.locator('[data-reimb] input[aria-label="Reimbursement amount"]').waitFor({ timeout: 8000 }); await m.locator('[data-reimb] input[aria-label="Reimbursement amount"]').fill('0.25'); await m.locator('[data-reimb] input[aria-label="Reimbursement item"]').click(); await m.waitForTimeout(1500);
   snap = await api(L.base, A, 'GET', '/api/snapshot'); check('Manage: Amount → reimbursement saved', snap.reimbursements.find((x) => x.taskId === ids['Configure DNS'])?.amount === 0.25);
   await m.locator('.tpanel').first().screenshot({ path: path.join(shots, 'v614-amount-reimbursement-manage.png') });
-  await m.locator('.pcol .nbnav').click(); await m.locator('[data-notebook]').waitFor(); await m.screenshot({ path: path.join(shots, 'v614-manage-notebook.png') });
+  await m.locator('.pcol .nbnav').click(); await m.locator('[data-notebook]').waitFor(); await m.screenshot({ path: path.join(shots, 'v615-manage-notebook.png') });
+  await m.locator('.nbrow').first().focus(); await m.keyboard.press('Tab'); await m.keyboard.press('Tab');
+  check('row delete reachable by keyboard', await m.evaluate(() => document.activeElement?.classList.contains('nbdel')));
+  await m.keyboard.press('Enter'); await m.locator('[data-confirmdel]').waitFor(); await m.screenshot({ path: path.join(shots, 'v615-notebook-delete-confirm.png') });
+  await m.locator('[data-confirmdel]').click(); await m.waitForTimeout(1200); check('note deleted from list row', (await api(L.base, A, 'GET', '/api/notes')).length === 0);
   await audit(m, 'Manage notebook');
   // profile photo
   step = 'profile';

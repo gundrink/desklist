@@ -149,5 +149,5 @@ export function mapNote(r: any) {
   const fields = (Array.isArray(r.fields) ? r.fields : []).map((f: any) => f.type === 'secret'
     ? { id: f.id, label: f.label, type: f.type, value: null, hasValue: !!f.value }
     : { id: f.id, label: f.label, type: f.type, value: f.value ?? null });
-  return { id: r.id, title: r.title, fields, createdAt: new Date(r.created_at).toISOString(), updatedAt: new Date(r.updated_at).toISOString() };
+  return { id: r.id, title: r.title, status: (r.status === 'unavailable' ? 'unavailable' : 'available') as 'available' | 'unavailable', fields, createdAt: new Date(r.created_at).toISOString(), updatedAt: new Date(r.updated_at).toISOString() };
 }

@@ -52,6 +52,9 @@ describe('notebook', () => {
     const p = await api('PATCH', `/api/notes/${id}`, { title: 'RPC Helius main', fields: [{ id: sid, label: 'API key', type: 'secret', keep: true }, { label: 'Port', type: 'number', value: '443' }] }, M);
     expect(p.status).toBe(200); expect(p.body.title).toBe('RPC Helius main'); expect(p.body.fields).toHaveLength(2);
     expect((await api('GET', `/api/notes/${id}/fields/${sid}/secret`, undefined, M)).body.value).toBe('sk-test-123');
+    expect(p.body.status).toBe('available');
+    { const u = await api('PATCH', `/api/notes/${id}`, { status: 'unavailable' }, M); expect(u.body.status).toBe('unavailable'); expect(u.body.fields).toHaveLength(2); }
+    expect((await api('PATCH', `/api/notes/${id}`, { status: 'bogus' }, M)).status).toBe(400);
     expect((await api('DELETE', `/api/notes/${id}`, undefined, M)).status).toBe(200);
     expect((await api('GET', '/api/notes', undefined, M)).body).toEqual([]);
   });

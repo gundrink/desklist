@@ -29,7 +29,7 @@ import '../styles/v610.css';
 import '../styles/v611.css';
 import '../styles/v614.css';
 import { UpdateChip } from '../components/Update';
-import { Notebook, NotebookNavBtn, SidebarSearch } from '../components/Notebook';
+import { Notebook, NotebookNavBtn, SearchResults, SidebarSearch, searchActive, type SearchHit } from '../components/Notebook';
 import { ProjTabs, useProjectTabs } from '../components/ProjectList';
 
 export function Manage() {
@@ -64,6 +64,8 @@ function ManageReady({ st, s, nav, setNav, picker, setPicker, titlebar }: { st: 
   const select = (id: string) => { setNav({ view: 'project', projectId: id, tab: nav.view === 'project' ? nav.tab : undefined }); void actions.setCurrentProject(id); };
   const isAdmin = s.me.role === 'admin';
   const [delP, setDelP] = useState<string | null>(null);
+  const [sq, setSq] = useState('');
+  const openHit = (h: SearchHit) => { setSq(''); if (h.kind === 'note') setNav({ view: 'notebook', noteId: h.id }); else if (h.projectId) { setNav({ view: 'project', projectId: h.projectId, tab: h.kind === 'field' && !h.taskId ? 'details' : 'checklist' }); void actions.setCurrentProject(h.projectId); } };
   // 0.6.14 route guard: admin-only pages redirect members to Overview (applies live when the role changes)
   const adminOnly = ['reports', 'tasksetup', 'fields', 'team'].includes(nav.view);
   useEffect(() => { if (adminOnly && !isAdmin) setNav({ view: 'overview' }); }, [adminOnly, isAdmin]);
@@ -83,7 +85,7 @@ function ManageReady({ st, s, nav, setNav, picker, setPicker, titlebar }: { st: 
             {isAdmin && <button className={`adminrow ${nav.view === 'reports' ? 'on' : ''}`} onClick={() => setNav({ view: 'reports' })}>▦ Admin · Reports<span>{s.me.name}</span></button>}
             {isAdmin && <button className={`adminrow ${nav.view === 'tasksetup' ? 'on' : ''}`} onClick={() => setNav({ view: 'tasksetup' })}>▤ Admin · Task setup<span>fields</span></button>}
             <button className={`navrow ovnav ${nav.view === 'overview' ? 'on' : ''}`} data-nav="overview" aria-current={nav.view === 'overview' ? 'page' : undefined} onClick={() => setNav({ view: 'overview' })}><span className="ic"><Grid size={15} /></span>Overview<span className="ml" /><em className="mono">{new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</em></button>
-            <SidebarSearch s={s} onOpen={(h) => { if (h.kind === 'note') setNav({ view: 'notebook', noteId: h.id }); else if (h.projectId) { setNav({ view: 'project', projectId: h.projectId, tab: h.kind === 'field' && !h.taskId ? 'details' : 'checklist' }); void actions.setCurrentProject(h.projectId); } }} />
+            <SidebarSearch q={sq} setQ={setSq} />
             <NotebookNavBtn className="navrow" on={nav.view === 'notebook'} count={s.notes?.length ?? 0} onClick={() => setNav({ view: 'notebook' })} />
             <ProjTabs t={tabs} theme="dark" />
             {tabs.list.map((p) => (
@@ -103,7 +105,8 @@ function ManageReady({ st, s, nav, setNav, picker, setPicker, titlebar }: { st: 
             <div className="pcupd"><span className="ml" /><UpdateChip /></div>
           </div>
         </div>
-        <div className="rp">
+        <div className={`rp ${searchActive(sq) ? 'searching' : ''}`}>
+          {searchActive(sq) && <div className="rpsearch scroll"><SearchResults s={s} q={sq} onOpen={openHit} onClose={() => setSq('')} /></div>}
           {nav.view === 'project' && selectedId && s.projects.some((x) => x.id === selectedId) && <ProjectDetail key={selectedId} s={s} projectId={selectedId} tab={nav.tab ?? 'checklist'}
             setTab={(tab) => setNav({ view: 'project', projectId: selectedId, tab })} onDeleted={() => setNav({ view: 'project' })} />}
           {nav.view === 'project' && !selectedId && <div className="center-fill muted">Create a project to get started.</div>}

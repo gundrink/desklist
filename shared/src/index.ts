@@ -314,4 +314,5 @@ export const NOTE_FIELD_TYPES = ['text', 'url', 'secret', 'number', 'longtext'] 
 export type NoteFieldType = (typeof NOTE_FIELD_TYPES)[number];
 export const NOTE_FIELD_TYPE_LABELS: Record<NoteFieldType, string> = { text: 'Text', url: 'URL', secret: 'Password / secret', number: 'Number', longtext: 'Long text' };
 export interface NoteField { id: string; label: string; type: NoteFieldType; value: string | null; hasValue?: boolean }
-export interface Note { id: string; title: string; fields: NoteField[]; createdAt: string; updatedAt: string }
+export type NoteStatus = 'available' | 'unavailable';
+export interface Note { id: string; title: string; status: NoteStatus; fields: NoteField[]; createdAt: string; updatedAt: string }

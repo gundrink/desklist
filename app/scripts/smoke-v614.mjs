@@ -119,9 +119,11 @@ try {
   await w.locator('[data-filter=available]').click(); check('filter Available hides it', await w.locator('.nbrow').count() === 0);
   await w.locator('[data-filter=unavailable]').click(); check('filter Unavailable shows it', await w.locator('.nbrow').count() === 1);
   }
+  { const h = await w.evaluate(() => { const r = document.querySelector('.nbrow'); const t = r.querySelector('.nbt'); return { h: r.getBoundingClientRect().height, tw: t.getBoundingClientRect().width, title: t.title, ov: r.scrollWidth <= r.clientWidth + 1 }; });
+    check(`compact note row: single line ${Math.round(h.h)}px, title ${Math.round(h.tw)}px with tooltip, no overflow`, h.h <= 46 && h.tw > 50 && h.title === 'RPC Helius' && h.ov); }
   await w.locator('.nbrow').hover(); await w.waitForTimeout(250); check('row delete button visible on hover', await w.locator('.nbrow .nbdel').evaluate((e) => getComputedStyle(e).opacity === '1'));
   await audit(w, 'notebook list (unavailable + hover)');
-  await w.screenshot({ path: path.join(shots, OLD ? 'v615-old-server-notebook-list.png' : 'v615-notebook-list.png') }); if (!OLD) await w.locator('[data-filter=all]').click();
+  await w.screenshot({ path: path.join(shots, OLD ? 'v616-old-server-notebook-list.png' : 'v616-notebook-list-widget.png') }); if (!OLD) await w.locator('[data-filter=all]').click();
   const MS = await api(L.base, M, 'GET', '/api/notes'); check(`notes private: other member sees ${MS.length} notes`, Array.isArray(MS) && MS.length === 0);
   await sb.fill('helius'); await w.locator('[data-results] .sbhit[data-kind=note]').click(); check('search opens note', await w.locator('[data-noteview]').count() === 1);
   await w.locator('.rail .rov').click(); await w.waitForTimeout(300);
@@ -154,7 +156,7 @@ try {
   await m.locator('[data-reimb] input[aria-label="Reimbursement amount"]').waitFor({ timeout: 8000 }); await m.locator('[data-reimb] input[aria-label="Reimbursement amount"]').fill('0.25'); await m.locator('[data-reimb] input[aria-label="Reimbursement item"]').click(); await m.waitForTimeout(1500);
   snap = await api(L.base, A, 'GET', '/api/snapshot'); check('Manage: Amount → reimbursement saved', snap.reimbursements.find((x) => x.taskId === ids['Configure DNS'])?.amount === 0.25);
   await m.locator('.tpanel').first().screenshot({ path: path.join(shots, 'v614-amount-reimbursement-manage.png') });
-  await m.locator('.pcol .nbnav').click(); await m.locator('[data-notebook]').waitFor(); await m.screenshot({ path: path.join(shots, 'v615-manage-notebook.png') });
+  await m.locator('.pcol .nbnav').click(); await m.locator('[data-notebook]').waitFor(); await m.screenshot({ path: path.join(shots, 'v616-notebook-list-manage.png') });
   await m.locator('.nbrow').first().focus(); for (let i = 0; i < 4 && !(await m.evaluate(() => document.activeElement?.classList.contains('nbdel'))); i++) await m.keyboard.press('Tab');
   check('row delete reachable by keyboard', await m.evaluate(() => document.activeElement?.classList.contains('nbdel')));
   await m.keyboard.press('Enter'); await m.locator('[data-confirmdel]').waitFor(); await m.screenshot({ path: path.join(shots, 'v615-notebook-delete-confirm.png') });

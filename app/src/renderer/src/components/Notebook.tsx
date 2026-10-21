@@ -37,8 +37,9 @@ export function Notebook({ s, noteId, setNoteId, compact }: { s: Snapshot; noteI
       {notes.length === 0 ? <div className="nbempty">No notes yet. Click <b>New note</b> to add one.</div> : shown.length === 0 ? <div className="nbempty">No {filter} notes.</div> :
         <div className="nblist">{shown.map((n) => (
           <div key={n.id} className={`nbrow ${n.status === 'unavailable' ? 'off' : ''}`} data-note={n.id} role="button" tabIndex={0} onClick={() => setNoteId(n.id)} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) setNoteId(n.id); }}>
-            <span className="nbtc"><span className="nbt">{n.title}</span>
-              <span className="nbchips">{[...new Set(n.fields.map((f) => f.type))].map((t) => <i key={t} className={`nbchip t-${t}`}>{NOTE_FIELD_TYPE_LABELS[t]}</i>)}</span></span>
+            <span className="nbt" title={n.title}>{n.title}</span>
+            {(() => { const ts = [...new Set(n.fields.map((f) => f.type))]; return <span className="nbchips">{ts.slice(0, 2).map((t) => <i key={t} className={`nbchip t-${t}`}>{NOTE_FIELD_TYPE_LABELS[t]}</i>)}
+              {ts.length > 2 && <i className="nbchip more" title={ts.slice(2).map((t) => NOTE_FIELD_TYPE_LABELS[t]).join(', ')}>+{ts.length - 2}</i>}</span>; })()}
             <span className="nbm">{n.fields.length} field{n.fields.length === 1 ? '' : 's'} · {new Date(n.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
             <StatusChip note={n} />
             <button className="nbdel" aria-label={`Delete ${n.title}`} title="Delete note" onClick={(e) => { e.stopPropagation(); setConfirmDel(n); }}><Trash size={13} /></button>
@@ -58,7 +59,7 @@ export function StatusChip({ note }: { note: Note }) {
   return <button className={`nbstatus ${off ? 'off' : 'on'}`} data-status={note.status ?? 'available'} disabled={busy} aria-label={`Status: ${off ? 'Unavailable' : 'Available'}. Click to mark ${off ? 'available' : 'unavailable'}`}
     title={`Click to mark ${off ? 'available' : 'unavailable'}`} onClick={async (e) => { e.stopPropagation(); setBusy(true);
       try { await actions.request('PATCH', `/api/notes/${note.id}`, { title: note.title, fields: fullFields(note), status: off ? 'available' : 'unavailable' }); await actions.refresh(); } finally { setBusy(false); } }}>
-    <i />{off ? 'Unavailable' : 'Available'}</button>;
+    <i /><span className="nbsl">{off ? 'Unavailable' : 'Available'}</span></button>;
 }
 
 function NoteView({ note, compact, onBack, onEdit, onDeleted }: { note: Note; compact?: boolean; onBack: () => void; onEdit: () => void; onDeleted: () => void }) {

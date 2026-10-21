@@ -4,11 +4,11 @@ import { _electron as electron } from 'playwright-core';
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'; import http from 'node:http'; import { spawn } from 'node:child_process'; import readline from 'node:readline';
 import { CONTRAST_AUDIT } from './contrast.mjs';
 const shots = path.resolve(import.meta.dirname, '../../screenshots');
-const log = (...a) => console.log('[v614]', ...a);
+const OLD = !!process.env.OLD_SERVER; const log = (...a) => console.log(OLD ? '[v614@old-server]' : '[v614]', ...a);
 const results = []; const check = (n, ok) => { results.push([n, !!ok]); log(ok ? 'PASS' : 'FAIL', n); };
 const R = Date.now().toString(36).slice(-5); const PW = 'Pw-' + Math.random().toString(36).slice(2, 12);
 const api = async (base, token, method, p, body) => (await fetch(base + p, { method, headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: body ? JSON.stringify(body) : undefined })).json();
-const srvProc = spawn(path.resolve(import.meta.dirname, '../../node_modules/.bin/tsx'), ['scripts/fake-google-server.ts'], { cwd: path.resolve(import.meta.dirname, '../../server'), stdio: ['ignore', 'pipe', 'inherit'],
+const srvProc = spawn(path.resolve(import.meta.dirname, '../../node_modules/.bin/tsx'), ['scripts/fake-google-server.ts'], { cwd: process.env.SERVER_DIR || path.resolve(import.meta.dirname, '../../server'), stdio: ['ignore', 'pipe', 'inherit'],
   env: { ...process.env, DESKLIST_E2E_TEAM_NAME: 'Demo Team', DESKLIST_E2E_ADMIN_NAME: 'Alex Morgan', DESKLIST_E2E_ADMIN_INITIALS: 'AM' } });
 const L = await new Promise((r) => readline.createInterface({ input: srvProc.stdout }).once('line', (l) => r(JSON.parse(l))));
 // staged update feed: a newer version so the app reports "available"
@@ -97,7 +97,7 @@ try {
   check('new note form: no horizontal overflow', await noOverflow(w, '.wnb, [data-noteform]'));
   check('secret input masked in form', await w.locator('input[aria-label="Field 2 value"]').getAttribute('type') === 'password');
   await w.screenshot({ path: path.join(shots, 'v615-notebook-form.png') });
-  await w.locator('[data-savenote]').click(); await w.locator('[data-noteview]').waitFor({ timeout: 8000 });
+  await w.locator('[data-savenote]').click(); await w.locator('[data-noteview]').waitFor({ timeout: 8000 }).catch(async (e) => { log('form error:', await w.locator('[data-noteform] .err').textContent().catch(() => '?')); throw e; });
   const nv = await w.evaluate(() => ({ link: !!document.querySelector('[data-ftype=url] a.alink'), mask: document.querySelector('[data-secret]')?.textContent, secLink: !!document.querySelector('[data-ftype=secret] a'), copies: document.querySelectorAll('[data-noteview] .copybtn').length }));
   check(`note view: URL is a link, secret masked + never linkified, copy buttons ${JSON.stringify(nv)}`, nv.link && /^•+$/.test(nv.mask) && !nv.secLink && nv.copies >= 4);
   await w.screenshot({ path: path.join(shots, 'v615-notebook-view.png') });
@@ -106,13 +106,22 @@ try {
   await w.locator('[data-ftype=secret] button[aria-label="Hide value"]').click();
   await audit(w, 'widget note view');
   await w.locator('button[aria-label="Back to notebook"]').click(); await w.locator('.nbrow').first().waitFor();
+  if (OLD) {
+    check('old server: status chip + filter + form status hidden', await w.locator('.nbstatus, .nbfilter').count() === 0);
+    await w.locator('.nbrow').click(); await w.locator('[data-noteview]').waitFor(); await w.locator('[data-noteview] button', { hasText: 'Edit' }).click(); await w.locator('[data-noteform]').waitFor();
+    check('old server: no status in edit form', await w.locator('.nbseg').count() === 0);
+    await w.locator('input[aria-label="Note title"]').fill('RPC Helius'); await w.locator('[data-savenote]').click(); await w.locator('[data-noteview]').waitFor();
+    const ns = await api(L.base, A, 'GET', '/api/notes'); check(`old server: edit keeps all fields (${ns[0]?.fields.length}) and secret`, ns[0]?.fields.length === 4 && ns[0].fields.find((f) => f.type === 'secret')?.hasValue);
+    await w.locator('button[aria-label="Back to notebook"]').click(); await w.locator('.nbrow').first().waitFor();
+  } else {
   await w.locator('.nbrow .nbstatus').click(); await w.locator('.nbrow .nbstatus[data-status=unavailable]').waitFor({ timeout: 8000 });
   { const ns = await api(L.base, A, 'GET', '/api/notes'); check(`status chip toggles to Unavailable (saved, fields kept: ${ns[0]?.fields.length})`, ns[0]?.status === 'unavailable' && ns[0]?.fields.length === 4); }
   await w.locator('[data-filter=available]').click(); check('filter Available hides it', await w.locator('.nbrow').count() === 0);
   await w.locator('[data-filter=unavailable]').click(); check('filter Unavailable shows it', await w.locator('.nbrow').count() === 1);
+  }
   await w.locator('.nbrow').hover(); await w.waitForTimeout(250); check('row delete button visible on hover', await w.locator('.nbrow .nbdel').evaluate((e) => getComputedStyle(e).opacity === '1'));
   await audit(w, 'notebook list (unavailable + hover)');
-  await w.screenshot({ path: path.join(shots, 'v615-notebook-list.png') }); await w.locator('[data-filter=all]').click();
+  await w.screenshot({ path: path.join(shots, OLD ? 'v615-old-server-notebook-list.png' : 'v615-notebook-list.png') }); if (!OLD) await w.locator('[data-filter=all]').click();
   const MS = await api(L.base, M, 'GET', '/api/notes'); check(`notes private: other member sees ${MS.length} notes`, Array.isArray(MS) && MS.length === 0);
   await sb.fill('helius'); await w.locator('[data-results] .sbhit[data-kind=note]').click(); check('search opens note', await w.locator('[data-noteview]').count() === 1);
   await w.locator('.rail .rov').click(); await w.waitForTimeout(300);
@@ -146,7 +155,7 @@ try {
   snap = await api(L.base, A, 'GET', '/api/snapshot'); check('Manage: Amount → reimbursement saved', snap.reimbursements.find((x) => x.taskId === ids['Configure DNS'])?.amount === 0.25);
   await m.locator('.tpanel').first().screenshot({ path: path.join(shots, 'v614-amount-reimbursement-manage.png') });
   await m.locator('.pcol .nbnav').click(); await m.locator('[data-notebook]').waitFor(); await m.screenshot({ path: path.join(shots, 'v615-manage-notebook.png') });
-  await m.locator('.nbrow').first().focus(); await m.keyboard.press('Tab'); await m.keyboard.press('Tab');
+  await m.locator('.nbrow').first().focus(); for (let i = 0; i < 4 && !(await m.evaluate(() => document.activeElement?.classList.contains('nbdel'))); i++) await m.keyboard.press('Tab');
   check('row delete reachable by keyboard', await m.evaluate(() => document.activeElement?.classList.contains('nbdel')));
   await m.keyboard.press('Enter'); await m.locator('[data-confirmdel]').waitFor(); await m.screenshot({ path: path.join(shots, 'v615-notebook-delete-confirm.png') });
   await m.locator('[data-confirmdel]').click(); await m.waitForTimeout(1200); check('note deleted from list row', (await api(L.base, A, 'GET', '/api/notes')).length === 0);

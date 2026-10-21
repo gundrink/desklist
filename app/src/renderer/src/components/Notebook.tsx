@@ -18,19 +18,19 @@ export function Notebook({ s, noteId, setNoteId, compact }: { s: Snapshot; noteI
   const notes = s.notes ?? [];
   const note = notes.find((n) => n.id === noteId);
   const [filter, setFilter] = useState<'all' | 'available' | 'unavailable'>('all'); const [confirmDel, setConfirmDel] = useState<Note | null>(null);
-  const shown = filter === 'all' ? notes : notes.filter((n) => (n.status ?? 'available') === filter);
+  const shown = filter === 'all' || !notes.some(hasStatus) ? notes : notes.filter((n) => (n.status ?? 'available') === filter);
   const [editing, setEditing] = useState(false);
   useEffect(() => setEditing(false), [noteId]);
-  if (noteId === 'new') return <NoteForm compact={compact} onCancel={() => setNoteId(null)} onSaved={(id) => setNoteId(id)} />;
+  if (noteId === 'new') return <NoteForm compact={compact} statusOk={notes.some(hasStatus)} onCancel={() => setNoteId(null)} onSaved={(id) => setNoteId(id)} />;
   if (noteId && !note) return <div className="nb"><div className="nbhd"><button className="iconbtn" aria-label="Back to notebook" onClick={() => setNoteId(null)}><Back /></button><span>Note not found</span></div></div>;
-  if (note && editing) return <NoteForm compact={compact} note={note} onCancel={() => setEditing(false)} onSaved={() => setEditing(false)} />;
+  if (note && editing) return <NoteForm compact={compact} statusOk={hasStatus(note)} note={note} onCancel={() => setEditing(false)} onSaved={() => setEditing(false)} />;
   if (note) return <NoteView note={note} compact={compact} onBack={() => setNoteId(null)} onEdit={() => setEditing(true)} onDeleted={() => setNoteId(null)} />;
   return (
     <div className={`nb ${compact ? 'compact' : ''}`} data-notebook>
       <div className="nbhd"><BookIco size={16} /><h2>Notebook</h2><em className="nbcount mono">{notes.length}</em><span className="ml" />
         <button className="btn sm nbnew" data-newnote onClick={() => setNoteId('new')}><Plus size={11} /> New note</button></div>
       <p className="nbsub">Private notes outside projects: API keys, RPC endpoints, logins. Only you can see them.</p>
-      {notes.length > 0 && <div className="nbfilter" role="group" aria-label="Filter by status">{(['all', 'available', 'unavailable'] as const).map((f) =>
+      {notes.some(hasStatus) && <div className="nbfilter" role="group" aria-label="Filter by status">{(['all', 'available', 'unavailable'] as const).map((f) =>
         <button key={f} className={`nbfchip ${filter === f ? 'on' : ''}`} aria-pressed={filter === f} data-filter={f} onClick={() => setFilter(f)}>{f === 'all' ? 'All' : f === 'available' ? 'Available' : 'Unavailable'}<em className="mono">{f === 'all' ? notes.length : notes.filter((n) => (n.status ?? 'available') === f).length}</em></button>)}</div>}
       {confirmDel && <div className="nbconfirm" role="alertdialog">Delete “{confirmDel.title}”? This can’t be undone.<span className="ml" />
         <button className="btn sec sm" onClick={() => setConfirmDel(null)}>Cancel</button><button className="btn sm dangerbtn" data-confirmdel onClick={async () => { const n = confirmDel; setConfirmDel(null); await actions.request('DELETE', `/api/notes/${n.id}`); await actions.refresh(); }}>Delete</button></div>}
@@ -47,12 +47,17 @@ export function Notebook({ s, noteId, setNoteId, compact }: { s: Snapshot; noteI
   );
 }
 
+/** Full field payload for PATCH (secrets kept): never lets a partial PATCH wipe fields on older servers. */
+const fullFields = (n: Note) => n.fields.map((f) => f.type === 'secret' ? { id: f.id, label: f.label, type: f.type, keep: true } : { id: f.id, label: f.label, type: f.type, value: f.value });
+/** Status is supported when the server sends it (0.6.15+ server). */
+export const hasStatus = (n?: Note | null) => !!n && (n.status === 'available' || n.status === 'unavailable');
 /** Available / Unavailable chip; click toggles (saved server-side). */
 export function StatusChip({ note }: { note: Note }) {
   const off = note.status === 'unavailable'; const [busy, setBusy] = useState(false);
+  if (!hasStatus(note)) return null;
   return <button className={`nbstatus ${off ? 'off' : 'on'}`} data-status={note.status ?? 'available'} disabled={busy} aria-label={`Status: ${off ? 'Unavailable' : 'Available'}. Click to mark ${off ? 'available' : 'unavailable'}`}
     title={`Click to mark ${off ? 'available' : 'unavailable'}`} onClick={async (e) => { e.stopPropagation(); setBusy(true);
-      try { await actions.request('PATCH', `/api/notes/${note.id}`, { status: off ? 'available' : 'unavailable' }); await actions.refresh(); } finally { setBusy(false); } }}>
+      try { await actions.request('PATCH', `/api/notes/${note.id}`, { title: note.title, fields: fullFields(note), status: off ? 'available' : 'unavailable' }); await actions.refresh(); } finally { setBusy(false); } }}>
     <i />{off ? 'Unavailable' : 'Available'}</button>;
 }
 
@@ -94,7 +99,7 @@ function SecretValue({ nid, fid, has, label }: { nid: string; fid: string; has: 
     <CopyBtn get={revealNote(nid, fid)} label={label || 'secret'} /></div>;
 }
 
-function NoteForm({ note, compact, onCancel, onSaved }: { note?: Note; compact?: boolean; onCancel: () => void; onSaved: (id: string) => void }) {
+function NoteForm({ note, compact, onCancel, onSaved, statusOk }: { note?: Note; compact?: boolean; onCancel: () => void; onSaved: (id: string) => void; statusOk: boolean }) {
   const [title, setTitle] = useState(note?.title ?? ''); const [status, setStatus] = useState<'available' | 'unavailable'>(note?.status ?? 'available');
   const [fields, setFields] = useState<DraftField[]>(() => note ? note.fields.map((f) => ({ id: f.id, label: f.label, type: f.type, value: f.type === 'secret' ? '' : f.value ?? '', keep: f.type === 'secret' && !!f.hasValue, hasValue: f.hasValue }))
     : [{ label: '', type: 'text', value: '' }]);
@@ -104,7 +109,7 @@ function NoteForm({ note, compact, onCancel, onSaved }: { note?: Note; compact?:
     if (!title.trim()) { setErr('Title is required'); return; }
     const bad = fields.find((f) => f.type === 'number' && f.value.trim() && !Number.isFinite(Number(f.value))); if (bad) { setErr(`“${bad.label || 'Number'}” must be a number`); return; }
     setBusy(true); setErr('');
-    const body = { title: title.trim(), status, fields: fields.filter((f) => f.label.trim() || f.value || f.keep).map((f) => ({ id: f.id, label: f.label.trim(), type: f.type,
+    const body = { title: title.trim(), ...(statusOk ? { status } : {}), fields: fields.filter((f) => f.label.trim() || f.value || f.keep).map((f) => ({ id: f.id, label: f.label.trim(), type: f.type,
       ...(f.type === 'secret' && f.keep && !f.value ? { keep: true } : { value: f.value || null }) })) };
     try { const r = note ? await actions.request<Note>('PATCH', `/api/notes/${note.id}`, body) : await actions.request<Note>('POST', '/api/notes', body); await actions.refresh(); onSaved(r.id); }
     catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
@@ -113,8 +118,8 @@ function NoteForm({ note, compact, onCancel, onSaved }: { note?: Note; compact?:
     <div className={`nb ${compact ? 'compact' : ''}`} data-noteform>
       <div className="nbhd"><button className="iconbtn" aria-label="Back" onClick={onCancel}><Back /></button><h2>{note ? 'Edit note' : 'New note'}</h2></div>
       <label className="nbin"><span>Title</span><input autoFocus value={title} maxLength={200} placeholder="e.g. RPC Helius" onChange={(e) => setTitle(e.target.value)} aria-label="Note title" /></label>
-      <div className="nbin"><span>Status</span><div className="seg nbseg" role="group" aria-label="Note status">{(['available', 'unavailable'] as const).map((x) =>
-        <button key={x} type="button" className={status === x ? 'on' : ''} aria-pressed={status === x} data-setstatus={x} onClick={() => setStatus(x)}>{x === 'available' ? 'Available' : 'Unavailable'}</button>)}</div></div>
+      {statusOk && <div className="nbin"><span>Status</span><div className="seg nbseg" role="group" aria-label="Note status">{(['available', 'unavailable'] as const).map((x) =>
+        <button key={x} type="button" className={status === x ? 'on' : ''} aria-pressed={status === x} data-setstatus={x} onClick={() => setStatus(x)}>{x === 'available' ? 'Available' : 'Unavailable'}</button>)}</div></div>}
       <div className="nbfh">Fields</div>
       <div className="nbform">
         {fields.map((f, i) => <div key={i} className="nbfrow" data-fieldrow>

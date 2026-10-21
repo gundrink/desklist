@@ -30,7 +30,7 @@ export interface AppState {
 export type ProjectTab = 'checklist' | 'details' | 'reimbursement' | 'taskdetails';
 export type ManageView = { view: 'project'; projectId?: string; tab?: ProjectTab } | { view: 'reports' } | { view: 'create' } | { view: 'fields' } | { view: 'team' } | { view: 'tasksetup' } | { view: 'settings' } | { view: 'overview' } | { view: 'notebook'; noteId?: string | null };
 
-export interface UpdateStatus { state: 'idle' | 'checking' | 'available' | 'none' | 'downloading' | 'downloaded' | 'error'; current: string; version?: string; percent?: number; error?: string }
+export interface UpdateStatus { state: 'unsupported' | 'idle' | 'checking' | 'available' | 'none' | 'downloading' | 'downloaded' | 'error'; current: string; version?: string; percent?: number; error?: string }
 
 export interface DesklistBridge {
   getState(): Promise<AppState>;

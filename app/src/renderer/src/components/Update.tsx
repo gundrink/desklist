@@ -8,7 +8,7 @@ export function useUpdate(): UpdateStatus | null {
 }
 /** Sidebar footer chip (same row as "+ New"): version when current; "Update now" → progress → "Restart". */
 export function UpdateChip() {
-  const u = useUpdate(); if (!u) return null;
+  const u = useUpdate(); if (!u || u.state === 'unsupported') return null;
   if (u.state === 'available') return <button className="updchip accent nodrag" data-update="available" title={`Version ${u.version} is available`} onClick={() => void window.desklist.downloadUpdate()}>Update now</button>;
   if (u.state === 'downloading') return <span className="updchip prog nodrag" data-update="downloading" title={`Downloading ${u.version ?? ''}`}><i><b style={{ width: `${u.percent ?? 0}%` }} /></i><em className="mono">{u.percent ?? 0}%</em></span>;
   if (u.state === 'downloaded') return <button className="updchip accent nodrag" data-update="downloaded" title={`Restart to install ${u.version}`} onClick={() => void window.desklist.installUpdate()}>Restart</button>;
@@ -16,6 +16,7 @@ export function UpdateChip() {
 }
 export function UpdatesCard() {
   const u = useUpdate(); const [msg, setMsg] = useState(''); const [busy, setBusy] = useState(false);
+  if (u?.state === 'unsupported') return null;
   return (
     <div className="card setcard" data-card="updates">
       <div className="fhead"><h3>Updates</h3></div>

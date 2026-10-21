@@ -339,6 +339,10 @@ class Engine {
       closeWidget: async () => { if (window.opener) window.close(); },
       windowControl: async (action) => { if (action === 'close') window.close(); },
       checkForUpdates: async () => 'You are using Desklist in the browser.',
+      updateStatus: async () => ({ state: 'unsupported' as const, current: __APP_VERSION__ }),
+      onUpdate: () => () => {},
+      downloadUpdate: async () => {},
+      installUpdate: async () => {},
       exportCsv: async (query) => {
         const r = await fetch(this.serverUrl + '/api/reports/expenses.csv' + (query ? '?' + query : ''), { headers: this.token ? { authorization: `Bearer ${this.token}` } : {}, signal: AbortSignal.timeout(20_000) });
         const csv = await r.text();

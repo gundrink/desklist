@@ -28,7 +28,9 @@ export interface AppState {
 }
 
 export type ProjectTab = 'checklist' | 'details' | 'reimbursement' | 'taskdetails';
-export type ManageView = { view: 'project'; projectId?: string; tab?: ProjectTab } | { view: 'reports' } | { view: 'create' } | { view: 'fields' } | { view: 'team' } | { view: 'tasksetup' } | { view: 'settings' } | { view: 'overview' };
+export type ManageView = { view: 'project'; projectId?: string; tab?: ProjectTab } | { view: 'reports' } | { view: 'create' } | { view: 'fields' } | { view: 'team' } | { view: 'tasksetup' } | { view: 'settings' } | { view: 'overview' } | { view: 'notebook'; noteId?: string | null };
+
+export interface UpdateStatus { state: 'idle' | 'checking' | 'available' | 'none' | 'downloading' | 'downloaded' | 'error'; current: string; version?: string; percent?: number; error?: string }
 
 export interface DesklistBridge {
   getState(): Promise<AppState>;
@@ -47,6 +49,10 @@ export interface DesklistBridge {
   closeWidget(): Promise<void>;
   windowControl(action: 'close' | 'minimize' | 'maximize'): Promise<void>;
   checkForUpdates(): Promise<string>;
+  updateStatus(): Promise<UpdateStatus>;
+  onUpdate(cb: (u: UpdateStatus) => void): () => void;
+  downloadUpdate(): Promise<void>;
+  installUpdate(): Promise<void>;
   /** Download the admin expense CSV and save it via a native Save dialog. Returns the saved path or null. */
   exportCsv(query: string): Promise<string | null>;
   uploadFile(taskId: string, name: string, mime: string, data: Uint8Array, fieldId?: string | null): Promise<unknown>;

@@ -17,7 +17,7 @@ export function TaskDetailsTab({ s, projectId }: { s: Snapshot; projectId: strin
         return (
           <div className="card tdcard" key={t.id} data-taskcard={t.title}>
             <div className="tdh"><span className="tdck">✓</span><b>{t.title}</b><span className="ml" />
-              {m && <><Avatar initials={m.initials} size="sm" /><span className="small">Approved by <b>{shortName(m.name)}</b> · {time(t.approvedAt)}</span></>}</div>
+              {m && <><Avatar initials={m.initials} url={m.avatarUrl} size="sm" /><span className="small">Approved by <b>{shortName(m.name)}</b> · {time(t.approvedAt)}</span></>}</div>
             {t.doneNote && <div className="tdnote">{t.doneNote}</div>}
             <div className="tdgrid">
               {fs.map((f) => <div className="tdf" key={f.id}><span>{f.label} <em>{TASK_FIELD_TYPE_LABELS[f.type].split(' ')[0]}</em></span>

@@ -15,7 +15,7 @@ const dateOnly = (d: any) => {
 
 export const mapTeam = (r: any): Team => ({ id: r.id, name: r.name, isDemo: r.is_demo });
 export const mapMember = (r: any): Member => ({
-  id: r.id, teamId: r.team_id, name: r.name, initials: r.initials, role: r.role, revoked: r.revoked, isDemo: r.is_demo, currency: r.currency ?? 'SOL', googleEmail: r.google_email ?? null, username: r.username ?? null,
+  id: r.id, teamId: r.team_id, name: r.name, initials: r.initials, role: r.role, revoked: r.revoked, isDemo: r.is_demo, currency: r.currency ?? 'SOL', googleEmail: r.google_email ?? null, username: r.username ?? null, avatarUrl: r.avatar_url ?? null,
 });
 export const mapField = (r: any): FieldDefinition => ({
   id: r.id, key: r.key, label: r.label, dataType: r.data_type, options: r.options ?? {}, isSecret: r.is_secret,
@@ -24,7 +24,7 @@ export const mapField = (r: any): FieldDefinition => ({
 export const mapTask = (r: any): Task => ({
   id: r.id, projectId: r.project_id, title: r.title, done: r.done, doneAt: iso(r.done_at), dueDate: dateOnly(r.due_date),
   bicMemberId: r.bic_member_id, createdByMemberId: r.created_by_member_id, approvedByMemberId: r.approved_by_member_id,
-  approvedAt: iso(r.approved_at), notes: r.notes ?? '',
+  approvedAt: iso(r.approved_at), approvedByName: r.approved_by_name ?? null, notes: r.notes ?? '',
   hasExpense: !!r.has_expense, expenseAmount: r.expense_amount == null ? null : Number(r.expense_amount), expenseCurrency: r.expense_currency ?? null, doneNote: r.done_note ?? '', taskType: r.task_type ?? 'standard', sortOrder: r.sort_order, createdAt: iso(r.created_at)!, updatedAt: iso(r.updated_at)!,
 });
 export const mapColumn = (r: any): CustomColumn => ({
@@ -119,7 +119,7 @@ export async function listTemplates(q: Queryable, me: Member) {
 export async function snapshot(q: Queryable, me: Member, prices: PriceTable = { usd: {}, fetchedAt: null, stale: true, source: 'none' }): Promise<Snapshot> {
   const [team, members, fields, projects, tasks, reimbursements, templates] = await Promise.all([
     q.query(`SELECT * FROM ${S}.teams WHERE id = $1`, [me.teamId]),
-    q.query(`SELECT m.*, a.username FROM ${S}.members m LEFT JOIN ${S}.accounts a ON a.member_id=m.id WHERE m.team_id = $1 ORDER BY m.role, m.name`, [me.teamId]),
+    q.query(`SELECT m.*, a.username, av.data_url AS avatar_url FROM ${S}.members m LEFT JOIN ${S}.accounts a ON a.member_id=m.id LEFT JOIN ${S}.member_avatars av ON av.member_id=m.id WHERE m.team_id = $1 ORDER BY m.role, m.name`, [me.teamId]),
     listFields(q),
     loadProjects(q, me.teamId),
     q.query(`SELECT t.* FROM ${S}.tasks t JOIN ${S}.projects p ON p.id = t.project_id WHERE p.team_id = $1 ORDER BY t.sort_order, t.created_at`, [me.teamId]),
@@ -128,11 +128,13 @@ export async function snapshot(q: Queryable, me: Member, prices: PriceTable = { 
   ]);
   const [taskFields, taskFiles, items] = await Promise.all([listTaskFields(q, me.teamId), listTaskFiles(q, me.teamId),
     q.query(`SELECT i.* FROM ${S}.task_checklist_items i JOIN ${S}.tasks t ON t.id=i.task_id JOIN ${S}.projects p ON p.id=t.project_id WHERE p.team_id=$1 ORDER BY i.sort_order, i.created_at`, [me.teamId])]);
+  const noteRows = await q.query(`SELECT * FROM ${S}.notes WHERE owner_member_id=$1 ORDER BY updated_at DESC`, [me.id]);
+  const notes = noteRows.rows.map(mapNote);
   const checklistItems = items.rows.map((r: any) => ({ id: r.id, taskId: r.task_id, title: r.title, done: r.done, doneByMemberId: r.done_by_member_id, doneAt: r.done_at ? new Date(r.done_at).toISOString() : null, sortOrder: r.sort_order }));
   return {
     team: mapTeam(team.rows[0]), me, members: members.rows.map(mapMember), fields, projects,
     tasks: tasks.rows.map(mapTask), serverTime: new Date().toISOString(),
-    reimbursements, templates, currency: team.rows[0].currency ?? 'SOL', prices, taskFields, taskFiles, checklistItems,
+    reimbursements, templates, currency: team.rows[0].currency ?? 'SOL', prices, taskFields, taskFiles, checklistItems, notes,
   };
 }
 
@@ -140,4 +142,12 @@ export async function revealSecret(q: Queryable, projectId: string, fieldId: str
   const { rows } = await q.query(`SELECT value FROM ${S}.project_field_values WHERE project_id=$1 AND field_id=$2`, [projectId, fieldId]);
   if (!rows[0]?.value) return null;
   return decryptSecret(rows[0].value);
+}
+
+/** Note for the owner's client: secret values are stripped (hasValue only). */
+export function mapNote(r: any) {
+  const fields = (Array.isArray(r.fields) ? r.fields : []).map((f: any) => f.type === 'secret'
+    ? { id: f.id, label: f.label, type: f.type, value: null, hasValue: !!f.value }
+    : { id: f.id, label: f.label, type: f.type, value: f.value ?? null });
+  return { id: r.id, title: r.title, fields, createdAt: new Date(r.created_at).toISOString(), updatedAt: new Date(r.updated_at).toISOString() };
 }

@@ -33,7 +33,7 @@ try {
   await api(L.base, at, 'PATCH', `/api/tasks/${t1.id}`, { done: true });
   await api(L.base, at, 'POST', `/api/tasks/${t2.id}/items`, { title: 'Pick plan' });
   await api(L.base, at, 'POST', `/api/tasks/${t2.id}/items`, { title: 'Compare plans at https://www.example.com/hosting/compare?plan=pro&region=sg-very-long-path-segment.' });
-  await api(L.base, at, 'PATCH', `/api/projects/${pid}`, { notes: 'Goal: ship the landing page.\nRepo: https://github.com/example-org/landing-page-with-a-really-long-repository-name/tree/main/apps/web\nDesign: www.figma.com/file/abc123\nLine four\nLine five\nLine six' });
+  await api(L.base, at, 'PATCH', `/api/projects/${pid}`, { notes: 'Goal: ship the landing page.\nRepo: https://github.com/example-org/landing-page-with-a-really-long-repository-name/tree/main/apps/web\nDesign: www.figma.com/file/abc123\nLine four\nLine five\nLine six\nLine seven\nLine eight\nLine nine\nLine ten' });
   const pad2 = (n) => String(n).padStart(2, '0'); const dd = new Date(Date.now() + 2 * 86400000); const DUE = `${dd.getFullYear()}-${pad2(dd.getMonth() + 1)}-${pad2(dd.getDate())}`;
   await api(L.base, at, 'PATCH', `/api/projects/${pid}`, { deadline: DUE });
   const p2 = (await api(L.base, at, 'POST', '/api/projects', { name: `Launch ${R}` })).id; await api(L.base, at, 'PATCH', `/api/projects/${p2}`, { deadline: DUE });

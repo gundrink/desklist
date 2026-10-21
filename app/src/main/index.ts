@@ -5,7 +5,7 @@ import type { ManageView, Op } from '../common/ipc';
 import { SyncEngine } from './sync';
 import { flushSettings, getSettings, updateSettings, type Bounds, type Settings } from './settings';
 import { desktopWindowOptions, focusWidget, placeOnDesktop, widgetPhaseChanged } from './desktop-layer';
-import { checkForUpdates, initAutoUpdate } from './updater';
+import { checkForUpdates, downloadUpdate, initAutoUpdate, installUpdate, updateStatus } from './updater';
 import { safeHref } from '../common/linkify';
 
 const isSmoke = !!process.env.DESKLIST_SMOKE;
@@ -136,7 +136,7 @@ function rebuildTray() {
     { type: 'separator' },
     { label: 'Lock widget position', type: 'checkbox', checked: s.lockPosition, click: (i) => { applyLock(i.checked); broadcast(); } },
     { label: 'Launch at login', type: 'checkbox', checked: s.launchAtLogin, click: (i) => { applyLoginItem(i.checked); broadcast(); } },
-    { label: 'Check for updates…', click: async () => tray?.displayBalloon?.({ title: 'Desklist', content: await checkForUpdates() }) },
+    { label: 'Check for updates…', click: async () => tray?.displayBalloon?.({ title: 'Desklist', content: await checkForUpdates(sync.baseUrl) }) },
     { type: 'separator' },
     { label: 'Close widget', enabled: !!widget?.isVisible(), click: () => widget?.close() },
     { label: 'Quit Desklist', click: () => { quitting = true; app.quit(); } },
@@ -190,7 +190,10 @@ function registerIpc() {
     if (!w) return;
     if (a === 'close') w.close(); else if (a === 'minimize') w.minimize(); else w.isMaximized() ? w.unmaximize() : w.maximize();
   });
-  handle('checkForUpdates', () => checkForUpdates());
+  handle('checkForUpdates', () => checkForUpdates(sync.baseUrl));
+  handle('updateStatus', () => updateStatus());
+  handle('downloadUpdate', () => downloadUpdate());
+  handle('installUpdate', () => installUpdate());
   handle('uploadFile', async (taskId: string, name: string, mime: string, data: Uint8Array, fieldId?: string | null) => {
     await sync.drain(); const r = await sync.upload(taskId, name, mime, data, fieldId); void sync.refresh(); return r;
   });
@@ -249,7 +252,7 @@ app.whenReady().then(() => {
   else updateSettings({ widgetVisible: false });
   if (s0.openManageAtStartup && !minimized && !signedOut) setTimeout(() => openManage(), 300);
   rebuildTray();
-  initAutoUpdate();
+  initAutoUpdate(sync.baseUrl);
   if (isSmoke) (globalThis as any).__desklist = { hasWidget: () => !!widget && !widget.isDestroyed(), windows: () => BrowserWindow.getAllWindows().map((w) => w.webContents.getURL()), openManage, showWidget, layerMode: () => layerMode, state: () => sync.state(), opened };
 });
 

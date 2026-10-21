@@ -37,7 +37,7 @@ export function FieldInput({ s, field, dataType, value, onCommit, secretSet, pro
     const m = s.members.find((x) => x.id === value);
     return (
       <div className="inp sel">
-        {m && <Avatar initials={m.initials} size="xs" />}
+        {m && <Avatar initials={m.initials} url={m.avatarUrl} size="xs" />}
         <Select value={value ?? ''} onChange={(e) => onCommit(e.target.value || null)}>
           <option value="">—</option>
           {s.members.filter((x) => !x.revoked).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}

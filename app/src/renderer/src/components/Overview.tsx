@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Project, Snapshot } from '@desklist/shared';
 import { initialsOf, picOf, shortDate, statusOf, statusStyle, tasksOf } from '../lib/model';
-import { Avatar, StatusPill } from './Common';
+import { Avatar, avatarOf, avatarByName, StatusPill } from './Common';
 import { Select } from './Select';
 
 /** App-only clock timezone (never touches the OS clock). '' = System default (follow PC). Persisted per device. */
@@ -103,7 +103,7 @@ function ProjLine({ s, p, onOpen, rel }: { s: Snapshot; p: Project; onOpen: (id:
   return <button className="ovp" data-ovproject={p.name} onClick={() => onOpen(p.id)}>
     <span className="dot" style={{ background: statusStyle(statusOf(s, p)).color }} /><span className="nm">{p.name}</span>
     <span className="mono pr">{t.done.length}/{t.all.length}</span>
-    {pic ? <Avatar initials={initialsOf(pic)} size="xs" title={`BIC ${pic}`} /> : null}
+    {pic ? <Avatar initials={initialsOf(pic)} url={avatarByName(s, pic)} size="xs" title={`BIC ${pic}`} /> : null}
     {rel && p.deadline && <span className={`mono rel ${p.deadline < ymd(zonedNow()) ? 'late' : ''}`}>{relDay(p.deadline)}</span>}</button>;
 }
 
@@ -170,7 +170,7 @@ export function Overview({ s, onOpen }: { s: Snapshot; onOpen: (id: string) => v
               <span className="nnm">{p.name}{late && <em className="ltag">Overdue</em>}</span>
               <StatusPill status={statusOf(s, p)} theme="dark" />
               <span className="nbar"><i style={{ width: `${pc * 100}%` }} /></span><span className="mono npr">{t.done.length}/{t.all.length}</span>
-              <span className="navs">{bicsOf(s, p).slice(0, 3).map((b) => <Avatar key={b.ini + b.name} initials={b.ini} size="xs" title={`BIC ${b.name}`} />)}</span>
+              <span className="navs">{bicsOf(s, p).slice(0, 3).map((b) => <Avatar key={b.ini + b.name} initials={b.ini} url={avatarByName(s, b.name)} size="xs" title={`BIC ${b.name}`} />)}</span>
               <span className="ndl"><b className="mono">{shortDate(p.deadline!)}</b><em className={late ? 'late' : ''}>{relDay(p.deadline!).replace(/^In /, 'in ')}</em></span></button>; })
             : <div className="muted small ovempty">No project deadlines yet.</div>}
           {near.length > 8 && <button className="linkbtn ovall" onClick={() => setAll(!all)}>{all ? 'Show less' : `View all ${near.length}`}</button>}

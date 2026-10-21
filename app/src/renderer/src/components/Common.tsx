@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Member, Project, Snapshot } from '@desklist/shared';
 import { initialsOf, shortDate, shortName, statusOf, statusStyle, member } from '../lib/model';
 import { Check } from './Icons';
@@ -12,9 +13,14 @@ export function avatarBg(initials: string) {
   return PALETTE[h % PALETTE.length];
 }
 
-export function Avatar({ initials, size = 'sm', title }: { initials: string; size?: 'xs' | 'sm' | 'md'; title?: string }) {
+/** 0.6.14: shows the member's profile photo when set, initials otherwise (and if the image fails). */
+export function Avatar({ initials, size = 'sm', title, url }: { initials: string; size?: 'xs' | 'sm' | 'md' | 'lg'; title?: string; url?: string | null }) {
+  const [bad, setBad] = useState(false);
+  if (url && !bad) return <span className={`av ${size} photo`} title={title} data-avatar="photo"><img src={url} alt="" draggable={false} onError={() => setBad(true)} /></span>;
   return <span className={`av ${size}`} style={{ background: avatarBg(initials) }} title={title}>{initials}</span>;
 }
+export const avatarOf = (s: Snapshot, id: string | null | undefined) => (id ? s.members.find((m) => m.id === id)?.avatarUrl ?? null : null);
+export const avatarByName = (s: Snapshot, name: string | null | undefined) => { const n = (name ?? '').trim().toLowerCase(); return n ? s.members.find((m) => m.name.trim().toLowerCase() === n)?.avatarUrl ?? null : null; };
 
 export function StatusPill({ status, theme }: { status: string; theme: 'dark' | 'light' }) {
   const st = statusStyle(status);
@@ -31,9 +37,9 @@ export function CheckBox({ done, onClick, theme, label }: { done: boolean; onCli
 }
 
 /** "Checked by Andi D. · 9 Oct" — the checker is the approver (recorded server-side from the token). */
-export function checkedBy(s: Snapshot, approvedBy: string | null, approvedAt: string | null): { m?: Member; text: string } {
+export function checkedBy(s: Snapshot, approvedBy: string | null, approvedAt: string | null, formerName?: string | null): { m?: Member; text: string } {
   const m = member(s, approvedBy);
-  return { m, text: m ? `${shortName(m.name)} · ${shortDate(approvedAt)}` : approvedAt ? shortDate(approvedAt) : '' };
+  return { m, text: m ? `${shortName(m.name)} · ${shortDate(approvedAt)}` : formerName ? `${shortName(formerName)} (removed) · ${shortDate(approvedAt)}` : approvedAt ? shortDate(approvedAt) : '' };
 }
 
 export function SyncDot({ connection }: { connection: string }) {

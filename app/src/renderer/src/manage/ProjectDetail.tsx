@@ -6,13 +6,13 @@ import { CUSTOM_COLUMN_TYPE_LABELS, type Snapshot, type Task } from '@desklist/s
 import type { ProjectTab } from '../../../common/ipc';
 import { actions } from '../lib/store';
 import { domainOf, dueSoon, initialsOf, picOf, projectFields, shortDate, statusOf, tasksOf } from '../lib/model';
-import { Avatar, CheckBox, StatusPill, checkedBy } from '../components/Common';
+import { Avatar, avatarOf, avatarByName, CheckBox, StatusPill, checkedBy } from '../components/Common';
 import { AddTaskForm } from '../components/AddTaskForm';
 import { FieldInput } from '../components/FieldInput';
 import { NotesMenu, NotesSheet, type NotesKind } from '../components/Notes';
 import { Calendar, ChevronDown, ChevronUp, Note, Trash, Check } from '../components/Icons';
 import { Amount, Toggle, defaultCurrency, rateNote } from '../components/Money';
-import { TaskPanel, fieldsOf, reimbOfTask } from '../components/TaskPanel';
+import { TaskPanel, FillProgress, fieldsOf, reimbOfTask } from '../components/TaskPanel';
 import { Progress, progressOf, blockedByItems } from '../components/Checklist';
 import { ReimbursementTab, pendingLabel } from './Reimbursement';
 import { TaskDetailsTab } from './TaskDetails';
@@ -43,7 +43,7 @@ export function ProjectDetail({ s, projectId, tab, setTab, onDeleted }: {
       <div className="rhead">
         <div className="row"><h1>{p.name}</h1><StatusPill status={statusOf(s, p)} theme="light" />
           <span className="rmeta">
-            {pic && <><Avatar initials={initialsOf(pic)} size="sm" />PIC: <b>{pic}</b></>}
+            {pic && <><Avatar initials={initialsOf(pic)} url={avatarByName(s, pic)} size="sm" />PIC: <b>{pic}</b></>}
             {domain && <><span className="dotsep" />{domain}</>}
             {p.deadline && <><span className="dotsep" />Deadline {shortDate(p.deadline, true)}</>}
             <span className="dotsep" />{done.length} of {all.length} done
@@ -90,7 +90,7 @@ export function ProjectDetail({ s, projectId, tab, setTab, onDeleted }: {
 }
 
 function Row({ s, t, exp, panel, setPanel }: { s: Snapshot; t: Task; exp?: boolean; panel: 'detail' | 'ticked' | null; setPanel: (m: 'detail' | 'ticked' | null) => void }) {
-  const cb = checkedBy(s, t.approvedByMemberId, t.approvedAt);
+  const cb = checkedBy(s, t.approvedByMemberId, t.approvedAt, t.approvedByName);
   const [editNote, setEditNote] = useState(false); const [renaming, setRenaming] = useState(false); const [editing, setEditing] = useState(false);
   const [note, setNote] = useState(t.notes);
   const saveNote = () => { setEditNote(false); if (note !== t.notes) void actions.updateTask(t.id, { notes: note }); };
@@ -105,10 +105,14 @@ function Row({ s, t, exp, panel, setPanel }: { s: Snapshot; t: Task; exp?: boole
         {renaming ? <RenameInput t={t} onDone={() => setRenaming(false)} /> :
         <button className="tt expbtn" title="Click to expand · double-click to rename" onClick={() => setPanel(panel ? null : 'detail')} onDoubleClick={(e) => { e.preventDefault(); setRenaming(true); }}>
           <span className="chev">{panel ? '▾' : '▸'}</span>{t.title}{platformOf(s, t) && <span className="platpill">{platformOf(s, t)}</span>}{nf > 0 && <em className="nf">{nf} field{nf > 1 ? 's' : ''}</em>}{pr.n > 0 && !t.done && <em className="cstat">In progress · {pr.d}/{pr.n}</em>}<Progress d={pr.d} n={pr.n} /></button>}
-        {!renaming && <button className="rowedit" title="Edit task" aria-label={`Edit ${t.title}`} onClick={() => setEditing(!editing)}>✎</button>}
+        <span className="racts" data-ractions>
+          <span className="rfill"><FillProgress s={s} t={t} /></span>
+          <button className={`rdet ${nf ? '' : 'nofields'} ${panel ? 'on' : ''}`} title={nf ? `Task detail · ${nf} field${nf > 1 ? 's' : ''}` : 'Task detail'} aria-label={`Task detail for ${t.title}`} onClick={() => setPanel(panel ? null : 'detail')}>▤</button>
+          {s.me.role === 'admin' ? <button className="rowedit" title="Edit task" aria-label={`Edit ${t.title}`} onClick={() => setEditing(!editing)}>✎</button> : <span className="rowedit-sp" />}
+        </span>
         <span className="cdue">{t.done ? <span className="when">{shortDate(t.dueDate ?? t.doneAt)}</span>
           : t.dueDate ? <span className={`due ${dueSoon(t.dueDate) ? 'soon' : ''}`}>{dueSoon(t.dueDate) ? <b className="bang">!</b> : <Calendar />}Due {shortDate(t.dueDate)}</span> : <span className="none">—</span>}</span>
-        <span className="who">{t.done && cb.m ? <><Avatar initials={cb.m.initials} size="sm" /><span className="cbt" title={`Checked by ${cb.m.name}`}>{cb.text}</span></>
+        <span className="who">{t.done && cb.m ? <><Avatar initials={cb.m.initials} url={cb.m.avatarUrl} size="sm" /><span className="cbt" title={`Checked by ${cb.m.name}`}>{cb.text}</span></>
           : <span className="none">—</span>}</span>
         <button className={`nc ${editNote ? 'ed' : t.notes ? '' : 'empty'}`} onClick={() => { setNote(t.notes); setEditNote(!editNote); }} title="Input notes">
           {editNote ? <><Note />Editing note…</> : t.notes ? <><Note />{t.notes}</> : '—'}</button>
